@@ -1,0 +1,65 @@
+name: Bug report
+description: Something doesn't work as expected
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a bug! Waveform is early WIP, so details help a lot.
+
+        ⚠️ **Do not paste your SoundCloud token.** Logs exported from the in-app
+        `/logs` (Talker) screen can contain your `oauth_token` — scrub any
+        `Authorization: OAuth …` / `2-…` values before attaching.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+      placeholder: |
+        1. Logged in, opened my Library → Likes
+        2. Tapped a track
+        3. Expected: it plays. Actual: no sound / it skipped / …
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS
+        - Windows
+        - Linux
+    validations:
+      required: true
+  - type: dropdown
+    id: auth
+    attributes:
+      label: Were you logged in?
+      options:
+        - Logged in (my account)
+        - Anonymous / not logged in
+        - Mock mode (--dart-define=MOCK=true)
+    validations:
+      required: true
+  - type: input
+    id: flutter
+    attributes:
+      label: Flutter version
+      description: Output of `flutter --version` (first line)
+      placeholder: "Flutter 3.x.x • channel stable"
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs (token-scrubbed)
+      description: Paste relevant lines from the in-app `/logs` screen. Remember to remove any tokens.
+      render: text
+    validations:
+      required: false
+  - type: textarea
+    id: extra
+    attributes:
+      label: Screenshots / anything else
+    validations:
+      required: false

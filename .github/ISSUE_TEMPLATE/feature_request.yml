@@ -1,0 +1,40 @@
+name: Feature request
+description: Suggest an idea or improvement
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before suggesting UI, please skim the **design contract** in
+        [`CLAUDE.md`](../CLAUDE.md): dark minimal + light web3 accents, brutalist
+        3px radii / 0.5px borders, Inter for text and JetBrains Mono for all
+        numbers, with acid orange (`#FF5500`) used only for active elements.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: The user need or pain point behind the request.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What should happen? Include where it lives (screen / component) if relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: false
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      options:
+        - label: This fits Waveform's "minimal SoundCloud client" scope (not a major new product area)
+          required: false
+        - label: I checked the Roadmap in the README and this isn't already planned
+          required: false
