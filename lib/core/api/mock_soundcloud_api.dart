@@ -1,0 +1,113 @@
+import '../../shared/mock/mock_data.dart';
+import '../../shared/models/artist.dart';
+import '../../shared/models/feed_post.dart';
+import 'soundcloud_api.dart';
+
+/// Реализация на моках (текущий этап). Лёгкая задержка имитирует сеть,
+/// чтобы UI сразу проектировался под async/loading-состояния.
+class MockSoundcloudApi implements SoundcloudApi {
+  const MockSoundcloudApi();
+
+  Future<T> _delayed<T>(T value) =>
+      Future.delayed(const Duration(milliseconds: 120), () => value);
+
+  @override
+  Future<HomeData> home() => _delayed((
+        stream: Mock.stream,
+        shelves: const [
+          (title: 'more of what you like', items: Mock.moreYouLike),
+          (title: 'recently played', items: Mock.recentlyPlayed),
+          (title: 'mixed for you', items: Mock.mixedForYou),
+          (title: 'albums for you', items: Mock.albums),
+          (title: 'discover with stations', items: Mock.stations),
+          (title: 'liked by', items: Mock.likedBy),
+          (title: 'made for you', items: Mock.madeForYou),
+          (title: 'new crew, suggested for you', items: Mock.newCrew),
+        ],
+      ));
+
+  @override
+  Future<LibraryData> library() => _delayed((
+        recentlyPlayed: Mock.recentlyPlayed,
+        likes: Mock.likes,
+        playlists: Mock.playlists,
+        albums: Mock.albums,
+        stations: Mock.stations,
+        following: Mock.newCrew,
+        history: Mock.listeningHistory,
+      ));
+
+  @override
+  Future<List<FeedPost>> feed() => _delayed(Mock.feed);
+
+  @override
+  Future<TrackDetail> trackDetail(String id) {
+    final t = Mock.trackById(id);
+    return _delayed((
+      track: t,
+      comments: Mock.commentsFor(t),
+      related: Mock.related(id),
+    ));
+  }
+
+  @override
+  Future<ArtistProfile> artistProfile(String handle) {
+    final h = handle.hashCode.abs();
+    return _delayed((
+      artist: Artist(
+        id: handle,
+        handle: handle,
+        followers: 1200 + h % 80000,
+        trackCount: 12 + h % 120,
+        verified: true,
+      ),
+      tracks: Mock.tracks,
+      albums: Mock.albums,
+      playlists: Mock.playlists,
+    ));
+  }
+
+  @override
+  Future<RailData> rail() => _delayed((
+        me: null,
+        likes: Mock.tracks.take(6).toList(),
+        history: Mock.listeningHistory,
+      ));
+
+  @override
+  Future<SearchResults> search(String query) {
+    final q = query.toLowerCase();
+    bool match(String s) => s.toLowerCase().contains(q);
+    return _delayed((
+      tracks: Mock.tracks
+          .where((t) => match(t.title) || match(t.artist))
+          .toList(),
+      artists: Mock.artistsToFollow.where((a) => match(a.name)).toList(),
+      playlists: Mock.playlists.where((p) => match(p.title)).toList(),
+    ));
+  }
+
+  @override
+  Future<PlaylistDetail> playlist(String id) {
+    final p = Mock.playlists.firstWhere((c) => c.id == id,
+        orElse: () => Mock.playlists.first);
+    return _delayed((playlist: p, tracks: Mock.tracks));
+  }
+
+  /// Мок-треки не проигрываемы — реального аудио нет.
+  @override
+  Future<String?> resolveStreamUrl(String transcodingUrl) async => null;
+
+  /// В мок-режиме любой непустой токен «валиден» (paste-fallback в тестах).
+  @override
+  Future<bool> verifyToken(String token) async => token.isNotEmpty;
+
+  /// Первые пару мок-треков считаем «лайкнутыми» — для UI-подсветки.
+  @override
+  Future<Set<String>> likedTrackIds() async =>
+      {for (final t in Mock.tracks.take(2)) t.id};
+
+  @override
+  Future<LikeOutcome> setLiked(String trackId, bool liked) async =>
+      LikeOutcome.ok;
+}
