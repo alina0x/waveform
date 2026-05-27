@@ -6,11 +6,13 @@ import '../../app/theme/app_theme.dart';
 import '../../app/theme/colors.dart';
 import '../../core/api/feeds.dart';
 import '../../core/api/soundcloud_api.dart';
+import '../../shared/action_feedback.dart';
 import '../../shared/format.dart';
 import '../../shared/models/comment.dart';
 import '../../shared/models/track.dart';
 import '../../shared/widgets/async_view.dart';
 import '../../shared/widgets/cover_art.dart';
+import '../../shared/widgets/go_plus_badge.dart';
 import '../../shared/widgets/pressable.dart';
 import '../../shared/widgets/section_header.dart';
 import '../../shared/widgets/track_row.dart';
@@ -142,14 +144,21 @@ class _Hero extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Pressable(
-                    onTap: onPlay,
+                    onTap: track.goPlus ? () => showGoPlusNotice(context) : onPlay,
                     child: Container(
                       width: 56,
                       height: 56,
-                      decoration: const BoxDecoration(
-                          color: AppColors.acid, shape: BoxShape.circle),
-                      child: Icon(isPlaying ? Icons.pause : Icons.play_arrow,
-                          color: AppColors.bg, size: 32),
+                      decoration: BoxDecoration(
+                          color: track.goPlus
+                              ? AppColors.surface2
+                              : AppColors.acid,
+                          shape: BoxShape.circle),
+                      child: Icon(
+                          track.goPlus
+                              ? Icons.lock
+                              : (isPlaying ? Icons.pause : Icons.play_arrow),
+                          color: track.goPlus ? AppColors.textLow : AppColors.bg,
+                          size: track.goPlus ? 26 : 32),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -157,12 +166,20 @@ class _Hero extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Pressable(
-                          onTap: () => context.go(
-                              '/artist/${Uri.encodeComponent(track.artistHandle)}'),
-                          child: Text(track.artist,
-                              style: AppTheme.mono(
-                                  size: 12, color: AppColors.textMid)),
+                        Row(
+                          children: [
+                            Pressable(
+                              onTap: () => context.go(
+                                  '/artist/${Uri.encodeComponent(track.artistHandle)}'),
+                              child: Text(track.artist,
+                                  style: AppTheme.mono(
+                                      size: 12, color: AppColors.textMid)),
+                            ),
+                            if (track.goPlus) ...[
+                              const SizedBox(width: 10),
+                              const GoPlusBadge(),
+                            ],
+                          ],
                         ),
                         const SizedBox(height: 4),
                         Text(track.title,

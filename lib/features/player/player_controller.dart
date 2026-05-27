@@ -10,6 +10,10 @@ import '../../core/audio/audio_engine.dart';
 import '../../core/log/talker.dart';
 import '../../shared/models/track.dart';
 
+/// Событие «трек не проигрался» — для всплывающего уведомления в UI.
+/// [seq] растёт с каждым событием, чтобы listener срабатывал и на повтор.
+typedef Unplayable = ({int seq, String title, bool goPlus});
+
 /// Состояние плеера. Прогресс/признак «играет» приходят из [AudioEngine]
 /// (just_audio); очередь next/previous — реальный список с экрана.
 class PlayerState {
@@ -21,6 +25,7 @@ class PlayerState {
     this.repeat = false,
     this.liked = false,
     this.volume = 1.0,
+    this.unplayable,
   });
 
   final Track? track;
@@ -30,6 +35,9 @@ class PlayerState {
   final bool repeat;
   final bool liked;
   final double volume;
+
+  /// Последний непроигравшийся трек (GO+/недоступен) — UI показывает уведомление.
+  final Unplayable? unplayable;
 
   /// Доля воспроизведённого (0..1) — для оранжевой части waveform.
   double get progress {
@@ -46,6 +54,7 @@ class PlayerState {
     bool? repeat,
     bool? liked,
     double? volume,
+    Unplayable? unplayable,
   }) =>
       PlayerState(
         track: track ?? this.track,
@@ -55,6 +64,7 @@ class PlayerState {
         repeat: repeat ?? this.repeat,
         liked: liked ?? this.liked,
         volume: volume ?? this.volume,
+        unplayable: unplayable ?? this.unplayable,
       );
 }
 
@@ -180,16 +190,21 @@ class PlayerController extends Notifier<PlayerState> {
     _markUnplayable(token, track);
   }
 
-  /// Помечает текущий трек непроигрываемым и (в очереди) перескакивает на
-  /// следующий — но не более [_maxDeadSkips] подряд, чтобы цепочка мёртвых/GO+
-  /// треков не пролистала всю очередь.
+  /// Помечает текущий трек непроигрываемым (с видимой причиной — GO+/недоступен)
+  /// и в очереди перескакивает на следующий, но не более [_maxDeadSkips] подряд,
+  /// чтобы цепочка мёртвых/GO+ треков не пролистала всю очередь.
   void _markUnplayable(int token, Track track) {
     if (token != _loadToken || state.track?.id != track.id) return;
-    state = state.copyWith(isPlaying: false);
+    state = state.copyWith(
+      isPlaying: false,
+      unplayable: (seq: ++_unplayableSeq, title: track.title, goPlus: track.goPlus),
+    );
     if (_queue.length > 1 && ++_deadStreak < _maxDeadSkips) {
       next();
     }
   }
+
+  int _unplayableSeq = 0;
 
   void setVolume(double volume) {
     final v = volume.clamp(0.0, 1.0);
