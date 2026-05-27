@@ -7,6 +7,7 @@ import 'package:waveform_app/core/api/dto/playlist_dto.dart';
 import 'package:waveform_app/core/api/dto/track_dto.dart';
 import 'package:waveform_app/core/api/mappers.dart';
 import 'package:waveform_app/shared/models/feed_post.dart';
+import 'package:waveform_app/shared/models/track.dart';
 
 /// Фикстуры смоделированы по реальной форме api-v2 (референс: yt-dlp soundcloud.py
 /// + публичные гисты эндпоинтов). Заменить на снятые реальные ответы при интеграции.
@@ -131,6 +132,21 @@ void main() {
       final t = TrackDto.fromJson(jsonDecode(json)).toDomain();
       expect(t.streamCandidates,
           ['https://x/stream/hls', 'https://x/stream/progressive']);
+    });
+
+    test('flags GO+ tracks (SNIP / SUB_HIGH_TIER) as goPlus', () {
+      Track parse(String policy, String mon) => TrackDto.fromJson({
+            'id': 1,
+            'title': 't',
+            'duration': 1000,
+            'user': {'id': 1, 'username': 'u', 'permalink': 'u'},
+            'policy': policy,
+            'monetization_model': mon,
+          }).toDomain();
+      expect(parse('ALLOW', 'AD_SUPPORTED').goPlus, false);
+      expect(parse('SNIP', 'SUB_HIGH_TIER').goPlus, true);
+      expect(parse('ALLOW', 'SUB_HIGH_TIER').goPlus, true);
+      expect(parse('SNIP', 'NOT_APPLICABLE').goPlus, true);
     });
 
     test('maps to domain Track', () {

@@ -147,6 +147,12 @@ class PlayerController extends Notifier<PlayerState> {
   /// отдаёт 404 — тогда играем следующий источник. Мок/не streamable — тихо.
   Future<void> _load(Track track) async {
     final token = ++_loadToken;
+    // GO+ (платная подписка): полный поток зашифрован — проиграть нечем.
+    if (track.goPlus) {
+      ref.read(talkerProvider).warning('GO+ only (subscription): ${track.title}');
+      _markUnplayable(token, track);
+      return;
+    }
     final candidates = track.streamCandidates;
     // Нет источников (мок/не streamable) — играть нечего; UI оптимистичен,
     // реальный признак «играет» в live приходит из engine.playingStream.
@@ -170,11 +176,16 @@ class PlayerController extends Notifier<PlayerState> {
       }
     }
     // Все кандидаты исчерпаны — DRM-only/удалённый трек, проиграть нечем.
-    if (token != _loadToken || state.track?.id != track.id) return;
     ref.read(talkerProvider).warning('no playable stream: ${track.title}');
+    _markUnplayable(token, track);
+  }
+
+  /// Помечает текущий трек непроигрываемым и (в очереди) перескакивает на
+  /// следующий — но не более [_maxDeadSkips] подряд, чтобы цепочка мёртвых/GO+
+  /// треков не пролистала всю очередь.
+  void _markUnplayable(int token, Track track) {
+    if (token != _loadToken || state.track?.id != track.id) return;
     state = state.copyWith(isPlaying: false);
-    // Авто-переход на следующий (мёртвый трек не должен «вешать» очередь),
-    // но не больше _maxDeadSkips подряд — иначе пролистает всю очередь.
     if (_queue.length > 1 && ++_deadStreak < _maxDeadSkips) {
       next();
     }

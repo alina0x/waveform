@@ -53,6 +53,7 @@ class TrackDto {
     this.commentCount = 0,
     this.streamable = true,
     this.policy,
+    this.monetizationModel,
     this.transcodings = const [],
   });
 
@@ -72,7 +73,14 @@ class TrackDto {
   final int commentCount;
   final bool streamable;
   final String? policy; // ALLOW / SNIP / BLOCK
+  final String? monetizationModel; // NOT_APPLICABLE / AD_SUPPORTED / SUB_HIGH_TIER
   final List<TranscodingDto> transcodings;
+
+  /// GO+ (платная подписка): полный поток зашифрован, бесплатно — только сниппет.
+  /// Такие треки наш клиент проиграть не может. Признаки: `policy == SNIP`
+  /// или `monetization_model == SUB_HIGH_TIER`.
+  bool get isGoPlus =>
+      policy == 'SNIP' || monetizationModel == 'SUB_HIGH_TIER';
 
   factory TrackDto.fromJson(Map<String, dynamic> j) {
     final media = asMap(j['media']);
@@ -94,6 +102,7 @@ class TrackDto {
       commentCount: asInt(j['comment_count']),
       streamable: asBool(j['streamable'], true),
       policy: j['policy'] as String?,
+      monetizationModel: j['monetization_model'] as String?,
       transcodings: asMapList(media['transcodings'])
           .map(TranscodingDto.fromJson)
           .toList(),

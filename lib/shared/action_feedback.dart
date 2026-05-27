@@ -33,3 +33,18 @@ void showLikeOutcome(BuildContext context, LikeOutcome outcome) {
           : null,
     ));
 }
+
+/// Уведомление, что трек доступен только по подписке GO+ и не проигрывается.
+void showGoPlusNotice(BuildContext context) {
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: AppColors.surface2,
+      duration: const Duration(seconds: 3),
+      content: Text(
+        'GO+ only — needs a SoundCloud GO+ subscription to play',
+        style: AppTheme.mono(size: 12, color: AppColors.textHi),
+      ),
+    ));
+}

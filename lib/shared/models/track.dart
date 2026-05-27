@@ -15,6 +15,7 @@ class Track {
     this.artistPermalink,
     this.coverUrl,
     this.streamCandidates = const [],
+    this.goPlus = false,
     this.minted = false,
     this.genre = 'electronic',
     this.postedAt = '3 days ago',
@@ -57,6 +58,10 @@ class Track {
   String? get streamUrl =>
       streamCandidates.isEmpty ? null : streamCandidates.first;
 
+  /// GO+ трек (платная подписка SoundCloud): полный поток зашифрован,
+  /// наш клиент его не проигрывает — помечаем как unplayable с причиной.
+  final bool goPlus;
+
   /// web3-маркер: трек заминчен как NFT.
   final bool minted;
 
@@ -74,6 +79,7 @@ class Track {
         artistPermalink: artistPermalink,
         coverUrl: coverUrl,
         streamCandidates: streamCandidates,
+        goPlus: goPlus,
         minted: minted ?? this.minted,
         genre: genre,
         postedAt: postedAt,

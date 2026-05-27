@@ -10,6 +10,7 @@ import '../action_feedback.dart';
 import '../format.dart';
 import '../models/track.dart';
 import 'cover_art.dart';
+import 'go_plus_badge.dart';
 import 'pressable.dart';
 import 'waveform_view.dart';
 
@@ -32,6 +33,7 @@ class TrackRow extends ConsumerWidget {
     final isPlaying = isCurrent && player.isPlaying;
     final progress = isCurrent ? player.progress : 0.0;
     final liked = ref.watch(likedTracksProvider).contains(track.id);
+    final goPlus = track.goPlus;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -44,14 +46,21 @@ class TrackRow extends ConsumerWidget {
       child: Row(
         children: [
           Pressable(
-            onTap: () => isCurrent ? c.toggle() : c.play(track, queue: queue),
+            onTap: goPlus
+                ? () => showGoPlusNotice(context)
+                : () => isCurrent ? c.toggle() : c.play(track, queue: queue),
             child: Container(
               width: 36,
               height: 36,
-              decoration: const BoxDecoration(
-                  color: AppColors.acid, shape: BoxShape.circle),
-              child: Icon(isPlaying ? Icons.pause : Icons.play_arrow,
-                  color: AppColors.bg, size: 20),
+              decoration: BoxDecoration(
+                  color: goPlus ? AppColors.surface2 : AppColors.acid,
+                  shape: BoxShape.circle),
+              child: Icon(
+                  goPlus
+                      ? Icons.lock
+                      : (isPlaying ? Icons.pause : Icons.play_arrow),
+                  color: goPlus ? AppColors.textLow : AppColors.bg,
+                  size: goPlus ? 16 : 20),
             ),
           ),
           const SizedBox(width: 12),
@@ -66,15 +75,25 @@ class TrackRow extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Pressable(
-                  onTap: () => context.go('/track/${track.id}'),
-                  child: Text(track.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textHi)),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Pressable(
+                        onTap: () => context.go('/track/${track.id}'),
+                        child: Text(track.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textHi)),
+                      ),
+                    ),
+                    if (goPlus) ...[
+                      const SizedBox(width: 8),
+                      const GoPlusBadge(),
+                    ],
+                  ],
                 ),
                 const SizedBox(height: 2),
                 Pressable(

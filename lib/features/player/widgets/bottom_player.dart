@@ -7,6 +7,7 @@ import '../../../app/theme/colors.dart';
 import '../../../shared/action_feedback.dart';
 import '../../../shared/format.dart';
 import '../../../shared/widgets/cover_art.dart';
+import '../../../shared/widgets/go_plus_badge.dart';
 import '../../../shared/widgets/pressable.dart';
 import '../../../shared/widgets/waveform_view.dart';
 import '../player_controller.dart';
@@ -63,20 +64,30 @@ class BottomPlayer extends ConsumerWidget {
             ),
             const SizedBox(width: 12),
             SizedBox(
-              width: 150,
+              width: 160,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Pressable(
-                    onTap: () => context.go('/track/${track.id}'),
-                    child: Text(track.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textHi)),
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Pressable(
+                          onTap: () => context.go('/track/${track.id}'),
+                          child: Text(track.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textHi)),
+                        ),
+                      ),
+                      if (track.goPlus) ...[
+                        const SizedBox(width: 6),
+                        const GoPlusBadge(),
+                      ],
+                    ],
                   ),
                   const SizedBox(height: 2),
                   Pressable(
