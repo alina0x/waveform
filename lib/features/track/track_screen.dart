@@ -1,7 +1,4 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -12,6 +9,7 @@ import '../../core/api/liked_tracks.dart';
 import '../../core/api/reposted_tracks.dart';
 import '../../core/api/soundcloud_api.dart';
 import '../../shared/action_feedback.dart';
+import '../../shared/url_share.dart';
 import '../../shared/format.dart';
 import '../../shared/models/comment.dart';
 import '../../shared/models/track.dart';
@@ -311,9 +309,8 @@ class _ActionBarState extends ConsumerState<_ActionBar> {
 /// Копирует permalink трека в системный clipboard; уведомляет тостом.
 Future<void> _share(BuildContext context, Track track) async {
   final url = track.permalinkUrl;
-  final messenger = ScaffoldMessenger.of(context);
   if (url == null || url.isEmpty) {
-    messenger.showSnackBar(SnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       behavior: SnackBarBehavior.floating,
       backgroundColor: AppColors.surface2,
       content: Text("no shareable link for this track",
@@ -321,28 +318,7 @@ Future<void> _share(BuildContext context, Track track) async {
     ));
     return;
   }
-  await Clipboard.setData(ClipboardData(text: url));
-  messenger
-    ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(
-      behavior: SnackBarBehavior.floating,
-      backgroundColor: AppColors.surface2,
-      content: Text('link copied to clipboard',
-          style: AppTheme.mono(size: 12, color: AppColors.textHi)),
-    ));
-}
-
-/// Открывает URL в системном браузере без url_launcher (нативные shell-команды).
-Future<void> _openUrlExternal(String url) async {
-  try {
-    if (Platform.isMacOS) {
-      await Process.run('open', [url]);
-    } else if (Platform.isWindows) {
-      await Process.run('cmd', ['/c', 'start', '', url]);
-    } else if (Platform.isLinux) {
-      await Process.run('xdg-open', [url]);
-    }
-  } catch (_) {}
+  await copyToClipboard(context, url);
 }
 
 /// Меню «more»: copy link + open on SoundCloud. Disabled, если permalink null.
@@ -378,19 +354,9 @@ class _MoreAction extends StatelessWidget {
       onSelected: (v) async {
         if (url == null) return;
         if (v == 'copy') {
-          await Clipboard.setData(ClipboardData(text: url));
-          if (context.mounted) {
-            ScaffoldMessenger.of(context)
-              ..hideCurrentSnackBar()
-              ..showSnackBar(SnackBar(
-                behavior: SnackBarBehavior.floating,
-                backgroundColor: AppColors.surface2,
-                content: Text('link copied to clipboard',
-                    style: AppTheme.mono(size: 12, color: AppColors.textHi)),
-              ));
-          }
+          if (context.mounted) await copyToClipboard(context, url);
         } else if (v == 'open') {
-          await _openUrlExternal(url);
+          await openExternalUrl(url);
         }
       },
       child: const Padding(

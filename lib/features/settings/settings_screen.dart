@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,6 +7,7 @@ import '../../app/theme/colors.dart';
 import '../../core/api/feeds.dart';
 import '../../core/api/soundcloud_auth.dart';
 import '../../core/cache/image_cache.dart';
+import '../../shared/url_share.dart';
 import '../../shared/widgets/cover_art.dart';
 import '../../shared/widgets/pressable.dart';
 import '../../shared/widgets/section_header.dart';
@@ -255,26 +254,13 @@ class _AboutSection extends StatelessWidget {
                 child: Text('source code',
                     style: AppTheme.mono(size: 12, color: AppColors.textMid)),
               ),
-              _Button(label: 'open ↗', onTap: () => _openUrl(_kRepoUrl)),
+              _Button(label: 'open ↗', onTap: () => openExternalUrl(_kRepoUrl)),
             ],
           ),
         ],
       ),
     );
   }
-}
-
-/// Открывает URL в системном браузере без url_launcher (нативные shell-команды).
-Future<void> _openUrl(String url) async {
-  try {
-    if (Platform.isMacOS) {
-      await Process.run('open', [url]);
-    } else if (Platform.isWindows) {
-      await Process.run('cmd', ['/c', 'start', '', url]);
-    } else if (Platform.isLinux) {
-      await Process.run('xdg-open', [url]);
-    }
-  } catch (_) {}
 }
 
 /// Карточка-секция: моно-заголовок + содержимое в кадре с тонким бордером.
