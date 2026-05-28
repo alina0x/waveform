@@ -107,34 +107,40 @@ lib/
   ставит `liked` из множества при `play`, `toggleLike` пишет в API (PUT/DELETE
   `/users/{me}/track_likes/{id}`) оптимистично с откатом. NB: write-эндпоинт не проверен
   на живом аккаунте — при провале деградирует до session-local + лог.
-- **Progressive-фолбэк стрима.** `Track.streamCandidates` несёт все транскодинги
-  (HLS → progressive); плеер перебирает их, пока один не заиграет — лечит «no playable
-  stream» у треков с протухшей HLS-ссылкой.
+- **Progressive-фолбэк стрима + GO+ detection.** `Track.streamCandidates` несёт
+  все транскодинги (HLS → progressive); плеер перебирает их, пока один не
+  заиграет. Зашифрованные (`cbc-/ctr-encrypted-hls`) транскодинги отсеиваются
+  (just_audio их не играет). GO+ треки определяются по наличию encrypted-
+  транскодинга (надёжный сигнал, работает из любого payload) + `policy=='SNIP'`
+  / `monetization_model=='SUB_HIGH_TIER'`. В UI: `🔒 GO+` badge в `TrackRow`,
+  bottom player, track-detail hero; tap → notice «GO+ only». Любая неудачная
+  загрузка триггерит видимое уведомление (AppShell `ref.listen`), не silent skip.
+- **Tiles ↔ list переключатель.** `viewModeProvider` + `ViewToggle` + новый
+  `CollectionRow` — в library + search/playlists. Персистится в `prefs.json`.
+- **Экран /settings.** Account (avatar + sign in/out), view (тогл), cache
+  (clear cover cache), logs (→ /logs), about (version + GitHub-link). Иконка-
+  шестерёнка в TopBar.
+- **Shuffle всей коллекции на плейлисте.** `SoundcloudApi.allPlaylistTracks(id)`
+  гидрит весь сет (батчи `/tracks?ids=…`); кнопка «shuffle all» рядом с «play».
+- **Track-page actions wired.** Like / repost (новый `repostedTracksProvider`,
+  PUT/DELETE `/users/{me}/track_reposts/{id}`) / share (copy permalink) / more
+  (popup: copy / open on SoundCloud).
+- **File-based token persistence.** `lib/core/storage/token_store.dart` +
+  `prefs_store.dart` в `getApplicationSupportDirectory()` (вместо
+  `flutter_secure_storage`, который без development-team signing на macOS
+  ломал сборку и/или не персистил).
 
 ## Идеи / бэклог
-- **Tiles ↔ list переключатель.** Везде, где сейчас сетка плиток (library: likes/
-  playlists/albums/stations/following; search/playlists; возможно полки на home —
-  стационарные секции, не горизонтальные карусели), добавить тогл «вид»: tiles
-  (как сейчас) ↔ compact list (CollectionRow). Apple-like, минималистично — два
-  маленьких иконных переключателя где-то возле SectionHeader; глобальная
-  пользовательская настройка `viewModeProvider` (ViewMode.tiles / list),
-  персистится. Список-вариант — плотные строки 56–72px: cover + title +
-  subtitle (mono) + counts (mono справа).
-- **Экран настроек.** Отдельный route `/settings`: тема (тёмная/светлая, когда добавим
-  светлую), аккаунт (логин/логаут, текущий юзер), включение/выключение Last.fm-скробблинга
-  + его авторизация, качество стрима (HLS/progressive), поведение плеера (crossfade, gapless),
-  доступ к экрану логов (`/logs`), очистка кэша обложек, версия/about. Точка входа — иконка
-  в TopBar или пункт в меню аккаунта.
 - **Last.fm-скробблинг (встроенный).** Своя фишка против web-SoundCloud: при прослушивании
   отправлять `track.updateNowPlaying` + `track.scrobble` в Last.fm (scrobble после ~50% трека
   или 4 минут — по правилам Last.fm). Нужен ключ Last.fm API + auth-токен пользователя
   (`auth.getMobileSession`/web-flow), настройка вкл/выкл в профиле. Скробблер слушает
   `PlayerController` (трек сменился / достиг порога). Хранить креды в локальном
   файловом сторе рядом с SoundCloud-токеном (см. `lib/core/storage/`).
-- **True-shuffle по всей коллекции.** Сейчас shuffle честный (полный охват без повторов в цикле),
-  но только по загруженной очереди — как у SoundCloud (где мешает лишь подгруженное в infinite
-  scroll). Чтобы перекрыть это ограничение, перед перемешиванием догружать всю коллекцию
-  (пагинация `/playlists/{id}` / `/me/likes/tracks` с `offset`/`next_href`) и тасовать её целиком.
+- **True-shuffle по всей коллекции (likes).** Для плейлиста сделано
+  (`allPlaylistTracks` + `_ShuffleAll`); остаётся «shuffle all likes» —
+  пагинация `/users/{id}/track_likes?next_href=…`, UI-точка входа на library/
+  likes (кнопка над сеткой).
 
 ## Договорённости
 - Feature-first структура
