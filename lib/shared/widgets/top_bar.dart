@@ -74,6 +74,15 @@ class TopBar extends ConsumerWidget {
             ),
             const SizedBox(width: 14),
           ],
+          Pressable(
+            onTap: () => context.push('/settings'),
+            child: const Tooltip(
+              message: 'settings',
+              child: Icon(Icons.settings_outlined,
+                  size: 16, color: AppColors.textLow),
+            ),
+          ),
+          const SizedBox(width: 14),
           const _Account(),
         ],
       ),
