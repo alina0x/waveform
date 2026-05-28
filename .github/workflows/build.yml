@@ -1,0 +1,35 @@
+name: macOS build check
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'lib/**'
+      - 'macos/**'
+      - 'pubspec.yaml'
+      - 'pubspec.lock'
+      - '.github/workflows/build.yml'
+
+concurrency:
+  group: build-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  macos-debug-build:
+    name: Build macOS (debug, unsigned)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # Debug build — no signing required. Catches plugin / entitlement breakage.
+      - name: Build macOS debug
+        run: flutter build macos --debug --no-tree-shake-icons

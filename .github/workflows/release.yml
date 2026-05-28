@@ -1,0 +1,205 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  # ── macOS: build → sign with Developer ID Application → notarize → staple → DMG ──
+  macos:
+    name: Build macOS (signed + notarized)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Cache pub
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: pub-macos-${{ hashFiles('pubspec.lock') }}
+          restore-keys: pub-macos-
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Import Developer ID signing certificate
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.APPLE_CERT_P12_BASE64 }}
+          p12-password: ${{ secrets.APPLE_CERT_PASSWORD }}
+          keychain-password: ${{ secrets.KEYCHAIN_PASSWORD }}
+
+      - name: Build macOS release
+        env:
+          DEVELOPMENT_TEAM: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          flutter build macos --release \
+            --dart-define=APP_VERSION=${{ github.ref_name }}
+
+      - name: Codesign .app (Developer ID Application)
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          APP="build/macos/Build/Products/Release/waveform_app.app"
+          IDENTITY=$(security find-identity -v -p codesigning | \
+            grep "Developer ID Application" | head -1 | awk -F'"' '{print $2}')
+          echo "Signing with: $IDENTITY"
+          codesign --deep --force --options runtime --timestamp \
+            --sign "$IDENTITY" \
+            --entitlements macos/Runner/Release.entitlements \
+            "$APP"
+          codesign --verify --strict --deep --verbose=2 "$APP"
+
+      - name: Notarize
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          APP="build/macos/Build/Products/Release/waveform_app.app"
+          ZIP="$RUNNER_TEMP/waveform_app.zip"
+          # zip preserving symlinks/metadata for notarization
+          /usr/bin/ditto -c -k --keepParent "$APP" "$ZIP"
+          xcrun notarytool submit "$ZIP" \
+            --apple-id "$APPLE_ID" \
+            --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_PASSWORD" \
+            --wait
+
+      - name: Staple notarization ticket
+        run: |
+          APP="build/macos/Build/Products/Release/waveform_app.app"
+          xcrun stapler staple "$APP"
+          xcrun stapler validate "$APP"
+
+      - name: Build DMG
+        run: |
+          APP="build/macos/Build/Products/Release/waveform_app.app"
+          DMG="waveform-macos-${{ github.ref_name }}.dmg"
+          # Stage the .app + Applications symlink in a temp folder, then make DMG.
+          STAGE="$RUNNER_TEMP/dmg-stage"
+          mkdir -p "$STAGE"
+          cp -R "$APP" "$STAGE/"
+          ln -s /Applications "$STAGE/Applications"
+          hdiutil create -format UDZO -fs HFS+ \
+            -volname "Waveform ${{ github.ref_name }}" \
+            -srcfolder "$STAGE" "$DMG"
+          ls -lh "$DMG"
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg
+          path: waveform-macos-${{ github.ref_name }}.dmg
+
+  # ── Windows: unsigned zip (EV cert is backlog) ──
+  windows:
+    name: Build Windows (unsigned)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Windows release
+        run: flutter build windows --release
+
+      - name: Package Windows zip
+        shell: pwsh
+        run: |
+          $zip = "waveform-windows-${{ github.ref_name }}.zip"
+          Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath $zip
+          Get-Item $zip | Select-Object Name, Length
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-zip
+          path: waveform-windows-${{ github.ref_name }}.zip
+
+  # ── Linux: unsigned tar.gz ──
+  linux:
+    name: Build Linux (unsigned)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install linux build deps
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y \
+            ninja-build libgtk-3-dev libsecret-1-dev libjsoncpp-dev
+
+      - name: Install pub dependencies
+        run: flutter pub get
+
+      - name: Build Linux release
+        run: flutter build linux --release
+
+      - name: Package Linux tar.gz
+        run: |
+          TAR="waveform-linux-${{ github.ref_name }}.tar.gz"
+          tar czf "$TAR" -C build/linux/x64/release/bundle .
+          ls -lh "$TAR"
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-tar
+          path: waveform-linux-${{ github.ref_name }}.tar.gz
+
+  # ── Publish: gather artifacts → GitHub Release ──
+  release:
+    name: Publish GitHub Release
+    needs: [macos, windows, linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Flatten artifacts
+        run: |
+          mkdir -p release
+          find dist -type f \( -name '*.dmg' -o -name '*.zip' -o -name '*.tar.gz' \) \
+            -exec cp -v {} release/ \;
+          ls -lh release/
+
+      - name: Create / update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Waveform ${{ github.ref_name }}
+          body_path: .github/release_template.md
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          files: |
+            release/*.dmg
+            release/*.zip
+            release/*.tar.gz

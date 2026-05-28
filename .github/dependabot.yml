@@ -1,0 +1,26 @@
+version: 2
+updates:
+  # Keep GitHub Actions versions current (subosito/flutter-action, softprops, etc.).
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Europe/Helsinki
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - ci
+
+  # Flutter / Dart packages.
+  - package-ecosystem: pub
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Europe/Helsinki
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies

@@ -1,5 +1,7 @@
 # Waveform
 
+[![CI](https://github.com/alina0x/waveform/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/alina0x/waveform/actions/workflows/ci.yml)
+
 A minimal, cross-platform **desktop SoundCloud client** built with Flutter — for macOS, Windows, and Linux.
 
 Aesthetic: minimalism with light web3 accents. Closer to the canonical SoundCloud layout, but darker and quieter.
