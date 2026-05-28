@@ -35,6 +35,12 @@ class _FakeAudioEngine implements AudioEngine {
   @override
   Future<void> stop() async {}
   @override
+  Future<void> preloadNext(String? url) async {}
+  @override
+  Future<void> swapToNext({Duration crossfade = Duration.zero}) async {}
+  @override
+  bool get hasPreload => false;
+  @override
   void dispose() {}
 }
 

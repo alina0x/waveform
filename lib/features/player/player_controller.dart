@@ -7,6 +7,7 @@ import '../../core/api/liked_tracks.dart';
 import '../../core/api/providers.dart';
 import '../../core/api/soundcloud_api.dart';
 import '../../core/audio/audio_engine.dart';
+import '../../core/audio/playback_prefs.dart';
 import '../../core/audio/waveform_audio_handler.dart';
 import '../../core/log/talker.dart';
 import '../../shared/models/track.dart';
@@ -137,6 +138,9 @@ class PlayerController extends Notifier<PlayerState> {
       if (state.repeat) {
         _engine.seek(Duration.zero);
         _engine.resume();
+      } else if (_engine.hasPreload) {
+        // Preload ready → бесшовный swap (gapless или crossfade per prefs).
+        _advanceViaSwap();
       } else {
         next();
       }
@@ -269,6 +273,8 @@ class PlayerController extends Notifier<PlayerState> {
         if (token != _loadToken) return;
         _startedAt = DateTime.now();
         _deadStreak = 0; // успешная загрузка сбрасывает счётчик мёртвых
+        // Фоном prepare'им next — для gapless/crossfade swap'а.
+        unawaited(_preloadAfter(track));
         return; // успех
       } catch (e, st) {
         ref.read(talkerProvider).warning(
@@ -300,6 +306,71 @@ class PlayerController extends Notifier<PlayerState> {
   }
 
   int _unplayableSeq = 0;
+
+  /// Токен текущей preload-операции — отбрасываем устаревшие резолвы.
+  int _preloadToken = 0;
+
+  /// Готовит следующий после [current] трек в теневом движке: резолвит первый
+  /// candidate, кидает engine.preloadNext. Тихо отказывается на GO+/пустых.
+  Future<void> _preloadAfter(Track current) async {
+    final token = ++_preloadToken;
+    final list = state.shuffle && identical(_orderSource, _queue)
+        ? _order
+        : _queue;
+    if (list.isEmpty) return;
+    final idx = list.indexWhere((t) => t.id == current.id);
+    if (idx < 0 || idx + 1 >= list.length) {
+      await _engine.preloadNext(null);
+      return;
+    }
+    final n = list[idx + 1];
+    if (n.streamCandidates.isEmpty || n.goPlus) {
+      await _engine.preloadNext(null);
+      return;
+    }
+    try {
+      final url = await ref
+          .read(soundcloudApiProvider)
+          .resolveStreamUrl(n.streamCandidates.first);
+      if (token != _preloadToken) return; // пользователь переключился
+      if (url == null) {
+        await _engine.preloadNext(null);
+        return;
+      }
+      await _engine.preloadNext(url);
+    } catch (_) {
+      if (token == _preloadToken) await _engine.preloadNext(null);
+    }
+  }
+
+  /// Бесшовный переход на preload'ный трек: swap движков + state.track update
+  /// БЕЗ полного `_load` (он бы порвал стрим). Затем preload'им следующий.
+  Future<void> _advanceViaSwap() async {
+    final list = state.shuffle && identical(_orderSource, _queue)
+        ? _order
+        : _queue;
+    if (list.isEmpty) return;
+    final idx = list.indexWhere((t) => t.id == state.track?.id);
+    if (idx < 0 || idx + 1 >= list.length) return;
+    final n = list[idx + 1];
+    final crossfade = _crossfade;
+    await _engine.swapToNext(crossfade: crossfade);
+    // Бамп _loadToken — старые in-flight кандидаты-резолвы устаревают.
+    _loadToken++;
+    state = state.copyWith(
+      track: n,
+      position: Duration.zero,
+      buffered: Duration.zero,
+      isPlaying: true,
+      liked: ref.read(likedTracksProvider).contains(n.id),
+    );
+    _startedAt = DateTime.now();
+    _deadStreak = 0;
+    unawaited(_preloadAfter(n));
+  }
+
+  /// Длительность crossfade'а из пользовательских настроек. 0 = gapless.
+  Duration get _crossfade => ref.read(playbackPrefsProvider).crossfade;
 
   void setVolume(double volume) {
     final v = volume.clamp(0.0, 1.0);

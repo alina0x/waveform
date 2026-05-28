@@ -6,6 +6,7 @@ import '../../app/theme/app_theme.dart';
 import '../../app/theme/colors.dart';
 import '../../core/api/feeds.dart';
 import '../../core/api/soundcloud_auth.dart';
+import '../../core/audio/playback_prefs.dart';
 import '../../core/cache/image_cache.dart';
 import '../../shared/url_share.dart';
 import '../../shared/widgets/cover_art.dart';
@@ -40,6 +41,8 @@ class SettingsScreen extends ConsumerWidget {
             _AccountSection(),
             SizedBox(height: 28),
             _ViewSection(),
+            SizedBox(height: 28),
+            _PlaybackSection(),
             SizedBox(height: 28),
             _CacheSection(),
             SizedBox(height: 28),
@@ -138,6 +141,58 @@ class _AccountSection extends ConsumerWidget {
                 _Button(label: 'sign in', onTap: () => showLoginDialog(context)),
               ],
             ),
+    );
+  }
+}
+
+class _PlaybackSection extends ConsumerWidget {
+  const _PlaybackSection();
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final prefs = ref.watch(playbackPrefsProvider);
+    final c = ref.read(playbackPrefsProvider.notifier);
+    final ms = prefs.crossfadeMs;
+    final label = ms == 0
+        ? 'gapless (0 s)'
+        : '${(ms / 1000).toStringAsFixed(1)} s crossfade';
+    return _Section(
+      title: 'playback',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text('crossfade between tracks',
+                    style: AppTheme.mono(size: 12, color: AppColors.textMid)),
+              ),
+              Text(label,
+                  style: AppTheme.mono(
+                      size: 12,
+                      color: AppColors.textHi,
+                      weight: FontWeight.w600)),
+            ],
+          ),
+          const SizedBox(height: 4),
+          SliderTheme(
+            data: SliderThemeData(
+              trackHeight: 2,
+              activeTrackColor: AppColors.acid,
+              inactiveTrackColor: AppColors.border,
+              thumbColor: AppColors.textHi,
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
+              overlayShape: const RoundSliderOverlayShape(overlayRadius: 11),
+            ),
+            child: Slider(
+              value: ms.toDouble(),
+              min: 0,
+              max: 6000,
+              divisions: 12,
+              onChanged: (v) => c.setCrossfadeMs(v.round()),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
