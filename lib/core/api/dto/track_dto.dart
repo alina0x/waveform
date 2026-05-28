@@ -77,10 +77,16 @@ class TrackDto {
   final List<TranscodingDto> transcodings;
 
   /// GO+ (платная подписка): полный поток зашифрован, бесплатно — только сниппет.
-  /// Такие треки наш клиент проиграть не может. Признаки: `policy == SNIP`
-  /// или `monetization_model == SUB_HIGH_TIER`.
+  /// Такие треки наш клиент проиграть не может.
+  ///
+  /// `policy`/`monetization_model` присутствуют только в полном объекте
+  /// `/tracks/{id}` (в выдаче search/stream/likes их нет), поэтому главный
+  /// надёжный признак — **наличие зашифрованного транскодинга**: у бесплатных
+  /// треков `cbc-/ctr-encrypted-hls` не бывает.
   bool get isGoPlus =>
-      policy == 'SNIP' || monetizationModel == 'SUB_HIGH_TIER';
+      policy == 'SNIP' ||
+      monetizationModel == 'SUB_HIGH_TIER' ||
+      transcodings.any((t) => t.isEncrypted);
 
   factory TrackDto.fromJson(Map<String, dynamic> j) {
     final media = asMap(j['media']);

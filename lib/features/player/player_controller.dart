@@ -157,16 +157,16 @@ class PlayerController extends Notifier<PlayerState> {
   /// отдаёт 404 — тогда играем следующий источник. Мок/не streamable — тихо.
   Future<void> _load(Track track) async {
     final token = ++_loadToken;
-    // GO+ (платная подписка): полный поток зашифрован — проиграть нечем.
-    if (track.goPlus) {
-      ref.read(talkerProvider).warning('GO+ only (subscription): ${track.title}');
-      _markUnplayable(token, track);
+    final candidates = track.streamCandidates;
+    // Нет незашифрованных источников: GO+ → сообщаем причину; иначе мок/не
+    // streamable — тихо (UI оптимистичен, реальный «играет» придёт из движка).
+    if (candidates.isEmpty) {
+      if (track.goPlus) {
+        ref.read(talkerProvider).warning('GO+ only (subscription): ${track.title}');
+        _markUnplayable(token, track);
+      }
       return;
     }
-    final candidates = track.streamCandidates;
-    // Нет источников (мок/не streamable) — играть нечего; UI оптимистичен,
-    // реальный признак «играет» в live приходит из engine.playingStream.
-    if (candidates.isEmpty) return;
     final api = ref.read(soundcloudApiProvider);
     for (final candidate in candidates) {
       try {
@@ -185,8 +185,11 @@ class PlayerController extends Notifier<PlayerState> {
         // пробуем следующий источник
       }
     }
-    // Все кандидаты исчерпаны — DRM-only/удалённый трек, проиграть нечем.
-    ref.read(talkerProvider).warning('no playable stream: ${track.title}');
+    // Все кандидаты исчерпаны. GO+ → свободный поток лишь сниппет/протух, полный
+    // зашифрован; иначе трек удалён/недоступен.
+    ref.read(talkerProvider).warning(track.goPlus
+        ? 'GO+ only (subscription): ${track.title}'
+        : 'no playable stream: ${track.title}');
     _markUnplayable(token, track);
   }
 

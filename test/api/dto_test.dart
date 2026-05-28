@@ -132,6 +132,9 @@ void main() {
       final t = TrackDto.fromJson(jsonDecode(json)).toDomain();
       expect(t.streamCandidates,
           ['https://x/stream/hls', 'https://x/stream/progressive']);
+      // Наличие зашифрованного транскодинга само по себе → GO+ (даже без
+      // policy/monetization, которых нет в выдаче search/stream).
+      expect(t.goPlus, true);
     });
 
     test('flags GO+ tracks (SNIP / SUB_HIGH_TIER) as goPlus', () {
