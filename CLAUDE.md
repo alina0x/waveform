@@ -270,9 +270,14 @@ lib/
 1. **Apple-секреты в GitHub** (Settings → Secrets → Actions): см.
    список выше (Phase 0). Без них release.yml упадёт на codesign step.
 2. **Last.fm** (опционально): зарегистрировать Waveform на
-   last.fm/api/account/create → вставить `lastfmApiKey` +
-   `lastfmSharedSecret` в `lib/core/lastfm/lastfm_constants.dart`
-   → коммит. Без этого scrobbler видно «not configured» в /settings.
+   last.fm/api/account/create → положить `LASTFM_API_KEY` и
+   `LASTFM_SHARED_SECRET` ещё двумя GitHub Actions secrets (рядом
+   с APPLE_*). Они прокидываются в сборку через `--dart-define`
+   (см. `release.yml`), исходники чистые. **Не** коммитить значения
+   в `lastfm_constants.dart` — last.fm официально просит держать
+   shared_secret приватным, а git-история public-репо публикует
+   всё навсегда. Локально для тестирования: `flutter run
+   --dart-define=LASTFM_API_KEY=… --dart-define=LASTFM_SHARED_SECRET=…`.
 3. **Иконка приложения**: положить квадратный PNG в
    `assets/icon/icon.png` → `dart run flutter_launcher_icons` →
    `flutter clean && flutter build macos`.

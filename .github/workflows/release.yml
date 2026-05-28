@@ -48,7 +48,9 @@ jobs:
           DEVELOPMENT_TEAM: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           flutter build macos --release \
-            --dart-define=APP_VERSION=${{ github.ref_name }}
+            --dart-define=APP_VERSION=${{ github.ref_name }} \
+            --dart-define=LASTFM_API_KEY=${{ secrets.LASTFM_API_KEY }} \
+            --dart-define=LASTFM_SHARED_SECRET=${{ secrets.LASTFM_SHARED_SECRET }}
 
       - name: Codesign .app (Developer ID Application)
         env:
@@ -124,7 +126,11 @@ jobs:
         run: flutter pub get
 
       - name: Build Windows release
-        run: flutter build windows --release
+        run: |
+          flutter build windows --release ^
+            --dart-define=APP_VERSION=${{ github.ref_name }} ^
+            --dart-define=LASTFM_API_KEY=${{ secrets.LASTFM_API_KEY }} ^
+            --dart-define=LASTFM_SHARED_SECRET=${{ secrets.LASTFM_SHARED_SECRET }}
 
       - name: Package Windows zip
         shell: pwsh
@@ -163,7 +169,11 @@ jobs:
         run: flutter pub get
 
       - name: Build Linux release
-        run: flutter build linux --release
+        run: |
+          flutter build linux --release \
+            --dart-define=APP_VERSION=${{ github.ref_name }} \
+            --dart-define=LASTFM_API_KEY=${{ secrets.LASTFM_API_KEY }} \
+            --dart-define=LASTFM_SHARED_SECRET=${{ secrets.LASTFM_SHARED_SECRET }}
 
       - name: Package Linux tar.gz
         run: |

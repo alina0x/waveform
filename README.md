@@ -136,7 +136,7 @@ The CI/release pipeline is wired up; tagging is what you do by hand.
    - `APPLE_ID` — your Apple ID email.
    - `APPLE_APP_PASSWORD` — an app-specific password ([appleid.apple.com](https://appleid.apple.com) → Sign-In and Security → App-Specific Passwords; name it `Waveform notarytool`).
    - `KEYCHAIN_PASSWORD` — any random string; used only inside the CI runner.
-3. **Last.fm credentials** (optional, only if you want scrobbling in the shipped build): register Waveform on [last.fm/api/account/create](https://www.last.fm/api/account/create), then paste `lastfmApiKey` + `lastfmSharedSecret` into `lib/core/lastfm/lastfm_constants.dart` and commit.
+3. **Last.fm credentials** (optional, only if you want scrobbling in the shipped build): register Waveform on [last.fm/api/account/create](https://www.last.fm/api/account/create), then add **two more GitHub Actions secrets** in the same place: `LASTFM_API_KEY` and `LASTFM_SHARED_SECRET`. The release workflow passes them through `--dart-define` at build time — they end up in the binary but **never in the public source**. Last.fm explicitly asks to keep `shared_secret` private, so don't paste it into `lib/core/lastfm/lastfm_constants.dart` directly. For local testing: `flutter run --dart-define=LASTFM_API_KEY=… --dart-define=LASTFM_SHARED_SECRET=…`.
 4. **App icon**: put a square `1024×1024` PNG at `assets/icon/icon.png` and run:
    ```bash
    dart run flutter_launcher_icons
