@@ -122,6 +122,41 @@ flutter analyze
 - Light theme
 - Web3: real wallet connection via WalletConnect (currently visual accents only)
 
+## Cutting a release
+
+The CI/release pipeline is wired up; tagging is what you do by hand.
+
+### One-time setup (per machine)
+
+1. **Apple Developer Program** ($99/yr) — you need the `Developer ID Application` cert in your local Keychain. Export it as `.p12` (right-click the cert + private key → Export → set a password).
+2. **GitHub Actions secrets** at `Settings → Secrets and variables → Actions`:
+   - `APPLE_TEAM_ID` — 10-char Team ID from [Apple Developer → Membership](https://developer.apple.com/account#MembershipDetailsCard).
+   - `APPLE_CERT_P12_BASE64` — `base64 -i cert.p12 | pbcopy`.
+   - `APPLE_CERT_PASSWORD` — the password you set on `.p12`.
+   - `APPLE_ID` — your Apple ID email.
+   - `APPLE_APP_PASSWORD` — an app-specific password ([appleid.apple.com](https://appleid.apple.com) → Sign-In and Security → App-Specific Passwords; name it `Waveform notarytool`).
+   - `KEYCHAIN_PASSWORD` — any random string; used only inside the CI runner.
+3. **Last.fm credentials** (optional, only if you want scrobbling in the shipped build): register Waveform on [last.fm/api/account/create](https://www.last.fm/api/account/create), then paste `lastfmApiKey` + `lastfmSharedSecret` into `lib/core/lastfm/lastfm_constants.dart` and commit.
+4. **App icon**: put a square `1024×1024` PNG at `assets/icon/icon.png` and run:
+   ```bash
+   dart run flutter_launcher_icons
+   flutter clean
+   ```
+
+### Cutting v0.1.X
+
+```bash
+# 1. Bump version in pubspec.yaml and lib/features/settings/settings_screen.dart::_kAppVersion
+# 2. Update CHANGELOG.md
+# 3. Commit + push
+git tag v0.1.0
+git push --tags
+```
+
+GitHub Actions runs `release.yml`: parallel macOS / Windows / Linux builds, signs and notarizes the macOS `.app`, packs everything into a release, and publishes it at `https://github.com/alina0x/waveform/releases/tag/v0.1.0`. Notes come from `.github/release_template.md`.
+
+If the macOS job fails at codesign or notarytool, check `gh run view --log-failed <id>` and validate the secrets are present + the `.p12` is exportable on a fresh machine.
+
 ## Disclaimer
 
 This is an **unofficial** client and is **not affiliated with, endorsed by, or connected to SoundCloud**. It uses an undocumented internal API; use of that API may be against SoundCloud's Terms of Service. This project is provided for **educational and personal use** — use it with your own account and at your own risk. SoundCloud, the SoundCloud logo, and related marks are trademarks of their respective owners.
