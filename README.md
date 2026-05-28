@@ -1,6 +1,17 @@
-# Waveform
+<p align="center">
+  <img src="https://i.ibb.co/GYvFdtX/waveform-banner.jpg" alt="Waveform" width="100%" />
+</p>
 
-[![CI](https://github.com/alina0x/waveform/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/alina0x/waveform/actions/workflows/ci.yml)
+<p align="center">
+  <a href="https://github.com/alina0x/waveform/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/alina0x/waveform/actions/workflows/ci.yml/badge.svg?branch=main" /></a>
+  <img alt="Flutter" src="https://img.shields.io/badge/Flutter-3.41-02569B?logo=flutter&logoColor=white" />
+  <img alt="Dart" src="https://img.shields.io/badge/Dart-3.11-0175C2?logo=dart&logoColor=white" />
+  <img alt="Riverpod" src="https://img.shields.io/badge/Riverpod-3.3-2c3e50" />
+  <img alt="Platforms" src="https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey" />
+  <img alt="Version" src="https://img.shields.io/badge/version-0.1.0-FF5500" />
+</p>
+
+# Waveform
 
 A minimal, cross-platform **desktop SoundCloud client** built with Flutter — for macOS, Windows, and Linux.
 
