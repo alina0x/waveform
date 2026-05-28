@@ -39,3 +39,9 @@ class VolumeUpIntent extends Intent {
 class VolumeDownIntent extends Intent {
   const VolumeDownIntent();
 }
+
+/// Enter на `/track/:id` — играть/возобновить трек этой страницы.
+/// Биндинг добавляется в `_shortcuts()` только когда route matches.
+class PlayPageTrackIntent extends Intent {
+  const PlayPageTrackIntent();
+}

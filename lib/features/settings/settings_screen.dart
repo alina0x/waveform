@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -47,6 +49,8 @@ class SettingsScreen extends ConsumerWidget {
             _ViewSection(),
             SizedBox(height: 28),
             _PlaybackSection(),
+            SizedBox(height: 28),
+            _ShortcutsSection(),
             SizedBox(height: 28),
             _LastfmSection(),
             SizedBox(height: 28),
@@ -147,6 +151,138 @@ class _AccountSection extends ConsumerWidget {
                 _Button(label: 'sign in', onTap: () => showLoginDialog(context)),
               ],
             ),
+    );
+  }
+}
+
+/// Справка по всем глобальным шорткатам. Платформа определяется один раз
+/// (Cmd на macOS, Ctrl на остальных) — соответствует логике в AppShell.
+class _ShortcutsSection extends StatelessWidget {
+  const _ShortcutsSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final mac = Platform.isMacOS;
+    final mod = mac ? '⌘' : 'Ctrl';
+    final shift = mac ? '⇧' : 'Shift';
+    return _Section(
+      title: 'shortcuts',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _ShortcutGroup('playback', [
+            _ShortcutRow(['Space'], 'play / pause'),
+            _ShortcutRow(['←'], 'previous track'),
+            _ShortcutRow(['→'], 'next track'),
+            _ShortcutRow(['↑'], 'volume up (+5%)'),
+            _ShortcutRow(['↓'], 'volume down (−5%)'),
+          ]),
+          _ShortcutGroup('navigation', [
+            _ShortcutRow([mod, 'K'], 'open command palette'),
+            _ShortcutRow([mod, 'F'], 'open command palette (alias)'),
+            _ShortcutRow([mod, 'L'], 'jump to library / likes'),
+            _ShortcutRow([mod, ','], 'open settings'),
+            _ShortcutRow([mod, shift, 'L'], 'open logs'),
+          ]),
+          _ShortcutGroup('on /track page', [
+            _ShortcutRow(['↵'], 'play / resume this track'),
+          ]),
+          _ShortcutGroup('inside command palette', [
+            _ShortcutRow(['↑', '↓'], 'move highlight between results'),
+            _ShortcutRow(['↵'], 'open selected result'),
+            _ShortcutRow(['Esc'], 'close palette'),
+          ]),
+        ],
+      ),
+    );
+  }
+}
+
+class _ShortcutGroup extends StatelessWidget {
+  const _ShortcutGroup(this.title, this.rows);
+  final String title;
+  final List<_ShortcutRow> rows;
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(title.toUpperCase(),
+                style: AppTheme.mono(
+                    size: 9,
+                    color: AppColors.textLow,
+                    weight: FontWeight.w700,
+                    letterSpacing: 1.4)),
+          ),
+          ...rows,
+        ],
+      ),
+    );
+  }
+}
+
+class _ShortcutRow extends StatelessWidget {
+  const _ShortcutRow(this.keys, this.action);
+  final List<String> keys;
+  final String action;
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          // Фиксированная ширина под клавишные капсы — выравниваем колонку.
+          SizedBox(
+            width: 140,
+            child: Wrap(
+              spacing: 4,
+              runSpacing: 4,
+              children: [
+                for (var i = 0; i < keys.length; i++) ...[
+                  if (i > 0)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 2),
+                      child: Text('+',
+                          style: AppTheme.mono(
+                              size: 10, color: AppColors.textLow)),
+                    ),
+                  _KeyCap(label: keys[i]),
+                ],
+              ],
+            ),
+          ),
+          Expanded(
+            child: Text(action,
+                style: AppTheme.mono(
+                    size: 12, color: AppColors.textHi, weight: FontWeight.w500)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _KeyCap extends StatelessWidget {
+  const _KeyCap({required this.label});
+  final String label;
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppColors.bg,
+        borderRadius: BorderRadius.circular(3),
+        border: AppTheme.border(),
+      ),
+      child: Text(label,
+          style: AppTheme.mono(
+              size: 10.5,
+              color: AppColors.textHi,
+              weight: FontWeight.w600)),
     );
   }
 }

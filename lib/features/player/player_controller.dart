@@ -354,9 +354,12 @@ class PlayerController extends Notifier<PlayerState> {
     if (idx < 0 || idx + 1 >= list.length) return;
     final n = list[idx + 1];
     final crossfade = _crossfade;
-    await _engine.swapToNext(crossfade: crossfade);
     // Бамп _loadToken — старые in-flight кандидаты-резолвы устаревают.
     _loadToken++;
+    // ВАЖНО: state.track обновляем СРАЗУ, до await на swap. При crossfade
+    // swap блокируется на длительность рампы (до 6с) — иначе UI всё это
+    // время рисует старый трек, хотя звук уже от нового. На gapless (0с)
+    // тоже была видимая задержка из-за async-await цикла engine.
     state = state.copyWith(
       track: n,
       position: Duration.zero,
@@ -366,6 +369,7 @@ class PlayerController extends Notifier<PlayerState> {
     );
     _startedAt = DateTime.now();
     _deadStreak = 0;
+    await _engine.swapToNext(crossfade: crossfade);
     unawaited(_preloadAfter(n));
   }
 
@@ -379,6 +383,9 @@ class PlayerController extends Notifier<PlayerState> {
   }
 
   void toggleShuffle() => state = state.copyWith(shuffle: !state.shuffle);
+  void setShuffle(bool on) {
+    if (state.shuffle != on) state = state.copyWith(shuffle: on);
+  }
   void toggleRepeat() => state = state.copyWith(repeat: !state.repeat);
 
   /// Лайк текущего трека: оптимистично в UI + запись в API через общий контроллер

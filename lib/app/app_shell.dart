@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:window_manager/window_manager.dart';
 
+import '../core/api/feeds.dart';
 import '../core/lastfm/scrobbler.dart';
 import '../core/log/talker.dart';
 import '../features/omnibox/omnibox_dropdown.dart';
@@ -25,17 +26,41 @@ import 'theme/colors.dart';
 /// Оболочка приложения. Поверх контента — фрост-TopBar и фрост-BottomPlayer.
 /// Здесь же глобальные клавиатурные шорткаты (Shortcuts + Actions),
 /// центральная ⌘K-палитра поверх blur-фона, queue-панель справа.
-class AppShell extends ConsumerWidget {
+class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key, required this.location, required this.child});
 
   final String location;
   final Widget child;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AppShell> createState() => _AppShellState();
+}
+
+class _AppShellState extends ConsumerState<AppShell> {
+  // Якорь для глобального focus'а: на нём сидят Shortcuts (Space/⌘K/…).
+  // Когда модалка ⌘K закрывается, primaryFocus = null и Shortcuts молчат —
+  // возвращаем focus сюда вручную.
+  late final FocusNode _shellFocus = FocusNode(debugLabel: 'app-shell');
+
+  @override
+  void dispose() {
+    _shellFocus.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     // Lazy-bootstrap скробблера: provider создаст Notifier, который подпишется
     // на playerController.
     ref.watch(lastfmScrobblerProvider);
+
+    // Когда модалка закрывается — возвращаем focus AppShell'у, иначе
+    // primaryFocus остаётся null и Shortcuts перестают слышать клавиши.
+    ref.listen<bool>(omniboxOpenProvider, (prev, next) {
+      if (prev == true && next == false) {
+        _shellFocus.requestFocus();
+      }
+    });
 
     // Динамический title окна — отражает текущий трек на desktop.
     ref.listen<Track?>(playerControllerProvider.select((s) => s.track),
@@ -75,11 +100,18 @@ class AppShell extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.bg,
-      // Внешний Focus глотает все unhandled-ключи без System-beep'а на macOS
-      // (когда нет фокуса на TextField и Shortcuts не совпали).
+      // Внешний Focus глотает unhandled-ключи без System-beep'а на macOS.
+      // НО — символьные клавиши пропускаем (event.character != null), иначе
+      // macOS подавляет доставку в NSTextInputClient → TextField не печатает.
+      // NSBeep всё равно молчит на символах когда есть focused TextField.
       body: Focus(
         canRequestFocus: false,
-        onKeyEvent: (_, _) => KeyEventResult.handled,
+        onKeyEvent: (_, event) {
+          if (event.character != null && event.character!.isNotEmpty) {
+            return KeyEventResult.ignored;
+          }
+          return KeyEventResult.handled;
+        },
         child: Shortcuts(
           shortcuts: _shortcuts(),
           child: Actions(
@@ -140,15 +172,22 @@ class AppShell extends ConsumerWidget {
                   return null;
                 },
               ),
+              PlayPageTrackIntent: CallbackAction<PlayPageTrackIntent>(
+                onInvoke: (_) {
+                  _playTrackOnPage();
+                  return null;
+                },
+              ),
             },
             child: Focus(
+              focusNode: _shellFocus,
               autofocus: true,
               child: Consumer(builder: (context, ref, _) {
                 final omniOpen = ref.watch(omniboxOpenProvider);
                 final queueOpen = ref.watch(queueVisibleProvider);
                 return Stack(
                   children: [
-                    Positioned.fill(child: child),
+                    Positioned.fill(child: widget.child),
                     // Queue-панель справа.
                     if (queueOpen)
                       const Positioned(
@@ -163,7 +202,7 @@ class AppShell extends ConsumerWidget {
                       left: 0,
                       right: 0,
                       child: FrostedBar(
-                        child: TopBar(location: location),
+                        child: TopBar(location: widget.location),
                       ),
                     ),
                     const Positioned(
@@ -195,7 +234,7 @@ class AppShell extends ConsumerWidget {
     final mac = Platform.isMacOS;
     SingleActivator cmd(LogicalKeyboardKey key, {bool shift = false}) =>
         SingleActivator(key, meta: mac, control: !mac, shift: shift);
-    return <ShortcutActivator, Intent>{
+    final base = <ShortcutActivator, Intent>{
       const SingleActivator(LogicalKeyboardKey.space): const PlayPauseIntent(),
       const SingleActivator(LogicalKeyboardKey.arrowLeft):
           const PrevTrackIntent(),
@@ -211,6 +250,33 @@ class AppShell extends ConsumerWidget {
       cmd(LogicalKeyboardKey.comma): const JumpSettingsIntent(),
       cmd(LogicalKeyboardKey.keyL, shift: true): const JumpLogsIntent(),
     };
+    // Enter на /track/:id — играть/возобновить трек страницы. Только когда
+    // route совпадает: иначе Enter ломал бы фокус на других экранах.
+    if (widget.location.startsWith('/track/')) {
+      base[const SingleActivator(LogicalKeyboardKey.enter)] =
+          const PlayPageTrackIntent();
+      base[const SingleActivator(LogicalKeyboardKey.numpadEnter)] =
+          const PlayPageTrackIntent();
+    }
+    return base;
+  }
+
+  /// Реакция на Enter на /track/:id. Если уже играет именно этот трек —
+  /// no-op (Space всё ещё toggle'ит). Если играет другой / пауза — стартуем
+  /// этот, в очередь добавляем related.
+  void _playTrackOnPage() {
+    final segs = Uri.parse(widget.location).pathSegments;
+    if (segs.length < 2 || segs[0] != 'track') return;
+    final trackId = segs[1];
+    final detail = ref.read(trackDetailProvider(trackId)).asData?.value;
+    if (detail == null) return;
+    final cur = ref.read(playerControllerProvider);
+    final c = ref.read(playerControllerProvider.notifier);
+    if (cur.track?.id == trackId) {
+      if (!cur.isPlaying) c.toggle();
+      return;
+    }
+    c.play(detail.track, queue: detail.related);
   }
 }
 

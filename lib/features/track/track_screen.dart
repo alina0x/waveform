@@ -31,6 +31,19 @@ class TrackScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Follow-mode: если эта страница соответствует играющему треку и плеер
+    // переключился на следующий — открываем страницу нового. Сравниваем
+    // prev.id == trackId (мы были в синхроне), next.id != trackId
+    // (плеер ушёл вперёд) → context.go. Если юзер сам перешёл на чужой
+    // /track/X (prev.id != trackId), не таскаем — он смотрит другое.
+    ref.listen<Track?>(
+        playerControllerProvider.select((s) => s.track), (prev, next) {
+      if (prev == null || next == null) return;
+      if (next.id == trackId) return;
+      if (prev.id == trackId) {
+        context.go('/track/${next.id}');
+      }
+    });
     final detail = ref.watch(trackDetailProvider(trackId));
     final coverUrl = detail.asData?.value.track.coverUrl;
     // Full-width hero-баннер из обложки — на page-level (вне ConstrainedBox),
