@@ -32,10 +32,26 @@ class TrackScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final detail = ref.watch(trackDetailProvider(trackId));
-    return AsyncView<TrackDetail>(
-      value: detail,
-      onRetry: () => ref.invalidate(trackDetailProvider(trackId)),
-      data: (d) => _TrackBody(detail: d),
+    final coverUrl = detail.asData?.value.track.coverUrl;
+    // Full-width hero-баннер из обложки — на page-level (вне ConstrainedBox),
+    // плавно сходит в фон страницы. Контент скроллится поверх.
+    return Stack(
+      children: [
+        if (coverUrl != null)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: AmbientBackdrop(imageUrl: coverUrl, height: 460),
+          ),
+        Positioned.fill(
+          child: AsyncView<TrackDetail>(
+            value: detail,
+            onRetry: () => ref.invalidate(trackDetailProvider(trackId)),
+            data: (d) => _TrackBody(detail: d),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -66,20 +82,17 @@ class _TrackBody extends ConsumerWidget {
           children: [
             const _BackButton(),
             const SizedBox(height: 16),
-            AmbientBackdrop(
-              imageUrl: track.coverUrl,
-              child: _Hero(
-                track: track,
-                isPlaying: isPlaying,
-                progress: progress,
-                buffered: buffered,
-                markers: [
-                  for (final cm in comments) cm.fraction(track.durationMs)
-                ],
-                onPlay: () =>
-                    isCurrent ? c.toggle() : c.play(track, queue: queue),
-                onSeek: isCurrent ? c.seekFraction : null,
-              ),
+            _Hero(
+              track: track,
+              isPlaying: isPlaying,
+              progress: progress,
+              buffered: buffered,
+              markers: [
+                for (final cm in comments) cm.fraction(track.durationMs)
+              ],
+              onPlay: () =>
+                  isCurrent ? c.toggle() : c.play(track, queue: queue),
+              onSeek: isCurrent ? c.seekFraction : null,
             ),
             const SizedBox(height: 24),
             if (track.description.isNotEmpty) ...[

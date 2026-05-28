@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../core/lastfm/scrobbler.dart';
+import '../core/log/talker.dart';
 import '../features/omnibox/omnibox_dropdown.dart';
 import '../features/omnibox/omnibox_providers.dart';
 import '../features/player/player_controller.dart';
@@ -15,6 +16,7 @@ import '../features/player/widgets/bottom_player.dart';
 import '../features/queue/queue_panel.dart';
 import '../features/queue/queue_visibility.dart';
 import '../shared/intents.dart';
+import '../shared/models/track.dart';
 import '../shared/widgets/frosted.dart';
 import '../shared/widgets/top_bar.dart';
 import 'theme/app_theme.dart';
@@ -36,15 +38,20 @@ class AppShell extends ConsumerWidget {
     ref.watch(lastfmScrobblerProvider);
 
     // Динамический title окна — отражает текущий трек на desktop.
-    ref.listen(playerControllerProvider.select((s) => s.track),
-        (prev, next) {
+    ref.listen<Track?>(playerControllerProvider.select((s) => s.track),
+        (prev, next) async {
       if (!(Platform.isMacOS || Platform.isWindows || Platform.isLinux)) {
         return;
       }
       final title = next == null
           ? 'Waveform'
           : 'Waveform · ${next.artist} — ${next.title}';
-      windowManager.setTitle(title);
+      try {
+        await windowManager.setTitle(title);
+      } catch (e, st) {
+        // Логируем, чтобы видно было если плагин не настроен.
+        ref.read(talkerProvider).warning('setTitle failed', e, st);
+      }
     });
 
     ref.listen(playerControllerProvider.select((s) => s.unplayable),

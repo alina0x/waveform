@@ -1,4 +1,3 @@
-import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
@@ -30,10 +29,14 @@ class TopBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // На macOS оставляем место слева под «светофор» окна.
-    final leftPad = Platform.isMacOS ? 80.0 : 16.0;
+    // На macOS Flutter-окно использует `titlebarAppearsTransparent` — traffic
+    // lights висят поверх контента в верхней-левой зоне. Резервируем 28px
+    // сверху на эту зону через `padding`, влево контент идёт от 16px.
+    const leftPad = 16.0;
+    const topPad = 28.0;
     return Container(
       height: AppTheme.topBarHeight,
-      padding: EdgeInsets.only(left: leftPad, right: 16),
+      padding: const EdgeInsets.fromLTRB(leftPad, topPad, 16, 0),
       decoration: BoxDecoration(
         color: AppColors.surface.withValues(alpha: 0.72),
         border: const Border(bottom: AppTheme.borderSideStatic),

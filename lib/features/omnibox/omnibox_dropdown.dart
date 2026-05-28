@@ -37,13 +37,14 @@ class _OmniboxDropdownState extends ConsumerState<OmniboxDropdown>
   @override
   void initState() {
     super.initState();
-    // После маунта — выделить весь существующий текст и сразу фокусировать.
+    // После маунта — выделить весь существующий текст. Фокус ставит
+    // FocusScope.autofocus у TextField, нам ничего вручную просить не надо
+    // (раньше competing autofocus в AppShell блокировал ввод).
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final ctrl = ref.read(omniboxControllerProvider);
       ctrl.selection =
           TextSelection(baseOffset: 0, extentOffset: ctrl.text.length);
-      ref.read(omniboxFocusProvider).requestFocus();
     });
   }
 
@@ -79,11 +80,14 @@ class _OmniboxDropdownState extends ConsumerState<OmniboxDropdown>
     _navigate('/search?q=${Uri.encodeQueryComponent(q)}');
   }
 
-  void _onKey(KeyEvent event) {
+  /// Esc → закрыть. Возвращает handled, чтобы не уходило в outer-onKeyEvent.
+  KeyEventResult _onKey(FocusNode node, KeyEvent event) {
     if (event is KeyDownEvent &&
         event.logicalKey == LogicalKeyboardKey.escape) {
       _close();
+      return KeyEventResult.handled;
     }
+    return KeyEventResult.ignored;
   }
 
   @override
@@ -105,8 +109,8 @@ class _OmniboxDropdownState extends ConsumerState<OmniboxDropdown>
     final opacity = Tween<double>(begin: 0.0, end: 1.0)
         .animate(CurvedAnimation(parent: _entry, curve: Curves.easeOutCubic));
 
-    return KeyboardListener(
-      focusNode: FocusNode(skipTraversal: true),
+    return FocusScope(
+      autofocus: true,
       onKeyEvent: _onKey,
       child: FadeTransition(
         opacity: opacity,

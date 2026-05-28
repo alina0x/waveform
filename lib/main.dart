@@ -17,8 +17,17 @@ Future<void> main() async {
   // Window manager — для динамического title и базового sizing на desktop.
   if (Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
     await windowManager.ensureInitialized();
-    await windowManager.setTitle('Waveform');
-    await windowManager.setMinimumSize(const Size(960, 640));
+    const opts = WindowOptions(
+      title: 'Waveform',
+      minimumSize: Size(960, 640),
+      titleBarStyle: TitleBarStyle.hidden,
+    );
+    // waitUntilReadyToShow гарантирует, что окно создано до setTitle.
+    await windowManager.waitUntilReadyToShow(opts, () async {
+      await windowManager.setTitle('Waveform');
+      await windowManager.show();
+      await windowManager.focus();
+    });
   }
 
   // Единый Talker: им же логируются Dio-запросы и Riverpod-события.

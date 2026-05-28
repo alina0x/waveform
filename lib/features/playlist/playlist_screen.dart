@@ -27,15 +27,29 @@ class PlaylistScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final detail = ref.watch(playlistProvider(id));
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 940),
-        child: AsyncView<PlaylistDetail>(
-          value: detail,
-          onRetry: () => ref.invalidate(playlistProvider(id)),
-          data: (d) => _Body(detail: d),
+    final coverUrl = detail.asData?.value.playlist.coverUrl;
+    return Stack(
+      children: [
+        if (coverUrl != null)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: AmbientBackdrop(imageUrl: coverUrl, height: 440),
+          ),
+        Positioned.fill(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 940),
+              child: AsyncView<PlaylistDetail>(
+                value: detail,
+                onRetry: () => ref.invalidate(playlistProvider(id)),
+                data: (d) => _Body(detail: d),
+              ),
+            ),
+          ),
         ),
-      ),
+      ],
     );
   }
 }
@@ -77,9 +91,7 @@ class _Body extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 16),
-        AmbientBackdrop(
-          imageUrl: p.coverUrl,
-          child: Row(
+        Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Hero(
@@ -132,7 +144,6 @@ class _Body extends ConsumerWidget {
               ),
             ],
           ),
-        ),
         const SizedBox(height: 28),
         const SectionHeader(title: 'tracks'),
         const SizedBox(height: AppTheme.headerGap),

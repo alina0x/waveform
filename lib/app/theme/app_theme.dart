@@ -19,7 +19,9 @@ abstract final class AppTheme {
   static const double borderWidth = 0.5;
 
   // Высоты постоянной «хромы» оболочки (контент скроллится под ними сквозь блюр).
-  static const double topBarHeight = 56;
+  // topBarHeight = 28 (traffic-lights clearance на macOS fullSize content view)
+  // + 48 (контент). Меньше — кнопки и светофор накладываются.
+  static const double topBarHeight = 76;
   static const double playerHeight = 72;
 
   // Ритмика отступов (кратно 4) — единая по всем экранам.

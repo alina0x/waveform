@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -36,17 +37,21 @@ class TrackRow extends ConsumerWidget {
     final liked = ref.watch(likedTracksProvider).contains(track.id);
     final goPlus = track.goPlus;
 
-    return GestureDetector(
-      // Right-click → контекстное меню (play / like / repost / copy /
-      // open on SC / open artist / open track). Левый тап обрабатывает
-      // вложенный Pressable (он использует tap, не secondary).
-      onSecondaryTapDown: (d) => showTrackContextMenu(
-        context: context,
-        ref: ref,
-        track: track,
-        queue: queue,
-        globalPosition: d.globalPosition,
-      ),
+    return Listener(
+      // Right-click / two-finger tap → контекстное меню. Listener'ом, а не
+      // GestureDetector(onSecondaryTapDown:), чтобы не конкурировать в gesture
+      // arena с вложенными Pressable (которые иначе перехватывают всё).
+      onPointerDown: (event) {
+        if (event.buttons == kSecondaryButton) {
+          showTrackContextMenu(
+            context: context,
+            ref: ref,
+            track: track,
+            queue: queue,
+            globalPosition: event.position,
+          );
+        }
+      },
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(10),

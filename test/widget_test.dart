@@ -125,6 +125,12 @@ void main() {
     await load(tester);
 
     expect(find.text('#ambient techno'), findsOneWidget);
+    // «related tracks» может быть под фолдом — ListView ленивый. Скроллим.
+    await tester.scrollUntilVisible(
+      find.text('related tracks'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('related tracks'), findsOneWidget);
   });
 
