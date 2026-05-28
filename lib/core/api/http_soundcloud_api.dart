@@ -210,6 +210,19 @@ class HttpSoundcloudApi implements SoundcloudApi {
         (j) => TrackDto.fromJson(asMap(j['track'] ?? j)),
       ).mapList((d) => d.toDomain());
 
+  @override
+  Future<List<Track>> historyPage({int limit = 50, int offset = 0}) async {
+    return _tryAuthed(() async {
+      final data = await _get(
+        '/me/play-history/tracks',
+        {'limit': limit, 'offset': offset},
+        true,
+      );
+      return _page(data, (j) => TrackDto.fromJson(asMap(j['track'] ?? j)))
+          .mapList((d) => d.toDomain());
+    }, () async => const <Track>[]);
+  }
+
   Future<Artist?> _meProfile() async {
     try {
       return UserDto.fromJson(asMap(await _get('/me', null, true))).toDomain();

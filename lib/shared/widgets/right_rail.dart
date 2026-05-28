@@ -43,6 +43,33 @@ class RightRail extends ConsumerWidget {
             if (authed) ...[
               const SizedBox(height: 20),
               _StatTiles(me: d.me),
+              const SizedBox(height: 10),
+              Pressable(
+                onTap: () => context.go('/stats'),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: AppColors.bg,
+                    borderRadius: AppTheme.borderRadius,
+                    border: AppTheme.border(),
+                  ),
+                  child: Row(children: [
+                    const Icon(Icons.bar_chart,
+                        size: 14, color: AppColors.textMid),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text('view listening stats',
+                          style: AppTheme.mono(
+                              size: 11,
+                              color: AppColors.textHi,
+                              weight: FontWeight.w500)),
+                    ),
+                    const Text('→',
+                        style: TextStyle(color: AppColors.acid)),
+                  ]),
+                ),
+              ),
               if (d.likes.isNotEmpty) ...[
                 const SizedBox(height: 26),
                 _SectionHead(

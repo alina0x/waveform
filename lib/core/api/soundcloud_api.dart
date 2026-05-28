@@ -96,6 +96,10 @@ abstract interface class SoundcloudApi {
   /// — откатить оптимистичное изменение.
   Future<LikeOutcome> setLiked(String trackId, bool liked);
 
+  /// Страница personal play-history (`/me/play-history/tracks?offset=…`).
+  /// Используется агрегатором listening stats (постранично, до 400 записей).
+  Future<List<Track>> historyPage({int limit = 50, int offset = 0});
+
   /// ID треков, репостнутых текущим пользователем (для подсветки «reposted»).
   Future<Set<String>> repostedTrackIds();
 

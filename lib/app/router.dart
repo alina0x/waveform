@@ -9,6 +9,7 @@ import '../features/library/library_screen.dart';
 import '../features/playlist/playlist_screen.dart';
 import '../features/search/search_screen.dart';
 import '../features/settings/settings_screen.dart';
+import '../features/stats/stats_screen.dart';
 import '../features/track/track_screen.dart';
 import 'app_shell.dart';
 
@@ -71,6 +72,9 @@ final appRouter = GoRouter(
         GoRoute(
             path: '/settings',
             pageBuilder: (c, s) => _page(const SettingsScreen())),
+        GoRoute(
+            path: '/stats',
+            pageBuilder: (c, s) => _page(const StatsScreen())),
       ],
     ),
     // Экран логов — вне shell (на весь экран, без TopBar/плеера).
