@@ -8,13 +8,16 @@ import '../../core/api/feeds.dart';
 import '../../core/api/soundcloud_api.dart';
 import '../../shared/format.dart';
 import '../../shared/models/artist.dart';
+import '../../shared/view_mode.dart';
 import '../../shared/widgets/async_view.dart';
 import '../../shared/widgets/collection_card.dart';
+import '../../shared/widgets/collection_row.dart';
 import '../../shared/widgets/cover_art.dart';
 import '../../shared/widgets/pressable.dart';
 import '../../shared/widgets/rail_layout.dart';
 import '../../shared/widgets/section_header.dart';
 import '../../shared/widgets/track_row.dart';
+import '../../shared/widgets/view_toggle.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key, required this.query});
@@ -52,7 +55,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             child: Text('results for “$q”',
                 style: AppTheme.mono(size: 12, color: AppColors.textMid)),
           ),
-          _Tabs(tabs: _tabs, current: _tab, onSelect: (i) => setState(() => _tab = i)),
+          _Tabs(
+            tabs: _tabs,
+            current: _tab,
+            onSelect: (i) => setState(() => _tab = i),
+            // Тогл вида — только на вкладке playlists (там грид коллекций).
+            trailing: _tabs[_tab] == 'playlists' ? const ViewToggle() : null,
+          ),
           Expanded(
             child: AsyncView<SearchResults>(
               value: results,
@@ -76,6 +85,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         ]);
       case 'playlists':
         if (r.playlists.isEmpty) return const _Empty('no playlists found');
+        final mode = ref.watch(viewModeProvider);
+        if (mode == ViewMode.list) {
+          return ListView(padding: pad, children: [
+            for (final p in r.playlists) CollectionRow(item: p),
+          ]);
+        }
         return SingleChildScrollView(
           padding: pad,
           child: Wrap(
@@ -99,10 +114,16 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 }
 
 class _Tabs extends StatelessWidget {
-  const _Tabs({required this.tabs, required this.current, required this.onSelect});
+  const _Tabs({
+    required this.tabs,
+    required this.current,
+    required this.onSelect,
+    this.trailing,
+  });
   final List<String> tabs;
   final int current;
   final ValueChanged<int> onSelect;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -133,6 +154,10 @@ class _Tabs extends StatelessWidget {
                       color: i == current ? AppColors.textHi : AppColors.textMid)),
             ),
           ),
+        if (trailing != null) ...[
+          const Spacer(),
+          trailing!,
+        ],
       ]),
     );
   }

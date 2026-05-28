@@ -10,12 +10,15 @@ import '../../core/api/soundcloud_auth.dart';
 import '../../shared/format.dart';
 import '../../shared/models/collection.dart';
 import '../../shared/models/track.dart';
+import '../../shared/view_mode.dart';
 import '../../shared/widgets/async_view.dart';
 import '../../shared/widgets/collection_card.dart';
+import '../../shared/widgets/collection_row.dart';
 import '../../shared/widgets/cover_art.dart';
 import '../../shared/widgets/logged_out_view.dart';
 import '../../shared/widgets/pressable.dart';
 import '../../shared/widgets/section_header.dart';
+import '../../shared/widgets/view_toggle.dart';
 
 class LibraryScreen extends ConsumerStatefulWidget {
   const LibraryScreen({super.key, this.initialTab});
@@ -74,6 +77,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           tabs: _tabs,
           current: _tab,
           onSelect: (i) => setState(() => _tab = i),
+          // На history-табе — список треков (не коллекций); тогл там нерелевантен.
+          trailing: _tabs[_tab] == 'history' ? null : const ViewToggle(),
         ),
         Expanded(
           child: AsyncView<LibraryData>(
@@ -120,18 +125,27 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   }
 
   Widget _grid(String title, List<Collection> items) {
+    final mode = ref.watch(viewModeProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SectionHeader(title: title),
         const SizedBox(height: AppTheme.headerGap),
-        Wrap(
-          spacing: 20,
-          runSpacing: 24,
-          children: [
-            for (final item in items) CollectionCard(item: item),
-          ],
-        ),
+        if (mode == ViewMode.tiles)
+          Wrap(
+            spacing: 20,
+            runSpacing: 24,
+            children: [
+              for (final item in items) CollectionCard(item: item),
+            ],
+          )
+        else
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (final item in items) CollectionRow(item: item),
+            ],
+          ),
       ],
     );
   }
@@ -142,11 +156,15 @@ class _TabBar extends StatelessWidget {
     required this.tabs,
     required this.current,
     required this.onSelect,
+    this.trailing,
   });
 
   final List<String> tabs;
   final int current;
   final ValueChanged<int> onSelect;
+
+  /// Опциональный элемент справа (например, `ViewToggle`).
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -160,6 +178,10 @@ class _TabBar extends StatelessWidget {
         children: [
           for (var i = 0; i < tabs.length; i++)
             _Tab(label: tabs[i], active: i == current, onTap: () => onSelect(i)),
+          if (trailing != null) ...[
+            const Spacer(),
+            trailing!,
+          ],
         ],
       ),
     );

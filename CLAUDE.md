@@ -112,6 +112,14 @@ lib/
   stream» у треков с протухшей HLS-ссылкой.
 
 ## Идеи / бэклог
+- **Tiles ↔ list переключатель.** Везде, где сейчас сетка плиток (library: likes/
+  playlists/albums/stations/following; search/playlists; возможно полки на home —
+  стационарные секции, не горизонтальные карусели), добавить тогл «вид»: tiles
+  (как сейчас) ↔ compact list (CollectionRow). Apple-like, минималистично — два
+  маленьких иконных переключателя где-то возле SectionHeader; глобальная
+  пользовательская настройка `viewModeProvider` (ViewMode.tiles / list),
+  персистится. Список-вариант — плотные строки 56–72px: cover + title +
+  subtitle (mono) + counts (mono справа).
 - **Экран настроек.** Отдельный route `/settings`: тема (тёмная/светлая, когда добавим
   светлую), аккаунт (логин/логаут, текущий юзер), включение/выключение Last.fm-скробблинга
   + его авторизация, качество стрима (HLS/progressive), поведение плеера (crossfade, gapless),
