@@ -115,4 +115,11 @@ class MockSoundcloudApi implements SoundcloudApi {
   @override
   Future<LikeOutcome> setLiked(String trackId, bool liked) async =>
       LikeOutcome.ok;
+
+  @override
+  Future<Set<String>> repostedTrackIds() async => const {};
+
+  @override
+  Future<LikeOutcome> setReposted(String trackId, bool reposted) async =>
+      LikeOutcome.ok;
 }

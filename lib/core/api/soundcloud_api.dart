@@ -95,4 +95,11 @@ abstract interface class SoundcloudApi {
   /// UI может предложить пройти верификацию (капча/VPN), при `failed`/`blocked`
   /// — откатить оптимистичное изменение.
   Future<LikeOutcome> setLiked(String trackId, bool liked);
+
+  /// ID треков, репостнутых текущим пользователем (для подсветки «reposted»).
+  Future<Set<String>> repostedTrackIds();
+
+  /// Репост/снять репост (PUT/DELETE `/users/{me}/track_reposts/{id}`).
+  /// Тот же контракт что у [setLiked].
+  Future<LikeOutcome> setReposted(String trackId, bool reposted);
 }

@@ -45,6 +45,7 @@ extension TrackDtoMapper on TrackDto {
         // до интеграции — детерминированный placeholder по id.
         waveform: Track.generateWaveform(id),
         coverUrl: hiResArtwork(artworkUrl),
+        permalinkUrl: permalinkUrl,
         // HLS-кандидаты сначала, progressive — как фолбэк (часть HLS-ссылок 404).
         // Зашифрованные (DRM) транскодинги исключаем — just_audio их не играет.
         streamCandidates: [

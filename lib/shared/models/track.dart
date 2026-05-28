@@ -15,6 +15,7 @@ class Track {
     this.artistPermalink,
     this.coverUrl,
     this.streamCandidates = const [],
+    this.permalinkUrl,
     this.goPlus = false,
     this.minted = false,
     this.genre = 'electronic',
@@ -58,6 +59,9 @@ class Track {
   String? get streamUrl =>
       streamCandidates.isEmpty ? null : streamCandidates.first;
 
+  /// Постоянный URL трека на soundcloud.com (для «share» и «open in browser»).
+  final String? permalinkUrl;
+
   /// GO+ трек (платная подписка SoundCloud): полный поток зашифрован,
   /// наш клиент его не проигрывает — помечаем как unplayable с причиной.
   final bool goPlus;
@@ -79,6 +83,7 @@ class Track {
         artistPermalink: artistPermalink,
         coverUrl: coverUrl,
         streamCandidates: streamCandidates,
+        permalinkUrl: permalinkUrl,
         goPlus: goPlus,
         minted: minted ?? this.minted,
         genre: genre,

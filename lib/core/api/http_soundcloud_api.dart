@@ -547,4 +547,43 @@ class HttpSoundcloudApi implements SoundcloudApi {
       return LikeOutcome.failed;
     }
   }
+
+  // /users/{id}/track_reposts отдаёт обёртки `{created_at, track:{…}}`.
+  Future<List<Track>> _meReposts([int limit = 200]) async {
+    final id = await _meId();
+    if (id == null) return const [];
+    return _page(
+      await _get('/users/$id/track_reposts', {'limit': limit}, true),
+      (j) => TrackDto.fromJson(asMap(j['track'] ?? j)),
+    ).mapList((d) => d.toDomain());
+  }
+
+  @override
+  Future<Set<String>> repostedTrackIds() async {
+    final tracks =
+        await _tryAuthed(() => _meReposts(), () async => const <Track>[]);
+    return {for (final t in tracks) t.id};
+  }
+
+  @override
+  Future<LikeOutcome> setReposted(String trackId, bool reposted) async {
+    if (!_authed) return LikeOutcome.failed;
+    final id = await _meId();
+    if (id == null) return LikeOutcome.failed;
+    try {
+      // Зеркало read-ручки: /users/{me}/track_reposts/{trackId} (PUT/DELETE).
+      await _send(reposted ? 'PUT' : 'DELETE',
+          '/users/$id/track_reposts/$trackId');
+      return LikeOutcome.ok;
+    } on DioException catch (e, st) {
+      _log.warning('setReposted($trackId, $reposted) failed', e, st);
+      final code = e.response?.statusCode ?? 0;
+      return (code == 401 || code == 403 || code == 429)
+          ? LikeOutcome.blocked
+          : LikeOutcome.failed;
+    } catch (e, st) {
+      _log.warning('setReposted($trackId, $reposted) failed', e, st);
+      return LikeOutcome.failed;
+    }
+  }
 }

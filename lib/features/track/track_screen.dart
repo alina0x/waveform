@@ -1,10 +1,15 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/theme/app_theme.dart';
 import '../../app/theme/colors.dart';
 import '../../core/api/feeds.dart';
+import '../../core/api/liked_tracks.dart';
+import '../../core/api/reposted_tracks.dart';
 import '../../core/api/soundcloud_api.dart';
 import '../../shared/action_feedback.dart';
 import '../../shared/format.dart';
@@ -214,20 +219,48 @@ class _Hero extends StatelessWidget {
   }
 }
 
-class _ActionBar extends StatelessWidget {
+class _ActionBar extends ConsumerWidget {
   const _ActionBar({required this.track});
   final Track track;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final liked = ref.watch(likedTracksProvider).contains(track.id);
+    final reposted = ref.watch(repostedTracksProvider).contains(track.id);
     return Row(
       children: [
-        _Action(icon: Icons.favorite_border, value: Fmt.count(track.likes)),
-        _Action(icon: Icons.repeat, value: Fmt.count(track.reposts)),
-        const _Action(icon: Icons.share_outlined),
-        const _Action(icon: Icons.more_horiz),
+        _Action(
+          icon: liked ? Icons.favorite : Icons.favorite_border,
+          value: Fmt.count(track.likes),
+          active: liked,
+          onTap: () async {
+            final outcome =
+                await ref.read(likedTracksProvider.notifier).toggle(track.id);
+            if (context.mounted) {
+              showWriteOutcome(context, outcome, verb: 'like');
+            }
+          },
+        ),
+        _Action(
+          icon: Icons.repeat,
+          value: Fmt.count(track.reposts),
+          active: reposted,
+          onTap: () async {
+            final outcome = await ref
+                .read(repostedTracksProvider.notifier)
+                .toggle(track.id);
+            if (context.mounted) {
+              showWriteOutcome(context, outcome, verb: 'repost');
+            }
+          },
+        ),
+        _Action(
+          icon: Icons.share_outlined,
+          onTap: () => _share(context, track),
+        ),
+        _MoreAction(track: track),
         const Spacer(),
-        Icon(Icons.play_arrow, size: 13, color: AppColors.textLow),
+        const Icon(Icons.play_arrow, size: 13, color: AppColors.textLow),
         const SizedBox(width: 4),
         Text('${Fmt.count(track.plays)} plays · ${track.postedAt}',
             style: AppTheme.mono(size: 11, color: AppColors.textLow)),
@@ -236,20 +269,117 @@ class _ActionBar extends StatelessWidget {
   }
 }
 
-class _Action extends StatelessWidget {
-  const _Action({required this.icon, this.value});
-  final IconData icon;
-  final String? value;
+/// Копирует permalink трека в системный clipboard; уведомляет тостом.
+Future<void> _share(BuildContext context, Track track) async {
+  final url = track.permalinkUrl;
+  final messenger = ScaffoldMessenger.of(context);
+  if (url == null || url.isEmpty) {
+    messenger.showSnackBar(SnackBar(
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: AppColors.surface2,
+      content: Text("no shareable link for this track",
+          style: AppTheme.mono(size: 12, color: AppColors.textHi)),
+    ));
+    return;
+  }
+  await Clipboard.setData(ClipboardData(text: url));
+  messenger
+    ..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: AppColors.surface2,
+      content: Text('link copied to clipboard',
+          style: AppTheme.mono(size: 12, color: AppColors.textHi)),
+    ));
+}
+
+/// Открывает URL в системном браузере без url_launcher (нативные shell-команды).
+Future<void> _openUrlExternal(String url) async {
+  try {
+    if (Platform.isMacOS) {
+      await Process.run('open', [url]);
+    } else if (Platform.isWindows) {
+      await Process.run('cmd', ['/c', 'start', '', url]);
+    } else if (Platform.isLinux) {
+      await Process.run('xdg-open', [url]);
+    }
+  } catch (_) {}
+}
+
+/// Меню «more»: copy link + open on SoundCloud. Disabled, если permalink null.
+class _MoreAction extends StatelessWidget {
+  const _MoreAction({required this.track});
+  final Track track;
 
   @override
   Widget build(BuildContext context) {
+    final url = track.permalinkUrl;
+    final enabled = url != null && url.isNotEmpty;
+    return PopupMenuButton<String>(
+      enabled: enabled,
+      tooltip: 'more',
+      offset: const Offset(0, 28),
+      color: AppColors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: AppTheme.borderRadius,
+        side: const BorderSide(color: AppColors.border, width: AppTheme.borderWidth),
+      ),
+      itemBuilder: (_) => [
+        PopupMenuItem(
+          value: 'copy',
+          child: Text('copy link',
+              style: AppTheme.mono(size: 12, color: AppColors.textHi)),
+        ),
+        PopupMenuItem(
+          value: 'open',
+          child: Text('open on soundcloud ↗',
+              style: AppTheme.mono(size: 12, color: AppColors.textHi)),
+        ),
+      ],
+      onSelected: (v) async {
+        if (url == null) return;
+        if (v == 'copy') {
+          await Clipboard.setData(ClipboardData(text: url));
+          if (context.mounted) {
+            ScaffoldMessenger.of(context)
+              ..hideCurrentSnackBar()
+              ..showSnackBar(SnackBar(
+                behavior: SnackBarBehavior.floating,
+                backgroundColor: AppColors.surface2,
+                content: Text('link copied to clipboard',
+                    style: AppTheme.mono(size: 12, color: AppColors.textHi)),
+              ));
+          }
+        } else if (v == 'open') {
+          await _openUrlExternal(url);
+        }
+      },
+      child: const Padding(
+        padding: EdgeInsets.only(right: 18),
+        child: Icon(Icons.more_horiz, size: 18, color: AppColors.textMid),
+      ),
+    );
+  }
+}
+
+class _Action extends StatelessWidget {
+  const _Action(
+      {required this.icon, this.value, this.active = false, this.onTap});
+  final IconData icon;
+  final String? value;
+  final bool active;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = active ? AppColors.acid : AppColors.textMid;
     return Pressable(
-      onTap: () {},
+      onTap: onTap ?? () {},
       child: Padding(
         padding: const EdgeInsets.only(right: 18),
         child: Row(
           children: [
-            Icon(icon, size: 16, color: AppColors.textMid),
+            Icon(icon, size: 16, color: color),
             if (value != null) ...[
               const SizedBox(width: 5),
               Text(value!, style: AppTheme.mono(size: 11)),

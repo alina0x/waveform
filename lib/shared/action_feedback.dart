@@ -5,10 +5,11 @@ import '../app/theme/colors.dart';
 import '../core/api/soundcloud_api.dart';
 import '../core/api/webview_login.dart';
 
-/// Реакция UI на исход лайка. Тихо при [LikeOutcome.ok]; при `blocked` —
-/// предложение пройти верификацию в браузере (капча/анти-абуз, частый под VPN);
-/// при `failed` — короткое уведомление.
-void showLikeOutcome(BuildContext context, LikeOutcome outcome) {
+/// Реакция UI на исход API-write (лайк/репост). Тихо при [LikeOutcome.ok]; при
+/// `blocked` — предложение пройти верификацию в браузере (капча/анти-абуз,
+/// частый под VPN); при `failed` — короткое уведомление с указанием действия.
+void showWriteOutcome(BuildContext context, LikeOutcome outcome,
+    {String verb = 'like'}) {
   if (outcome == LikeOutcome.ok) return;
   final messenger = ScaffoldMessenger.of(context);
   final blocked = outcome == LikeOutcome.blocked;
@@ -21,7 +22,7 @@ void showLikeOutcome(BuildContext context, LikeOutcome outcome) {
       content: Text(
         blocked
             ? 'SoundCloud blocked this action — likely a captcha/VPN check'
-            : "couldn't update like",
+            : "couldn't update $verb",
         style: AppTheme.mono(size: 12, color: AppColors.textHi),
       ),
       action: blocked
@@ -33,6 +34,11 @@ void showLikeOutcome(BuildContext context, LikeOutcome outcome) {
           : null,
     ));
 }
+
+/// Старая точка входа — оставлена для уже-существующих call-сайтов (TrackRow,
+/// bottom_player); делегирует в обобщённый [showWriteOutcome].
+void showLikeOutcome(BuildContext context, LikeOutcome outcome) =>
+    showWriteOutcome(context, outcome, verb: 'like');
 
 /// Уведомление, что трек доступен только по подписке GO+ и не проигрывается.
 void showGoPlusNotice(BuildContext context) {
