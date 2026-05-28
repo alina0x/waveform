@@ -44,8 +44,17 @@ jobs:
           keychain-password: ${{ secrets.KEYCHAIN_PASSWORD }}
 
       - name: Build macOS release
+        # Disable Xcode auto-signing during build — pbxproj has
+        # CODE_SIGN_STYLE=Automatic + DEVELOPMENT_TEAM hardcoded,
+        # which makes xcodebuild try to find a "Mac Development" cert
+        # that doesn't exist on the runner (we only imported Developer
+        # ID Application). Our separate Codesign step below does the
+        # real signing with --deep on the produced .app.
         env:
-          DEVELOPMENT_TEAM: ${{ secrets.APPLE_TEAM_ID }}
+          CODE_SIGNING_ALLOWED: "NO"
+          CODE_SIGNING_REQUIRED: "NO"
+          CODE_SIGN_IDENTITY: ""
+          CODE_SIGN_STYLE: "Manual"
         run: |
           flutter build macos --release \
             --dart-define=APP_VERSION=${{ github.ref_name }} \
