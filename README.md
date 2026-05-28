@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://i.ibb.co/TxhCm9Dx/image.png" alt="Waveform" width="100%" />
+  <img src="screenshots/track-page.png" alt="Waveform — track page with ambient cover backdrop, waveform, and timecoded comments" width="100%" />
 </p>
 
 <p align="center">
@@ -18,10 +18,6 @@
 Closer to canonical SoundCloud than any other unofficial client — but darker, quieter, and built so you almost never have to touch the mouse.
 
 > **v0.1.0 — first public demo.** Daily-driver loop works end-to-end on macOS (Windows/Linux build too, less exercised). APIs are unofficial; rough edges remain. Full change log in [`CHANGELOG.md`](CHANGELOG.md).
-
-<p align="center">
-  <img src="screenshots/track-page.png" alt="Track page with ambient cover backdrop, waveform, and timecoded comments" width="100%" />
-</p>
 
 ---
 
