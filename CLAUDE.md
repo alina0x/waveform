@@ -39,7 +39,7 @@ dependencies:
   audio_service: ^0.18.13
   cached_network_image: ^3.3.1
   dio: ^5.4.3
-  flutter_secure_storage: ^9.2.2
+  path_provider: ^2.1.5
 ```
 
 ## Структура
@@ -54,7 +54,7 @@ lib/
 ├── core/
 │   ├── api/        # SoundCloud client, OAuth 2.1 + PKCE
 │   ├── audio/      # just_audio + audio_service
-│   └── storage/    # secure storage for tokens
+│   └── storage/    # file-based token store (path_provider, sandboxed)
 ├── features/
 │   ├── auth/
 │   ├── home/       # stream/feed
@@ -121,8 +121,8 @@ lib/
   отправлять `track.updateNowPlaying` + `track.scrobble` в Last.fm (scrobble после ~50% трека
   или 4 минут — по правилам Last.fm). Нужен ключ Last.fm API + auth-токен пользователя
   (`auth.getMobileSession`/web-flow), настройка вкл/выкл в профиле. Скробблер слушает
-  `PlayerController` (трек сменился / достиг порога). Хранить креды в flutter_secure_storage
-  рядом с SoundCloud-токеном.
+  `PlayerController` (трек сменился / достиг порога). Хранить креды в локальном
+  файловом сторе рядом с SoundCloud-токеном (см. `lib/core/storage/`).
 - **True-shuffle по всей коллекции.** Сейчас shuffle честный (полный охват без повторов в цикле),
   но только по загруженной очереди — как у SoundCloud (где мешает лишь подгруженное в infinite
   scroll). Чтобы перекрыть это ограничение, перед перемешиванием догружать всю коллекцию

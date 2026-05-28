@@ -1,9 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../log/talker.dart';
+import '../storage/token_store.dart';
 
 /// Состояние авторизации SoundCloud.
 ///
@@ -32,8 +32,7 @@ class SoundcloudAuth {
 }
 
 class AuthController extends Notifier<SoundcloudAuth> {
-  static const _storage = FlutterSecureStorage();
-  static const _tokenKey = 'sc_oauth_token';
+  static const _store = TokenStore();
 
   @override
   SoundcloudAuth build() {
@@ -42,15 +41,20 @@ class AuthController extends Notifier<SoundcloudAuth> {
   }
 
   /// Подтягиваем сохранённый токен при старте (best-effort; в тестах плагина
-  /// нет — глушим).
+  /// path_provider нет — глушим).
   Future<void> _restore() async {
     try {
-      final token = await _storage.read(key: _tokenKey);
+      final token = await _store.read();
       if (token != null && token.isNotEmpty) {
         state = state.copyWith(userToken: token);
         ref.read(talkerProvider).info('auth: restored token ${_mask(token)}');
+      } else {
+        ref.read(talkerProvider).info('auth: no stored token');
       }
-    } catch (_) {}
+    } catch (e, st) {
+      // Видимая ошибка → проблема с keychain-entitlement/доступом, а не «нет токена».
+      ref.read(talkerProvider).warning('auth: restore failed', e, st);
+    }
   }
 
   // Маскируем токен в логах: видно форму (`2-…` = пользовательский), не секрет.
@@ -60,26 +64,28 @@ class AuthController extends Notifier<SoundcloudAuth> {
   /// client_id добывается автоматически из веб-бандла (как в yt-dlp/FetchClientID).
   void setClientId(String id) => state = state.copyWith(clientId: id);
 
-  /// Сохраняем токен после входа. Состояние ставим сразу; запись в keychain —
-  /// детачем (не блокируем UI/тесты, где плагина нет).
+  /// Сохраняем токен после входа. Состояние ставим сразу; запись на диск —
+  /// детачем (не блокируем UI/тесты, где плагина path_provider нет).
   void signIn(String userToken) {
     state = state.copyWith(userToken: userToken);
     ref
         .read(talkerProvider)
         .info('auth: signIn token ${_mask(userToken)} (len ${userToken.length})');
-    unawaited(_safe(() => _storage.write(key: _tokenKey, value: userToken)));
+    unawaited(_safe(() => _store.write(userToken)));
   }
 
   void signOut() {
     ref.read(talkerProvider).info('auth: signOut');
     state = state.signedOut();
-    unawaited(_safe(() => _storage.delete(key: _tokenKey)));
+    unawaited(_safe(() => _store.delete()));
   }
 
   Future<void> _safe(Future<void> Function() op) async {
     try {
       await op();
-    } catch (_) {}
+    } catch (e, st) {
+      ref.read(talkerProvider).warning('auth: storage op failed', e, st);
+    }
   }
 }
 

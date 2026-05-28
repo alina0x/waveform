@@ -11,7 +11,7 @@ Aesthetic: minimalism with light web3 accents. Closer to the canonical SoundClou
 ## What works today
 
 - **Live SoundCloud data** via the internal `api-v2` (no mock data in the shipping app).
-- **Per-user login** through SoundCloud's real sign-in page in an embedded WebView — your password is never seen by the app; only the session token is captured and stored in the OS secure storage.
+- **Per-user login** through SoundCloud's real sign-in page in an embedded WebView — your password is never seen by the app; only the session token is captured and persisted locally in the app's sandboxed data directory.
 - **Real audio playback** of HLS streams through [`just_audio`] (native AVPlayer on macOS).
 - **Screens:** Home (your stream + curated shelves), Feed, Library (likes / playlists / albums / stations / following / history), Search (tracks / people / playlists), Track page (waveform + comments with timecodes + related), Artist page, Playlist page.
 - **Player:** play/pause, next/previous, true full-coverage shuffle, repeat, scrubbing on the waveform, volume, and like (with optimistic state synced to your account).
@@ -33,7 +33,7 @@ Typography: **Inter** for text/headings, **JetBrains Mono** for all numbers, tim
 
 ## Stack
 
-Flutter + Dart 3.11. Key packages: `flutter_riverpod` (state), `go_router` (navigation), `just_audio` (playback), `dio` (HTTP), `flutter_secure_storage` (tokens), `cached_network_image`, `google_fonts`, `talker_flutter` (logging).
+Flutter + Dart 3.11. Key packages: `flutter_riverpod` (state), `go_router` (navigation), `just_audio` (playback), `dio` (HTTP), `path_provider` (token + cache paths), `cached_network_image`, `google_fonts`, `talker_flutter` (logging).
 
 ## Project structure
 
@@ -76,7 +76,7 @@ flutter analyze
 ## How data & auth work
 
 - Waveform talks to SoundCloud's **undocumented `api-v2`**. The app key (`client_id`) is **scraped from soundcloud.com at runtime** — nothing is shipped or hardcoded.
-- Personal data requires logging in with **your own SoundCloud account** via the WebView flow. The OAuth token is kept in `flutter_secure_storage`; anonymous endpoints never carry it.
+- Personal data requires logging in with **your own SoundCloud account** via the WebView flow. The OAuth token is written to a file inside the app's sandboxed support directory (`getApplicationSupportDirectory()`); anonymous endpoints never carry it.
 - Personal collections use `/users/{id}/…` (the `/me/…` equivalents 404 in api-v2).
 
 ## Known limitations
