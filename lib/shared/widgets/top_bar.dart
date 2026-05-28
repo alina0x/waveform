@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart' show kDebugMode;
@@ -12,7 +11,6 @@ import '../../core/api/feeds.dart';
 import '../../core/api/soundcloud_auth.dart';
 import '../../features/auth/login_dialog.dart';
 import '../../features/omnibox/omnibox_providers.dart';
-import '../../features/omnibox/recent_queries.dart';
 import '../../features/player/player_controller.dart';
 import '../../features/queue/queue_visibility.dart';
 import 'cover_art.dart';
@@ -188,82 +186,72 @@ class _NavLink extends StatelessWidget {
   }
 }
 
-class _SearchField extends ConsumerStatefulWidget {
+/// Триггер-поле в TopBar — визуально похоже на input, но при тапе открывает
+/// центральную ⌘K-палитру. Сам ввод и результаты — в overlay'е (см. AppShell).
+/// Placeholder подмешивает now-playing для дополнительной discoverability.
+class _SearchField extends ConsumerWidget {
   const _SearchField();
 
   @override
-  ConsumerState<_SearchField> createState() => _SearchFieldState();
-}
-
-class _SearchFieldState extends ConsumerState<_SearchField> {
-  Timer? _debounce;
-
-  @override
-  void dispose() {
-    _debounce?.cancel();
-    super.dispose();
-  }
-
-  void _onChanged(String value) {
-    // Дебаунсим обновление query-провайдера — дроп-даун (Phase 2b) и любые
-    // живые подписки на `omniboxQueryProvider` обновятся через 250ms.
-    _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 250), () {
-      ref.read(omniboxQueryProvider.notifier).set(value.trim());
-    });
-  }
-
-  void _submit(String value) {
-    final q = value.trim();
-    if (q.isEmpty) return;
-    ref.read(recentQueriesProvider.notifier).add(q);
-    ref.read(omniboxFocusProvider).unfocus();
-    context.go('/search?q=${Uri.encodeQueryComponent(q)}');
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final focus = ref.watch(omniboxFocusProvider);
-    final controller = ref.watch(omniboxControllerProvider);
-    // Когда поле пустое и трек играет — placeholder показывает now-playing,
-    // закрывая потребность в отдельном ticker'е в TopBar.
+  Widget build(BuildContext context, WidgetRef ref) {
     final track = ref.watch(playerControllerProvider).track;
-    final hint = (controller.text.isEmpty && track != null)
-        ? '⌘K · playing: ${track.artist} — ${track.title}'
-        : '⌘K · search tracks, artists, playlists…';
+    final controller = ref.watch(omniboxControllerProvider);
+    // Если уже есть введённый запрос — показываем его (поле выглядит «полным»);
+    // иначе — playing-плейсхолдер или дефолтный hint.
+    final display = controller.text.isNotEmpty
+        ? controller.text
+        : (track != null
+            ? 'playing: ${track.artist} — ${track.title}'
+            : 'search tracks, artists, playlists…');
+    final isPlaceholder = controller.text.isEmpty;
 
-    return Container(
-      width: double.infinity,
-      height: 32,
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      decoration: BoxDecoration(
-        color: AppColors.bg,
-        borderRadius: AppTheme.borderRadius,
-        border: AppTheme.border(),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.search, size: 15, color: AppColors.textLow),
-          const SizedBox(width: 8),
-          Expanded(
-            child: TextField(
-              controller: controller,
-              focusNode: focus,
-              onChanged: _onChanged,
-              onSubmitted: _submit,
-              textInputAction: TextInputAction.search,
-              cursorColor: AppColors.acid,
-              style: const TextStyle(fontSize: 12, color: AppColors.textHi),
-              decoration: InputDecoration(
-                isCollapsed: true,
-                border: InputBorder.none,
-                hintText: hint,
-                hintStyle:
-                    const TextStyle(fontSize: 12, color: AppColors.textLow),
-              ),
-            ),
+    return GestureDetector(
+      onTap: () => ref.read(omniboxOpenProvider.notifier).open(),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: Container(
+          width: double.infinity,
+          height: 32,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: AppColors.bg,
+            borderRadius: AppTheme.borderRadius,
+            border: AppTheme.border(),
           ),
-        ],
+          child: Row(
+            children: [
+              const Icon(Icons.search, size: 15, color: AppColors.textLow),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  display,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color:
+                        isPlaceholder ? AppColors.textLow : AppColors.textHi,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Кейбординг-хинт.
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(2),
+                  border: AppTheme.border(),
+                ),
+                child: Text('⌘K',
+                    style: AppTheme.mono(
+                        size: 9,
+                        color: AppColors.textLow,
+                        weight: FontWeight.w600)),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

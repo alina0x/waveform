@@ -31,3 +31,11 @@ class JumpSettingsIntent extends Intent {
 class JumpLogsIntent extends Intent {
   const JumpLogsIntent();
 }
+
+class VolumeUpIntent extends Intent {
+  const VolumeUpIntent();
+}
+
+class VolumeDownIntent extends Intent {
+  const VolumeDownIntent();
+}

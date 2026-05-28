@@ -1,16 +1,16 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Один shared FocusNode для омнибокса (поле в TopBar) — глобальный фокус
-/// нужен для ⌘K и ⌘F shortcut'ов (фокус ставится из AppShell-Actions).
+/// FocusNode для TextField внутри **центральной модалки**. Когда модалка
+/// смонтирована, поле автофокусится; вне модалки этот node detached.
 final omniboxFocusProvider = Provider<FocusNode>((ref) {
   final node = FocusNode(debugLabel: 'omnibox');
   ref.onDispose(node.dispose);
   return node;
 });
 
-/// Один shared TextEditingController, чтобы ⌘K / ⌘F мог сразу выделить
-/// весь существующий текст (instant "пиши новое поверх").
+/// Один shared TextEditingController — переживает закрытие/открытие модалки,
+/// так что Esc + повторное ⌘K возвращают тот же запрос (как Raycast/Spotlight).
 final omniboxControllerProvider = Provider<TextEditingController>((ref) {
   final ctrl = TextEditingController();
   ref.onDispose(ctrl.dispose);
@@ -30,24 +30,16 @@ class OmniboxQueryController extends Notifier<String> {
 final omniboxQueryProvider =
     NotifierProvider<OmniboxQueryController, String>(OmniboxQueryController.new);
 
-/// true → дроп-даун показываем. Слушает FocusNode (он же ChangeNotifier).
-class OmniboxFocusedController extends Notifier<bool> {
-  FocusNode? _node;
-  void _listener() {
-    final n = _node;
-    if (n != null && state != n.hasFocus) state = n.hasFocus;
-  }
-
+/// Открыта ли центральная палитра. Источник правды для AppShell — рендерит
+/// blur-фон + модалку только когда true. Toggle/open/close из shortcut'ов,
+/// trigger-кнопки в TopBar и Esc внутри модалки.
+class OmniboxOpenController extends Notifier<bool> {
   @override
-  bool build() {
-    final n = ref.read(omniboxFocusProvider);
-    _node = n;
-    n.addListener(_listener);
-    ref.onDispose(() => n.removeListener(_listener));
-    return n.hasFocus;
-  }
+  bool build() => false;
+  void open() => state = true;
+  void close() => state = false;
+  void toggle() => state = !state;
 }
 
-final omniboxFocusedProvider =
-    NotifierProvider<OmniboxFocusedController, bool>(
-        OmniboxFocusedController.new);
+final omniboxOpenProvider =
+    NotifierProvider<OmniboxOpenController, bool>(OmniboxOpenController.new);

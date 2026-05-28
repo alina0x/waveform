@@ -47,7 +47,6 @@ dependencies:
   talker_flutter: ^5.1.16
   talker_riverpod_logger: ^5.1.16
   talker_dio_logger: ^5.1.16
-  palette_generator: ^0.3.3+7
   crypto: ^3.0.7
 
 dev_dependencies:
