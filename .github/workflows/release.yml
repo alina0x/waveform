@@ -188,9 +188,13 @@ jobs:
           path: waveform-linux-${{ github.ref_name }}.tar.gz
 
   # ── Publish: gather artifacts → GitHub Release ──
+  # Only macOS is required; Windows/Linux are best-effort and don't
+  # block the release if they fail. The Flatten step uses globs that
+  # tolerate missing files, so a missing zip/tar.gz is fine.
   release:
     name: Publish GitHub Release
-    needs: [macos, windows, linux]
+    needs: [macos]
+    if: always() && needs.macos.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -204,7 +208,7 @@ jobs:
         run: |
           mkdir -p release
           find dist -type f \( -name '*.dmg' -o -name '*.zip' -o -name '*.tar.gz' \) \
-            -exec cp -v {} release/ \;
+            -exec cp -v {} release/ \; || true
           ls -lh release/
 
       - name: Create / update GitHub Release
@@ -215,6 +219,7 @@ jobs:
           body_path: .github/release_template.md
           draft: false
           prerelease: ${{ contains(github.ref_name, '-') }}
+          fail_on_unmatched_files: false
           files: |
             release/*.dmg
             release/*.zip
