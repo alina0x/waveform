@@ -13,6 +13,7 @@ import '../../shared/widgets/async_view.dart';
 import '../../shared/widgets/collection_card.dart';
 import '../../shared/widgets/collection_row.dart';
 import '../../shared/widgets/cover_art.dart';
+import '../../shared/widgets/empty_state.dart';
 import '../../shared/widgets/pressable.dart';
 import '../../shared/widgets/rail_layout.dart';
 import '../../shared/widgets/section_header.dart';
@@ -77,14 +78,27 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   Widget _body(SearchResults r) {
     final pad = const EdgeInsets.fromLTRB(
         AppTheme.pagePad, 18, AppTheme.pagePad, AppTheme.playerHeight + 32);
+    final q = widget.query.trim();
     switch (_tabs[_tab]) {
       case 'people':
-        if (r.artists.isEmpty) return const _Empty('no people found');
+        if (r.artists.isEmpty) {
+          return EmptyState(
+            icon: Icons.person_search_outlined,
+            title: 'no people found',
+            subtitle: 'no SoundCloud users matched “$q” — try a shorter query',
+          );
+        }
         return ListView(padding: pad, children: [
           for (final a in r.artists) _ArtistRow(artist: a),
         ]);
       case 'playlists':
-        if (r.playlists.isEmpty) return const _Empty('no playlists found');
+        if (r.playlists.isEmpty) {
+          return EmptyState(
+            icon: Icons.library_music_outlined,
+            title: 'no playlists found',
+            subtitle: 'nothing matched “$q”',
+          );
+        }
         final mode = ref.watch(viewModeProvider);
         if (mode == ViewMode.list) {
           return ListView(padding: pad, children: [
@@ -103,7 +117,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         );
       case 'tracks':
       default:
-        if (r.tracks.isEmpty) return const _Empty('no tracks found');
+        if (r.tracks.isEmpty) {
+          return EmptyState(
+            icon: Icons.search_off,
+            title: 'no tracks found',
+            subtitle: 'no SoundCloud tracks matched “$q”',
+          );
+        }
         return ListView(padding: pad, children: [
           const SectionHeader(title: 'tracks'),
           const SizedBox(height: AppTheme.headerGap),
@@ -218,11 +238,3 @@ class _ArtistRow extends StatelessWidget {
   }
 }
 
-class _Empty extends StatelessWidget {
-  const _Empty(this.message);
-  final String message;
-  @override
-  Widget build(BuildContext context) => Center(
-        child: Text(message, style: const TextStyle(color: AppColors.textLow)),
-      );
-}

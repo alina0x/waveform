@@ -40,11 +40,16 @@ class CollectionRow extends StatelessWidget {
         ),
         child: Row(
           children: [
-            CoverArt(
-              seed: item.coverSeed,
-              imageUrl: item.coverUrl,
-              size: 44,
-              circular: item.isCircular,
+            // Hero только для track/playlist (artist — круглый, без hero,
+            // чтобы не было квадратного halo при анимации).
+            _maybeHero(
+              item: item,
+              child: CoverArt(
+                seed: item.coverSeed,
+                imageUrl: item.coverUrl,
+                size: 44,
+                circular: item.isCircular,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -89,5 +94,19 @@ class CollectionRow extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Возвращает [child], обёрнутый в Hero, если коллекция ведёт на trackОrplaylist-
+/// деталь (там тоже есть Hero с тем же тегом). Для артиста — возвращает как есть
+/// (avatar круглый, Hero rect-shape выглядел бы как halo).
+Widget _maybeHero({required Collection item, required Widget child}) {
+  switch (item.target) {
+    case CollectionTarget.track:
+      return Hero(tag: 'cover-track-${item.id}', child: child);
+    case CollectionTarget.playlist:
+      return Hero(tag: 'cover-playlist-${item.id}', child: child);
+    case CollectionTarget.artist:
+      return child;
   }
 }

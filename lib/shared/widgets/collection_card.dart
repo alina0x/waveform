@@ -104,11 +104,16 @@ class _Cover extends StatelessWidget {
                 width: AppTheme.borderWidth,
               ),
             ),
-            child: CoverArt(
-              seed: item.coverSeed,
-              imageUrl: item.coverUrl,
-              size: size,
-              circular: item.isCircular,
+            // Hero только для track/playlist — у артиста круг, и rect-Hero
+            // оставлял бы квадратный halo на анимации.
+            child: _maybeHero(
+              item: item,
+              child: CoverArt(
+                seed: item.coverSeed,
+                imageUrl: item.coverUrl,
+                size: size,
+                circular: item.isCircular,
+              ),
             ),
           ),
 
@@ -230,6 +235,17 @@ class _MintedDot extends StatelessWidget {
         child: Text('◆', style: TextStyle(color: AppColors.lime, fontSize: 9)),
       ),
     );
+  }
+}
+
+Widget _maybeHero({required Collection item, required Widget child}) {
+  switch (item.target) {
+    case CollectionTarget.track:
+      return Hero(tag: 'cover-track-${item.id}', child: child);
+    case CollectionTarget.playlist:
+      return Hero(tag: 'cover-playlist-${item.id}', child: child);
+    case CollectionTarget.artist:
+      return child;
   }
 }
 

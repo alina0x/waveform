@@ -7,6 +7,7 @@ import '../../core/api/feeds.dart';
 import '../../core/api/soundcloud_auth.dart';
 import '../../shared/models/feed_post.dart';
 import '../../shared/widgets/async_view.dart';
+import '../../shared/widgets/empty_state.dart';
 import '../../shared/widgets/logged_out_view.dart';
 import '../../shared/widgets/rail_layout.dart';
 import 'widgets/feed_post_card.dart';
@@ -30,19 +31,29 @@ class FeedScreen extends ConsumerWidget {
       child: AsyncView<List<FeedPost>>(
         value: feed,
         onRetry: () => ref.invalidate(feedProvider),
-        data: (posts) => ListView(
-          padding: const EdgeInsets.fromLTRB(AppTheme.pagePad,
-              AppTheme.topBarHeight + 26, AppTheme.pagePad, AppTheme.playerHeight + 32),
-          children: [
-            const _FeedIntro(),
-            const SizedBox(height: 20),
-            for (final post in posts)
-              FeedPostCard(
-                post: post,
-                queue: [for (final p in posts) p.track],
+        data: (posts) => posts.isEmpty
+            ? const EmptyState(
+                icon: Icons.notifications_outlined,
+                title: 'your feed is quiet',
+                subtitle:
+                    'follow more artists to see their posts and reposts here',
+              )
+            : ListView(
+                padding: const EdgeInsets.fromLTRB(
+                    AppTheme.pagePad,
+                    AppTheme.topBarHeight + 26,
+                    AppTheme.pagePad,
+                    AppTheme.playerHeight + 32),
+                children: [
+                  const _FeedIntro(),
+                  const SizedBox(height: 20),
+                  for (final post in posts)
+                    FeedPostCard(
+                      post: post,
+                      queue: [for (final p in posts) p.track],
+                    ),
+                ],
               ),
-          ],
-        ),
       ),
     );
   }

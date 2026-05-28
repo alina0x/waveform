@@ -15,6 +15,7 @@ import '../../shared/widgets/async_view.dart';
 import '../../shared/widgets/collection_card.dart';
 import '../../shared/widgets/collection_row.dart';
 import '../../shared/widgets/cover_art.dart';
+import '../../shared/widgets/empty_state.dart';
 import '../../shared/widgets/logged_out_view.dart';
 import '../../shared/widgets/pressable.dart';
 import '../../shared/widgets/section_header.dart';
@@ -96,18 +97,51 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   }
 
   Widget _body(LibraryData d) {
+    EmptyState noneFor(String section, IconData icon, String subtitle) =>
+        EmptyState(
+          icon: icon,
+          title: 'no $section yet',
+          subtitle: subtitle,
+          actionLabel: 'go explore →',
+          onAction: () => context.go('/'),
+        );
+
     switch (_tabs[_tab]) {
       case 'likes':
+        if (d.likes.isEmpty) {
+          return noneFor('likes', Icons.favorite_outline,
+              'like tracks to build a personal collection here');
+        }
         return _grid('likes', d.likes);
       case 'playlists':
+        if (d.playlists.isEmpty) {
+          return noneFor('playlists', Icons.queue_music_outlined,
+              'create a playlist on SoundCloud — it appears here');
+        }
         return _grid('playlists', d.playlists);
       case 'albums':
-        return _grid('albums for you', d.albums);
+        return d.albums.isEmpty
+            ? noneFor('albums', Icons.album_outlined,
+                'liked albums show up here')
+            : _grid('albums for you', d.albums);
       case 'stations':
-        return _grid('your stations', d.stations);
+        return d.stations.isEmpty
+            ? noneFor('stations', Icons.radio_outlined,
+                'follow artists / genres to seed personal stations')
+            : _grid('your stations', d.stations);
       case 'following':
-        return _grid('following', d.following);
+        return d.following.isEmpty
+            ? noneFor('one followed', Icons.people_outline,
+                'follow artists to see their releases first')
+            : _grid('following', d.following);
       case 'history':
+        if (d.history.isEmpty) {
+          return const EmptyState(
+            icon: Icons.history,
+            title: 'no history yet',
+            subtitle: 'tracks you played will show up here',
+          );
+        }
         return _HistoryList(tracks: d.history);
       case 'overview':
       default:

@@ -17,6 +17,7 @@ import '../../shared/models/comment.dart';
 import '../../shared/models/track.dart';
 import '../../shared/widgets/async_view.dart';
 import '../../shared/widgets/cover_art.dart';
+import '../../shared/widgets/empty_state.dart';
 import '../../shared/widgets/go_plus_badge.dart';
 import '../../shared/widgets/pressable.dart';
 import '../../shared/widgets/section_header.dart';
@@ -85,8 +86,15 @@ class _TrackBody extends ConsumerWidget {
             ],
             SectionHeader(title: 'comments · ${comments.length}'),
             const SizedBox(height: AppTheme.headerGap),
-            for (final cm in comments)
-              _CommentRow(comment: cm, trackMs: track.durationMs),
+            if (comments.isEmpty)
+              const EmptyState(
+                icon: Icons.chat_bubble_outline,
+                title: 'no comments yet',
+                compact: true,
+              )
+            else
+              for (final cm in comments)
+                _CommentRow(comment: cm, trackMs: track.durationMs),
             const SizedBox(height: 28),
             const SectionHeader(title: 'related tracks'),
             const SizedBox(height: AppTheme.headerGap),
@@ -143,7 +151,10 @@ class _Hero extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        CoverArt(seed: track.id, imageUrl: track.coverUrl, size: 210),
+        Hero(
+          tag: 'cover-track-${track.id}',
+          child: CoverArt(seed: track.id, imageUrl: track.coverUrl, size: 210),
+        ),
         const SizedBox(width: 24),
         Expanded(
           child: Column(
@@ -224,40 +235,63 @@ class _Hero extends StatelessWidget {
   }
 }
 
-class _ActionBar extends ConsumerWidget {
+class _ActionBar extends ConsumerStatefulWidget {
   const _ActionBar({required this.track});
   final Track track;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_ActionBar> createState() => _ActionBarState();
+}
+
+class _ActionBarState extends ConsumerState<_ActionBar> {
+  // Локальные дельты для оптимистичного UI: показываем ±1 сразу при тапе,
+  // откатываем если API ответила !ok.
+  int _likesDelta = 0;
+  int _repostsDelta = 0;
+
+  Future<void> _toggleLike() async {
+    final wasLiked = ref.read(likedTracksProvider).contains(widget.track.id);
+    setState(() => _likesDelta += wasLiked ? -1 : 1);
+    final outcome =
+        await ref.read(likedTracksProvider.notifier).toggle(widget.track.id);
+    if (outcome != LikeOutcome.ok) {
+      // Контроллер уже откатил `liked`-set; здесь откатываем дельту счётчика.
+      if (mounted) setState(() => _likesDelta += wasLiked ? 1 : -1);
+    }
+    if (mounted) showWriteOutcome(context, outcome, verb: 'like');
+  }
+
+  Future<void> _toggleRepost() async {
+    final wasReposted =
+        ref.read(repostedTracksProvider).contains(widget.track.id);
+    setState(() => _repostsDelta += wasReposted ? -1 : 1);
+    final outcome = await ref
+        .read(repostedTracksProvider.notifier)
+        .toggle(widget.track.id);
+    if (outcome != LikeOutcome.ok) {
+      if (mounted) setState(() => _repostsDelta += wasReposted ? 1 : -1);
+    }
+    if (mounted) showWriteOutcome(context, outcome, verb: 'repost');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final track = widget.track;
     final liked = ref.watch(likedTracksProvider).contains(track.id);
     final reposted = ref.watch(repostedTracksProvider).contains(track.id);
     return Row(
       children: [
         _Action(
           icon: liked ? Icons.favorite : Icons.favorite_border,
-          value: Fmt.count(track.likes),
+          value: Fmt.count(track.likes + _likesDelta),
           active: liked,
-          onTap: () async {
-            final outcome =
-                await ref.read(likedTracksProvider.notifier).toggle(track.id);
-            if (context.mounted) {
-              showWriteOutcome(context, outcome, verb: 'like');
-            }
-          },
+          onTap: _toggleLike,
         ),
         _Action(
           icon: Icons.repeat,
-          value: Fmt.count(track.reposts),
+          value: Fmt.count(track.reposts + _repostsDelta),
           active: reposted,
-          onTap: () async {
-            final outcome = await ref
-                .read(repostedTracksProvider.notifier)
-                .toggle(track.id);
-            if (context.mounted) {
-              showWriteOutcome(context, outcome, verb: 'repost');
-            }
-          },
+          onTap: _toggleRepost,
         ),
         _Action(
           icon: Icons.share_outlined,

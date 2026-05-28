@@ -43,7 +43,10 @@ class CoverArt extends StatelessWidget {
             width: size,
             height: size,
             fit: BoxFit.cover,
-            fadeInDuration: AppTheme.motion,
+            // Без fade-in: Hero-анимации (cover→hero) тогда не конкурируют
+            // с opacity-fade'ом CachedNetworkImage'а. Placeholder процедурный —
+            // мгновенная замена не «прыгает».
+            fadeInDuration: Duration.zero,
             placeholder: (_, _) => procedural,
             errorWidget: (_, _, _) => procedural,
           )

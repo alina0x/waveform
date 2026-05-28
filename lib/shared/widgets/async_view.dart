@@ -4,33 +4,41 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/theme/app_theme.dart';
 import '../../app/theme/colors.dart';
 
-/// Рендер `AsyncValue`: единый стиль загрузки (acid-спиннер) и ошибки (retry).
+/// Рендер `AsyncValue`: единый стиль загрузки и ошибки (retry).
+/// На загрузку — `skeleton` (рекомендуется, рисует layout-плейсхолдер сразу)
+/// или дефолтный acid-spinner если skeleton не задан.
 class AsyncView<T> extends StatelessWidget {
   const AsyncView({
     super.key,
     required this.value,
     required this.data,
+    this.skeleton,
     this.onRetry,
   });
 
   final AsyncValue<T> value;
   final Widget Function(T data) data;
+
+  /// Кастомный плейсхолдер на loading. Перебивает дефолтный спиннер.
+  final WidgetBuilder? skeleton;
   final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
     return value.when(
       data: data,
-      loading: () => const Center(
-        child: SizedBox(
-          width: 26,
-          height: 26,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: AppColors.acid,
-          ),
-        ),
-      ),
+      loading: () => skeleton != null
+          ? skeleton!(context)
+          : const Center(
+              child: SizedBox(
+                width: 26,
+                height: 26,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.acid,
+                ),
+              ),
+            ),
       error: (e, _) => Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,

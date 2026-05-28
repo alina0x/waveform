@@ -65,7 +65,10 @@ class _Body extends ConsumerWidget {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            CoverArt(seed: p.id, imageUrl: p.coverUrl, size: 180),
+            Hero(
+              tag: 'cover-playlist-${p.id}',
+              child: CoverArt(seed: p.id, imageUrl: p.coverUrl, size: 180),
+            ),
             const SizedBox(width: 24),
             Expanded(
               child: Column(

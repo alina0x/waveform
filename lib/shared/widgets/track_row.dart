@@ -66,7 +66,10 @@ class TrackRow extends ConsumerWidget {
           const SizedBox(width: 12),
           Pressable(
             onTap: () => context.go('/track/${track.id}'),
-            child: CoverArt(seed: track.id, imageUrl: track.coverUrl, size: 46),
+            child: Hero(
+              tag: 'cover-track-${track.id}',
+              child: CoverArt(seed: track.id, imageUrl: track.coverUrl, size: 46),
+            ),
           ),
           const SizedBox(width: 14),
           Expanded(
