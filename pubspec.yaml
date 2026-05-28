@@ -48,6 +48,7 @@ dependencies:
   talker_riverpod_logger: ^5.1.16
   talker_dio_logger: ^5.1.16
   crypto: ^3.0.7
+  window_manager: ^0.5.1
 
 dev_dependencies:
   flutter_test:
@@ -59,6 +60,20 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+
+# Иконки приложения. Положи квадратный 1024×1024 PNG в `assets/icon/icon.png`
+# и запусти `dart run flutter_launcher_icons` — генерируются macOS .icns,
+# Windows .ico и Android/iOS. Конфиг inline, чтобы не плодить файлов.
+flutter_launcher_icons:
+  image_path: "assets/icon/icon.png"
+  macos:
+    generate: true
+    image_path: "assets/icon/icon.png"
+  windows:
+    generate: true
+    image_path: "assets/icon/icon.png"
+    icon_size: 256
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

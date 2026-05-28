@@ -1,8 +1,11 @@
+import 'dart:io';
+
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:talker_flutter/talker_flutter.dart';
 import 'package:talker_riverpod_logger/talker_riverpod_logger.dart';
+import 'package:window_manager/window_manager.dart';
 
 import 'app/app.dart';
 import 'core/audio/waveform_audio_handler.dart';
@@ -10,6 +13,13 @@ import 'core/log/talker.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Window manager — для динамического title и базового sizing на desktop.
+  if (Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
+    await windowManager.ensureInitialized();
+    await windowManager.setTitle('Waveform');
+    await windowManager.setMinimumSize(const Size(960, 640));
+  }
 
   // Единый Talker: им же логируются Dio-запросы и Riverpod-события.
   final talker = TalkerFlutter.init(

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:window_manager/window_manager.dart';
 
 import '../core/lastfm/scrobbler.dart';
 import '../features/omnibox/omnibox_dropdown.dart';
@@ -33,6 +34,18 @@ class AppShell extends ConsumerWidget {
     // Lazy-bootstrap скробблера: provider создаст Notifier, который подпишется
     // на playerController.
     ref.watch(lastfmScrobblerProvider);
+
+    // Динамический title окна — отражает текущий трек на desktop.
+    ref.listen(playerControllerProvider.select((s) => s.track),
+        (prev, next) {
+      if (!(Platform.isMacOS || Platform.isWindows || Platform.isLinux)) {
+        return;
+      }
+      final title = next == null
+          ? 'Waveform'
+          : 'Waveform · ${next.artist} — ${next.title}';
+      windowManager.setTitle(title);
+    });
 
     ref.listen(playerControllerProvider.select((s) => s.unplayable),
         (prev, next) {
