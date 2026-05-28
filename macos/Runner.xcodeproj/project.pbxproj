@@ -483,10 +483,10 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 11.0;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.waveform.waveformApp.RunnerTests;
+				PRODUCT_BUNDLE_IDENTIFIER = run.waveform.player.RunnerTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/waveform_app.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/waveform_app";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Waveform.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Waveform";
 			};
 			name = Debug;
 		};
@@ -499,10 +499,10 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 11.0;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.waveform.waveformApp.RunnerTests;
+				PRODUCT_BUNDLE_IDENTIFIER = run.waveform.player.RunnerTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/waveform_app.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/waveform_app";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Waveform.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Waveform";
 			};
 			name = Release;
 		};
@@ -515,10 +515,10 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 11.0;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.waveform.waveformApp.RunnerTests;
+				PRODUCT_BUNDLE_IDENTIFIER = run.waveform.player.RunnerTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/waveform_app.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/waveform_app";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Waveform.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Waveform";
 			};
 			name = Profile;
 		};
@@ -583,11 +583,11 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEVELOPMENT_TEAM = DYNB5QPZ63;
-				ENABLE_APP_SANDBOX = YES;
+				ENABLE_APP_SANDBOX = NO;
 				ENABLE_INCOMING_NETWORK_CONNECTIONS = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				INFOPLIST_FILE = Runner/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = waveform;
+				INFOPLIST_KEY_CFBundleDisplayName = Waveform;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -728,11 +728,11 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEVELOPMENT_TEAM = DYNB5QPZ63;
-				ENABLE_APP_SANDBOX = YES;
+				ENABLE_APP_SANDBOX = NO;
 				ENABLE_INCOMING_NETWORK_CONNECTIONS = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				INFOPLIST_FILE = Runner/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = waveform;
+				INFOPLIST_KEY_CFBundleDisplayName = Waveform;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -758,11 +758,11 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEVELOPMENT_TEAM = DYNB5QPZ63;
-				ENABLE_APP_SANDBOX = YES;
+				ENABLE_APP_SANDBOX = NO;
 				ENABLE_INCOMING_NETWORK_CONNECTIONS = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				INFOPLIST_FILE = Runner/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = waveform;
+				INFOPLIST_KEY_CFBundleDisplayName = Waveform;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
