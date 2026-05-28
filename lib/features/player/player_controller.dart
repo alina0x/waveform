@@ -7,6 +7,7 @@ import '../../core/api/liked_tracks.dart';
 import '../../core/api/providers.dart';
 import '../../core/api/soundcloud_api.dart';
 import '../../core/audio/audio_engine.dart';
+import '../../core/audio/waveform_audio_handler.dart';
 import '../../core/log/talker.dart';
 import '../../shared/models/track.dart';
 
@@ -149,6 +150,14 @@ class PlayerController extends Notifier<PlayerState> {
         final isLiked = liked.contains(id);
         if (state.liked != isLiked) state = state.copyWith(liked: isLiked);
       }
+    });
+
+    // Пушим состояние в audio_service handler — OS Control Center, media-keys,
+    // lockscreen now-playing видят актуальные данные.
+    listenSelf((_, next) {
+      try {
+        ref.read(audioHandlerProvider).sync(next);
+      } catch (_) {/* singleton не инициализирован в тестах — игнорим */}
     });
 
     ref.onDispose(() {
