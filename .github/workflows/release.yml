@@ -43,13 +43,24 @@ jobs:
           p12-password: ${{ secrets.APPLE_CERT_PASSWORD }}
           keychain-password: ${{ secrets.KEYCHAIN_PASSWORD }}
 
-      - name: Build macOS release
-        # --no-codesign tells flutter to set CODE_SIGNING_ALLOWED=NO
-        # when invoking xcodebuild — env vars don't propagate through
-        # the flutter wrapper. Our separate Codesign step below does
-        # the real signing with --deep on the produced .app.
+      - name: Disable Xcode auto-signing in pbxproj (CI only)
+        # flutter build macos doesn't have --no-codesign (iOS-only flag)
+        # and env-var overrides don't propagate through the flutter
+        # wrapper. The least invasive workaround: patch the runner's
+        # checkout of pbxproj before build. Local dev is untouched.
+        # Our Codesign step below does the real signing with --deep.
         run: |
-          flutter build macos --release --no-codesign \
+          sed -i '' \
+            -e 's|"CODE_SIGN_IDENTITY\[sdk=macosx\*\]" = "Apple Development";|"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";|g' \
+            -e 's|CODE_SIGN_STYLE = Automatic;|CODE_SIGN_STYLE = Manual;|g' \
+            -e 's|DEVELOPMENT_TEAM = DYNB5QPZ63;|DEVELOPMENT_TEAM = "";|g' \
+            macos/Runner.xcodeproj/project.pbxproj
+          echo "--- patched signing settings ---"
+          grep -nE "CODE_SIGN_STYLE|CODE_SIGN_IDENTITY|DEVELOPMENT_TEAM" macos/Runner.xcodeproj/project.pbxproj | head
+
+      - name: Build macOS release
+        run: |
+          flutter build macos --release \
             --dart-define=APP_VERSION=${{ github.ref_name }} \
             --dart-define=LASTFM_API_KEY=${{ secrets.LASTFM_API_KEY }} \
             --dart-define=LASTFM_SHARED_SECRET=${{ secrets.LASTFM_SHARED_SECRET }}
