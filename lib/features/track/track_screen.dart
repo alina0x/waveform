@@ -10,6 +10,7 @@ import '../../core/api/reposted_tracks.dart';
 import '../../core/api/soundcloud_api.dart';
 import '../../shared/action_feedback.dart';
 import '../../shared/url_share.dart';
+import '../../shared/widgets/ambient_backdrop.dart';
 import '../../shared/format.dart';
 import '../../shared/models/comment.dart';
 import '../../shared/models/track.dart';
@@ -65,15 +66,20 @@ class _TrackBody extends ConsumerWidget {
           children: [
             const _BackButton(),
             const SizedBox(height: 16),
-            _Hero(
-              track: track,
-              isPlaying: isPlaying,
-              progress: progress,
-              buffered: buffered,
-              markers: [for (final cm in comments) cm.fraction(track.durationMs)],
-              onPlay: () =>
-                  isCurrent ? c.toggle() : c.play(track, queue: queue),
-              onSeek: isCurrent ? c.seekFraction : null,
+            AmbientBackdrop(
+              imageUrl: track.coverUrl,
+              child: _Hero(
+                track: track,
+                isPlaying: isPlaying,
+                progress: progress,
+                buffered: buffered,
+                markers: [
+                  for (final cm in comments) cm.fraction(track.durationMs)
+                ],
+                onPlay: () =>
+                    isCurrent ? c.toggle() : c.play(track, queue: queue),
+                onSeek: isCurrent ? c.seekFraction : null,
+              ),
             ),
             const SizedBox(height: 24),
             if (track.description.isNotEmpty) ...[

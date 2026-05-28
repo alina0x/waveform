@@ -11,6 +11,7 @@ import '../../core/api/providers.dart';
 import '../../core/api/soundcloud_api.dart';
 import '../../core/log/talker.dart';
 import '../../shared/models/track.dart';
+import '../../shared/widgets/ambient_backdrop.dart';
 import '../../shared/widgets/async_view.dart';
 import '../../shared/widgets/cover_art.dart';
 import '../../shared/widgets/pressable.dart';
@@ -48,60 +49,89 @@ class _Body extends ConsumerWidget {
     final p = detail.playlist;
     final tracks = detail.tracks;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(AppTheme.pagePad,
-          AppTheme.topBarHeight + 20, AppTheme.pagePad, AppTheme.playerHeight + 32),
+      padding: const EdgeInsets.fromLTRB(
+        AppTheme.pagePad,
+        AppTheme.topBarHeight + 20,
+        AppTheme.pagePad,
+        AppTheme.playerHeight + 32,
+      ),
       children: [
         Align(
           alignment: Alignment.centerLeft,
           child: Pressable(
             onTap: () => context.canPop() ? context.pop() : context.go('/'),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              const Icon(Icons.chevron_left, size: 18, color: AppColors.textMid),
-              Text('back', style: AppTheme.mono(size: 12, color: AppColors.textMid)),
-            ]),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.chevron_left,
+                  size: 18,
+                  color: AppColors.textMid,
+                ),
+                Text(
+                  'back',
+                  style: AppTheme.mono(size: 12, color: AppColors.textMid),
+                ),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: 16),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Hero(
-              tag: 'cover-playlist-${p.id}',
-              child: CoverArt(seed: p.id, imageUrl: p.coverUrl, size: 180),
-            ),
-            const SizedBox(width: 24),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(p.kind.name.toUpperCase(),
-                      style: AppTheme.mono(size: 11, color: AppColors.acid)),
-                  const SizedBox(height: 8),
-                  Text(p.title,
-                      style: const TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textHi)),
-                  const SizedBox(height: 8),
-                  Text('by ${p.subtitle}',
-                      style: AppTheme.mono(size: 12, color: AppColors.textMid)),
-                  const SizedBox(height: 4),
-                  Text('${tracks.length} of ${p.trackCount} tracks',
-                      style: AppTheme.mono(size: 11, color: AppColors.textLow)),
-                  const SizedBox(height: 16),
-                  if (tracks.isNotEmpty)
-                    Row(children: [
-                      _PlayAll(tracks: tracks),
-                      const SizedBox(width: 10),
-                      _ShuffleAll(
-                          playlistId: p.id,
-                          loadedTracks: tracks,
-                          totalCount: p.trackCount),
-                    ]),
-                ],
+        AmbientBackdrop(
+          imageUrl: p.coverUrl,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Hero(
+                tag: 'cover-playlist-${p.id}',
+                child: CoverArt(seed: p.id, imageUrl: p.coverUrl, size: 180),
               ),
-            ),
-          ],
+              const SizedBox(width: 24),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      p.kind.name.toUpperCase(),
+                      style: AppTheme.mono(size: 11, color: AppColors.acid),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      p.title,
+                      style: const TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textHi,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'by ${p.subtitle}',
+                      style: AppTheme.mono(size: 12, color: AppColors.textMid),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${tracks.length} of ${p.trackCount} tracks',
+                      style: AppTheme.mono(size: 11, color: AppColors.textLow),
+                    ),
+                    const SizedBox(height: 16),
+                    if (tracks.isNotEmpty)
+                      Row(
+                        children: [
+                          _PlayAll(tracks: tracks),
+                          const SizedBox(width: 10),
+                          _ShuffleAll(
+                            playlistId: p.id,
+                            loadedTracks: tracks,
+                            totalCount: p.trackCount,
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 28),
         const SectionHeader(title: 'tracks'),
@@ -109,8 +139,10 @@ class _Body extends ConsumerWidget {
         if (tracks.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 24),
-            child: Text('tracks aren’t available for this set',
-                style: AppTheme.mono(size: 12, color: AppColors.textLow)),
+            child: Text(
+              'tracks aren’t available for this set',
+              style: AppTheme.mono(size: 12, color: AppColors.textLow),
+            ),
           )
         else
           for (final t in tracks) TrackRow(track: t, queue: tracks),
@@ -149,8 +181,8 @@ class _ShuffleAllState extends ConsumerState<_ShuffleAll> {
       final tracks = widget.loadedTracks.length >= widget.totalCount
           ? List<Track>.of(widget.loadedTracks)
           : await ref
-              .read(soundcloudApiProvider)
-              .allPlaylistTracks(widget.playlistId);
+                .read(soundcloudApiProvider)
+                .allPlaylistTracks(widget.playlistId);
       if (tracks.isEmpty) return;
       tracks.shuffle(_rng);
       ref
@@ -170,17 +202,28 @@ class _ShuffleAllState extends ConsumerState<_ShuffleAll> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-            borderRadius: AppTheme.borderRadius, border: AppTheme.border()),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(_busy ? Icons.more_horiz : Icons.shuffle,
-              size: 16, color: AppColors.textHi),
-          const SizedBox(width: 6),
-          Text(_busy ? 'loading…' : 'shuffle all',
+          borderRadius: AppTheme.borderRadius,
+          border: AppTheme.border(),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              _busy ? Icons.more_horiz : Icons.shuffle,
+              size: 16,
+              color: AppColors.textHi,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              _busy ? 'loading…' : 'shuffle all',
               style: AppTheme.mono(
-                  size: 12,
-                  color: AppColors.textHi,
-                  weight: FontWeight.w600)),
-        ]),
+                size: 12,
+                color: AppColors.textHi,
+                weight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -199,14 +242,24 @@ class _PlayAll extends ConsumerWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         decoration: BoxDecoration(
-            color: AppColors.acid, borderRadius: AppTheme.borderRadius),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.play_arrow, size: 18, color: AppColors.bg),
-          const SizedBox(width: 6),
-          Text('play',
+          color: AppColors.acid,
+          borderRadius: AppTheme.borderRadius,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.play_arrow, size: 18, color: AppColors.bg),
+            const SizedBox(width: 6),
+            Text(
+              'play',
               style: AppTheme.mono(
-                  size: 12, color: AppColors.bg, weight: FontWeight.w600)),
-        ]),
+                size: 12,
+                color: AppColors.bg,
+                weight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

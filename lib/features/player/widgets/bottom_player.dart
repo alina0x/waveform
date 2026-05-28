@@ -7,11 +7,13 @@ import '../../../app/theme/app_theme.dart';
 import '../../../app/theme/colors.dart';
 import '../../../shared/action_feedback.dart';
 import '../../../shared/format.dart';
+import '../../../shared/models/track.dart';
 import '../../../shared/widgets/cover_art.dart';
 import '../../../shared/widgets/go_plus_badge.dart';
 import '../../../shared/widgets/pressable.dart';
 import '../../../shared/widgets/waveform_view.dart';
 import '../player_controller.dart';
+import '../player_ui_state.dart';
 
 class BottomPlayer extends ConsumerWidget {
   const BottomPlayer({super.key});
@@ -22,6 +24,20 @@ class BottomPlayer extends ConsumerWidget {
     final c = ref.read(playerControllerProvider.notifier);
     final track = player.track;
     final enabled = track != null;
+    final collapsed = ref.watch(playerCollapsedProvider);
+
+    if (collapsed) {
+      return _CollapsedBar(
+        track: track,
+        enabled: enabled,
+        isPlaying: player.isPlaying,
+        position: player.position,
+        onPlayPause: c.toggle,
+        onNext: c.next,
+        onExpand: () =>
+            ref.read(playerCollapsedProvider.notifier).expand(),
+      );
+    }
 
     return Container(
       height: AppTheme.playerHeight,
@@ -128,6 +144,14 @@ class BottomPlayer extends ConsumerWidget {
             ),
             const SizedBox(width: 4),
             _Volume(volume: player.volume, onChanged: c.setVolume),
+            const SizedBox(width: 4),
+            // Collapse → 44px-bar с минимальными контролами.
+            _IconBtn(
+              icon: Icons.expand_more,
+              enabled: true,
+              onTap: () =>
+                  ref.read(playerCollapsedProvider.notifier).collapse(),
+            ),
           ] else
             Expanded(
               child: Text('select a track',
@@ -253,6 +277,85 @@ class _PlayButton extends StatelessWidget {
           color: enabled ? AppColors.bg : AppColors.textLow,
           size: 24,
         ),
+      ),
+    );
+  }
+}
+
+/// Свёрнутый плеер: 44px-полоса с мини-обложкой, бегущим названием, play/next +
+/// время + chevron-up. Полные контролы (shuffle/prev/repeat/wave/like/volume)
+/// возвращаются по expand'у.
+class _CollapsedBar extends ConsumerWidget {
+  const _CollapsedBar({
+    required this.track,
+    required this.enabled,
+    required this.isPlaying,
+    required this.position,
+    required this.onPlayPause,
+    required this.onNext,
+    required this.onExpand,
+  });
+
+  final Track? track;
+  final bool enabled;
+  final bool isPlaying;
+  final Duration position;
+  final VoidCallback onPlayPause;
+  final VoidCallback onNext;
+  final VoidCallback onExpand;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Container(
+      height: 44,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface.withValues(alpha: 0.72),
+        border: const Border(top: AppTheme.borderSideStatic),
+      ),
+      child: Row(
+        children: [
+          if (track != null) ...[
+            Pressable(
+              onTap: () => context.go('/track/${track!.id}'),
+              child: CoverArt(
+                  seed: track!.id, imageUrl: track!.coverUrl, size: 28),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Pressable(
+                onTap: () => context.go('/track/${track!.id}'),
+                child: Row(children: [
+                  Flexible(
+                    child: Text(
+                      '${track!.artist} — ${track!.title}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTheme.mono(
+                          size: 11,
+                          color: AppColors.textHi,
+                          weight: FontWeight.w500),
+                    ),
+                  ),
+                ]),
+              ),
+            ),
+            Text(Fmt.time(position), style: AppTheme.mono(size: 11)),
+          ] else
+            Expanded(
+              child: Text('select a track',
+                  style: AppTheme.mono(size: 11, color: AppColors.textLow)),
+            ),
+          const SizedBox(width: 8),
+          _IconBtn(
+              icon: isPlaying ? Icons.pause : Icons.play_arrow,
+              enabled: enabled,
+              onTap: onPlayPause),
+          _IconBtn(
+              icon: Icons.skip_next, enabled: enabled, onTap: onNext),
+          _IconBtn(
+              icon: Icons.expand_less, enabled: true, onTap: onExpand),
+        ],
       ),
     );
   }
