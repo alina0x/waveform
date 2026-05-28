@@ -9,6 +9,7 @@ import '../features/omnibox/omnibox_dropdown.dart';
 import '../features/omnibox/omnibox_providers.dart';
 import '../features/player/player_controller.dart';
 import '../features/player/widgets/bottom_player.dart';
+import '../core/lastfm/scrobbler.dart';
 import '../features/queue/queue_panel.dart';
 import '../features/queue/queue_visibility.dart';
 import '../shared/intents.dart';
@@ -29,6 +30,10 @@ class AppShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Lazy-bootstrap скробблера: provider создаст Notifier, который подпишется
+    // на playerController. Значение не используется, важен side-effect.
+    ref.watch(lastfmScrobblerProvider);
+
     // Уведомление, когда трек не проиграть (GO+/недоступен) — чтобы не «молча».
     ref.listen(playerControllerProvider.select((s) => s.unplayable),
         (prev, next) {

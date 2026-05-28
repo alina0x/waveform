@@ -8,6 +8,9 @@ import '../../core/api/feeds.dart';
 import '../../core/api/soundcloud_auth.dart';
 import '../../core/audio/playback_prefs.dart';
 import '../../core/cache/image_cache.dart';
+import '../../core/lastfm/lastfm_constants.dart';
+import '../../core/lastfm/lastfm_session.dart';
+import '../../core/log/talker.dart';
 import '../../shared/url_share.dart';
 import '../../shared/widgets/cover_art.dart';
 import '../../shared/widgets/pressable.dart';
@@ -43,6 +46,8 @@ class SettingsScreen extends ConsumerWidget {
             _ViewSection(),
             SizedBox(height: 28),
             _PlaybackSection(),
+            SizedBox(height: 28),
+            _LastfmSection(),
             SizedBox(height: 28),
             _CacheSection(),
             SizedBox(height: 28),
@@ -141,6 +146,134 @@ class _AccountSection extends ConsumerWidget {
                 _Button(label: 'sign in', onTap: () => showLoginDialog(context)),
               ],
             ),
+    );
+  }
+}
+
+class _LastfmSection extends ConsumerStatefulWidget {
+  const _LastfmSection();
+  @override
+  ConsumerState<_LastfmSection> createState() => _LastfmSectionState();
+}
+
+class _LastfmSectionState extends ConsumerState<_LastfmSection> {
+  bool _busy = false;
+
+  Future<void> _connect() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      final client = ref.read(lastfmClientProvider);
+      final token = await client.getAuthToken();
+      if (token == null) throw 'auth.getToken returned null';
+      final authUrl = 'https://www.last.fm/api/auth/'
+          '?api_key=$lastfmApiKey&token=$token';
+      await openExternalUrl(authUrl);
+      if (!mounted) return;
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (c) => AlertDialog(
+          backgroundColor: AppColors.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: AppTheme.borderRadius,
+            side: const BorderSide(
+                color: AppColors.border, width: AppTheme.borderWidth),
+          ),
+          title: Text('connect last.fm',
+              style: AppTheme.mono(
+                  size: 14,
+                  color: AppColors.textHi,
+                  weight: FontWeight.w600)),
+          content: Text(
+            'authorize Waveform in your browser, then click continue',
+            style: AppTheme.mono(size: 12, color: AppColors.textMid),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(c).pop(false),
+              child: Text('cancel',
+                  style: AppTheme.mono(
+                      size: 12, color: AppColors.textMid)),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(c).pop(true),
+              child: Text('continue',
+                  style: AppTheme.mono(
+                      size: 12,
+                      color: AppColors.acid,
+                      weight: FontWeight.w600)),
+            ),
+          ],
+        ),
+      );
+      if (ok != true) return;
+      final session = await client.getSession(token);
+      if (session == null) throw 'auth.getSession returned null';
+      ref
+          .read(lastfmSessionProvider.notifier)
+          .set(LastfmSession(key: session.key, name: session.name));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.surface2,
+          content: Text('connected as @${session.name}',
+              style: AppTheme.mono(size: 12, color: AppColors.textHi)),
+        ));
+      }
+    } catch (e, st) {
+      ref.read(talkerProvider).warning('lastfm connect failed', e, st);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.surface2,
+          content: Text('last.fm connect failed',
+              style: AppTheme.mono(size: 12, color: AppColors.textHi)),
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final session = ref.watch(lastfmSessionProvider);
+    if (!lastfmConfigured) {
+      return _Section(
+        title: 'last.fm',
+        child: Text(
+          'Last.fm scrobbling is not configured.\n'
+          'Set lastfmApiKey + lastfmSharedSecret in '
+          'lib/core/lastfm/lastfm_constants.dart to enable.',
+          style: AppTheme.mono(size: 11, color: AppColors.textMid),
+        ),
+      );
+    }
+    return _Section(
+      title: 'last.fm',
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              session != null
+                  ? 'connected as @${session.name}'
+                  : 'scrobble plays to Last.fm',
+              style: AppTheme.mono(size: 12, color: AppColors.textMid),
+            ),
+          ),
+          if (session != null)
+            _Button(
+              label: 'disconnect',
+              onTap: () =>
+                  ref.read(lastfmSessionProvider.notifier).clear(),
+            )
+          else
+            _Button(
+              label: _busy ? 'connecting…' : 'connect last.fm',
+              onTap: _connect,
+            ),
+        ],
+      ),
     );
   }
 }
