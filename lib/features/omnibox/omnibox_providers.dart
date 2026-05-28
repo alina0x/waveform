@@ -29,3 +29,25 @@ class OmniboxQueryController extends Notifier<String> {
 
 final omniboxQueryProvider =
     NotifierProvider<OmniboxQueryController, String>(OmniboxQueryController.new);
+
+/// true → дроп-даун показываем. Слушает FocusNode (он же ChangeNotifier).
+class OmniboxFocusedController extends Notifier<bool> {
+  FocusNode? _node;
+  void _listener() {
+    final n = _node;
+    if (n != null && state != n.hasFocus) state = n.hasFocus;
+  }
+
+  @override
+  bool build() {
+    final n = ref.read(omniboxFocusProvider);
+    _node = n;
+    n.addListener(_listener);
+    ref.onDispose(() => n.removeListener(_listener));
+    return n.hasFocus;
+  }
+}
+
+final omniboxFocusedProvider =
+    NotifierProvider<OmniboxFocusedController, bool>(
+        OmniboxFocusedController.new);

@@ -12,6 +12,7 @@ import '../../core/api/feeds.dart';
 import '../../core/api/soundcloud_auth.dart';
 import '../../features/auth/login_dialog.dart';
 import '../../features/omnibox/omnibox_providers.dart';
+import '../../features/omnibox/recent_queries.dart';
 import '../../features/player/player_controller.dart';
 import 'cover_art.dart';
 import 'pressable.dart';
@@ -201,7 +202,8 @@ class _SearchFieldState extends ConsumerState<_SearchField> {
   void _submit(String value) {
     final q = value.trim();
     if (q.isEmpty) return;
-    // Запомним recent — Phase 2b будет читать. Пока запишем «впрок».
+    ref.read(recentQueriesProvider.notifier).add(q);
+    ref.read(omniboxFocusProvider).unfocus();
     context.go('/search?q=${Uri.encodeQueryComponent(q)}');
   }
 

@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../features/omnibox/omnibox_dropdown.dart';
 import '../features/omnibox/omnibox_providers.dart';
 import '../features/player/player_controller.dart';
 import '../features/player/widgets/bottom_player.dart';
@@ -106,25 +107,51 @@ class AppShell extends ConsumerWidget {
           // фокус в нём, перехватывает Space/стрелки до подъёма к Shortcuts.
           child: Focus(
             autofocus: true,
-            child: Stack(
-              children: [
-                Positioned.fill(child: child),
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  child: FrostedBar(
-                    child: TopBar(location: location),
+            child: Consumer(builder: (context, ref, _) {
+              final omniOpen = ref.watch(omniboxFocusedProvider);
+              return Stack(
+                children: [
+                  Positioned.fill(child: child),
+                  // Невидимый scrim над контентом, чтобы клик мимо дроп-дауна
+                  // снимал фокус. Под TopBar / над BottomPlayer, не мешает им.
+                  if (omniOpen)
+                    Positioned(
+                      top: AppTheme.topBarHeight,
+                      left: 0,
+                      right: 0,
+                      bottom: AppTheme.playerHeight,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.translucent,
+                        onTap: () =>
+                            ref.read(omniboxFocusProvider).unfocus(),
+                      ),
+                    ),
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: FrostedBar(
+                      child: TopBar(location: location),
+                    ),
                   ),
-                ),
-                const Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: FrostedBar(child: BottomPlayer()),
-                ),
-              ],
-            ),
+                  // Дроп-даун омнибокса — якорится под TopBar справа, ширина
+                  // ~360, чтобы вмещать иконку + заголовок + сабсаб.
+                  if (omniOpen)
+                    Positioned(
+                      top: AppTheme.topBarHeight + 4,
+                      right: 16,
+                      width: 360,
+                      child: const OmniboxDropdown(),
+                    ),
+                  const Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: FrostedBar(child: BottomPlayer()),
+                  ),
+                ],
+              );
+            }),
           ),
         ),
       ),
