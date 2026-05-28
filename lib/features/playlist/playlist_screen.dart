@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,7 +7,9 @@ import 'package:go_router/go_router.dart';
 import '../../app/theme/app_theme.dart';
 import '../../app/theme/colors.dart';
 import '../../core/api/feeds.dart';
+import '../../core/api/providers.dart';
 import '../../core/api/soundcloud_api.dart';
+import '../../core/log/talker.dart';
 import '../../shared/models/track.dart';
 import '../../shared/widgets/async_view.dart';
 import '../../shared/widgets/cover_art.dart';
@@ -82,7 +86,15 @@ class _Body extends ConsumerWidget {
                   Text('${tracks.length} of ${p.trackCount} tracks',
                       style: AppTheme.mono(size: 11, color: AppColors.textLow)),
                   const SizedBox(height: 16),
-                  if (tracks.isNotEmpty) _PlayAll(tracks: tracks),
+                  if (tracks.isNotEmpty)
+                    Row(children: [
+                      _PlayAll(tracks: tracks),
+                      const SizedBox(width: 10),
+                      _ShuffleAll(
+                          playlistId: p.id,
+                          loadedTracks: tracks,
+                          totalCount: p.trackCount),
+                    ]),
                 ],
               ),
             ),
@@ -100,6 +112,73 @@ class _Body extends ConsumerWidget {
         else
           for (final t in tracks) TrackRow(track: t, queue: tracks),
       ],
+    );
+  }
+}
+
+/// Shuffle-all: при необходимости догружает весь сет плейлиста через
+/// `allPlaylistTracks` (батчевый `/tracks?ids=…`), перемешивает и запускает.
+/// Решает проблему web-SoundCloud, где shuffle охватывает только подгруженное.
+class _ShuffleAll extends ConsumerStatefulWidget {
+  const _ShuffleAll({
+    required this.playlistId,
+    required this.loadedTracks,
+    required this.totalCount,
+  });
+
+  final String playlistId;
+  final List<Track> loadedTracks;
+  final int totalCount;
+
+  @override
+  ConsumerState<_ShuffleAll> createState() => _ShuffleAllState();
+}
+
+class _ShuffleAllState extends ConsumerState<_ShuffleAll> {
+  bool _busy = false;
+  static final _rng = Random();
+
+  Future<void> _run() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      // Если уже всё загружено — не дёргаем сеть.
+      final tracks = widget.loadedTracks.length >= widget.totalCount
+          ? List<Track>.of(widget.loadedTracks)
+          : await ref
+              .read(soundcloudApiProvider)
+              .allPlaylistTracks(widget.playlistId);
+      if (tracks.isEmpty) return;
+      tracks.shuffle(_rng);
+      ref
+          .read(playerControllerProvider.notifier)
+          .play(tracks.first, queue: tracks);
+    } catch (e, st) {
+      ref.read(talkerProvider).warning('shuffle-all failed', e, st);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Pressable(
+      onTap: _run,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+            borderRadius: AppTheme.borderRadius, border: AppTheme.border()),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(_busy ? Icons.more_horiz : Icons.shuffle,
+              size: 16, color: AppColors.textHi),
+          const SizedBox(width: 6),
+          Text(_busy ? 'loading…' : 'shuffle all',
+              style: AppTheme.mono(
+                  size: 12,
+                  color: AppColors.textHi,
+                  weight: FontWeight.w600)),
+        ]),
+      ),
     );
   }
 }

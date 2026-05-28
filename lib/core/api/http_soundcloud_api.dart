@@ -419,6 +419,54 @@ class HttpSoundcloudApi implements SoundcloudApi {
     );
   }
 
+  /// Hydrate-весь плейлист: оставляем порядок из `tracks[]` ответа, для огрызков
+  /// (без `title`) батчами тянем `/tracks?ids=…` (api-v2 принимает CSV id).
+  @override
+  Future<List<Track>> allPlaylistTracks(String id) async {
+    final raw = asMap(await _get('/playlists/$id'));
+    final tracksJson = asMapList(raw['tracks']);
+    // Восстановим порядок плейлиста через map trackId → index.
+    final order = <int, int>{};
+    final hydrated = <Track>[];
+    final missing = <int>[];
+    for (var i = 0; i < tracksJson.length; i++) {
+      final m = tracksJson[i];
+      final tid = asInt(m['id']);
+      order[tid] = i;
+      if (m.containsKey('title')) {
+        hydrated.add(TrackDto.fromJson(m).toDomain());
+      } else {
+        missing.add(tid);
+      }
+    }
+    // Батчим запрос недостающих треков. 50 — обычный безопасный размер.
+    const batch = 50;
+    final fetched = <Track>[];
+    for (var i = 0; i < missing.length; i += batch) {
+      final ids = missing.skip(i).take(batch).join(',');
+      try {
+        final data = await _get('/tracks', {'ids': ids});
+        if (data is List) {
+          for (final t in data) {
+            final m = asMap(t);
+            if (m.containsKey('title')) {
+              fetched.add(TrackDto.fromJson(m).toDomain());
+            }
+          }
+        }
+      } catch (e, st) {
+        _log.warning('hydrate batch ($i+) failed', e, st);
+      }
+    }
+    final all = [...hydrated, ...fetched];
+    all.sort((a, b) {
+      final ia = order[int.tryParse(a.id) ?? -1] ?? 1 << 30;
+      final ib = order[int.tryParse(b.id) ?? -1] ?? 1 << 30;
+      return ia.compareTo(ib);
+    });
+    return all;
+  }
+
   @override
   Future<PlaylistDetail> playlist(String id) async {
     final dto = PlaylistDto.fromJson(asMap(await _get('/playlists/$id')));

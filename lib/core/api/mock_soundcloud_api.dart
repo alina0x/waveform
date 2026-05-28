@@ -1,6 +1,7 @@
 import '../../shared/mock/mock_data.dart';
 import '../../shared/models/artist.dart';
 import '../../shared/models/feed_post.dart';
+import '../../shared/models/track.dart';
 import 'soundcloud_api.dart';
 
 /// Реализация на моках (текущий этап). Лёгкая задержка имитирует сеть,
@@ -93,6 +94,10 @@ class MockSoundcloudApi implements SoundcloudApi {
         orElse: () => Mock.playlists.first);
     return _delayed((playlist: p, tracks: Mock.tracks));
   }
+
+  /// Мок-плейлист уже полный.
+  @override
+  Future<List<Track>> allPlaylistTracks(String id) async => Mock.tracks;
 
   /// Мок-треки не проигрываемы — реального аудио нет.
   @override

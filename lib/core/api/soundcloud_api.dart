@@ -70,6 +70,12 @@ abstract interface class SoundcloudApi {
   Future<ArtistProfile> artistProfile(String handle);
   Future<SearchResults> search(String query);
   Future<PlaylistDetail> playlist(String id);
+
+  /// Полный список треков плейлиста (через `/tracks?ids=…` догружаем те, что в
+  /// ответе `/playlists/{id}` пришли «огрызками» с одним `id`). Порядок сохраняем.
+  /// Тяжелее [playlist]; зовём только когда реально нужен весь сет (shuffle-all).
+  Future<List<Track>> allPlaylistTracks(String id);
+
   Future<RailData> rail();
 
   /// Резолвит URL транскодинга ([Track.streamUrl]) в проигрываемый
