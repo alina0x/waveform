@@ -33,6 +33,15 @@ jobs:
           key: pub-macos-${{ hashFiles('pubspec.lock') }}
           restore-keys: pub-macos-
 
+      - name: Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: |
+            macos/Pods
+            ~/Library/Caches/CocoaPods
+          key: pods-macos-${{ hashFiles('macos/Podfile.lock', 'pubspec.lock') }}
+          restore-keys: pods-macos-
+
       - name: Install dependencies
         run: flutter pub get
 
@@ -148,6 +157,13 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Cache pub
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: pub-windows-${{ hashFiles('pubspec.lock') }}
+          restore-keys: pub-windows-
+
       - name: Install dependencies
         run: flutter pub get
 
@@ -183,6 +199,19 @@ jobs:
           flutter-version: 3.41.0
           channel: stable
           cache: true
+
+      - name: Cache pub
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: pub-linux-${{ hashFiles('pubspec.lock') }}
+          restore-keys: pub-linux-
+
+      - name: Cache apt packages
+        uses: actions/cache@v4
+        with:
+          path: /var/cache/apt/archives
+          key: apt-linux-flutter-deps
 
       - name: Install linux build deps
         run: |
