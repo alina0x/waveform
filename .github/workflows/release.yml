@@ -56,7 +56,7 @@ jobs:
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          APP="build/macos/Build/Products/Release/waveform_app.app"
+          APP="build/macos/Build/Products/Release/Waveform.app"
           IDENTITY=$(security find-identity -v -p codesigning | \
             grep "Developer ID Application" | head -1 | awk -F'"' '{print $2}')
           echo "Signing with: $IDENTITY"
@@ -72,7 +72,7 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
         run: |
-          APP="build/macos/Build/Products/Release/waveform_app.app"
+          APP="build/macos/Build/Products/Release/Waveform.app"
           ZIP="$RUNNER_TEMP/waveform_app.zip"
           # zip preserving symlinks/metadata for notarization
           /usr/bin/ditto -c -k --keepParent "$APP" "$ZIP"
@@ -84,13 +84,13 @@ jobs:
 
       - name: Staple notarization ticket
         run: |
-          APP="build/macos/Build/Products/Release/waveform_app.app"
+          APP="build/macos/Build/Products/Release/Waveform.app"
           xcrun stapler staple "$APP"
           xcrun stapler validate "$APP"
 
       - name: Build DMG
         run: |
-          APP="build/macos/Build/Products/Release/waveform_app.app"
+          APP="build/macos/Build/Products/Release/Waveform.app"
           DMG="waveform-macos-${{ github.ref_name }}.dmg"
           # Stage the .app + Applications symlink in a temp folder, then make DMG.
           STAGE="$RUNNER_TEMP/dmg-stage"
