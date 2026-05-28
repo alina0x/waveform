@@ -223,6 +223,54 @@ class HttpSoundcloudApi implements SoundcloudApi {
     }, () async => const <Track>[]);
   }
 
+  @override
+  Future<({List<Track> tracks, String? nextHref})> likesPage(
+      {String? nextHref, int limit = 50}) async {
+    return _tryAuthed<({List<Track> tracks, String? nextHref})>(() async {
+      late final dynamic data;
+      if (nextHref != null) {
+        // Cursor-страница: SC возвращает полный URL уже с offset=<курсор>;
+        // достаточно подмешать наш свежий client_id и токен.
+        data = await _getUrl(nextHref, true);
+      } else {
+        final id = await _meId();
+        if (id == null) {
+          return (tracks: <Track>[], nextHref: null);
+        }
+        data = await _get(
+            '/users/$id/track_likes', {'limit': limit}, true);
+      }
+      final page =
+          _page(data, (j) => TrackDto.fromJson(asMap(j['track'] ?? j)));
+      return (
+        tracks: page.mapList((d) => d.toDomain()),
+        nextHref: page.nextHref,
+      );
+    }, () async => (tracks: <Track>[], nextHref: null));
+  }
+
+  /// GET абсолютного URL (для next_href пагинации). Подмешиваем свежий
+  /// client_id поверх собственных query-параметров SC, 401 → refresh + retry.
+  Future<dynamic> _getUrl(String url, bool authed) async {
+    Future<Response<dynamic>> call() async {
+      final cid = await _ids.get();
+      final uri = Uri.parse(url);
+      final query = {...uri.queryParameters, 'client_id': cid};
+      final full = uri.replace(queryParameters: query).toString();
+      return _dio.get(full, options: authed ? _authOptions : null);
+    }
+
+    try {
+      return (await call()).data;
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        await _ids.refresh();
+        return (await call()).data;
+      }
+      rethrow;
+    }
+  }
+
   Future<Artist?> _meProfile() async {
     try {
       return UserDto.fromJson(asMap(await _get('/me', null, true))).toDomain();

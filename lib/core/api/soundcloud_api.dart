@@ -100,6 +100,13 @@ abstract interface class SoundcloudApi {
   /// Используется агрегатором listening stats (постранично, до 400 записей).
   Future<List<Track>> historyPage({int limit = 50, int offset = 0});
 
+  /// Страница personal лайков. **Cursor-пагинация**: SC api-v2 не принимает
+  /// числовой offset, только курсор формата `timestamp,type,id` из
+  /// `next_href` предыдущего ответа. На первой странице [nextHref] = null.
+  /// Возвращает доменные [Track] + следующий курсор (null = всё).
+  Future<({List<Track> tracks, String? nextHref})> likesPage(
+      {String? nextHref, int limit = 50});
+
   /// ID треков, репостнутых текущим пользователем (для подсветки «reposted»).
   Future<Set<String>> repostedTrackIds();
 
