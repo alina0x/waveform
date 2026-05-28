@@ -354,10 +354,6 @@ class HttpSoundcloudApi implements SoundcloudApi {
     final relatedF = _trackRelated(id);
 
     final dto = TrackDto.fromJson(asMap(await _get('/tracks/$id')));
-    // Диагностика проигрываемости: видно, почему трек GO+/недоступен.
-    _log.info('track $id "${dto.title}": policy=${dto.policy} '
-        'monetization=${dto.monetizationModel} goPlus=${dto.isGoPlus} '
-        'transcodings=[${dto.transcodings.map((t) => t.protocol).join(',')}]');
     final wave = await _waveform(dto.waveformUrl);
     final track = wave == null ? dto.toDomain() : dto.toDomain().copyWith(waveform: wave);
 
