@@ -54,6 +54,7 @@ class _TrackBody extends ConsumerWidget {
     final isCurrent = player.track?.id == track.id;
     final isPlaying = isCurrent && player.isPlaying;
     final progress = isCurrent ? player.progress : 0.0;
+    final buffered = isCurrent ? player.bufferedFraction : 0.0;
     final queue = [track, ...detail.related];
 
     return Center(
@@ -69,6 +70,7 @@ class _TrackBody extends ConsumerWidget {
               track: track,
               isPlaying: isPlaying,
               progress: progress,
+              buffered: buffered,
               markers: [for (final cm in comments) cm.fraction(track.durationMs)],
               onPlay: () =>
                   isCurrent ? c.toggle() : c.play(track, queue: queue),
@@ -122,6 +124,7 @@ class _Hero extends StatelessWidget {
     required this.track,
     required this.isPlaying,
     required this.progress,
+    required this.buffered,
     required this.markers,
     required this.onPlay,
     required this.onSeek,
@@ -130,6 +133,7 @@ class _Hero extends StatelessWidget {
   final Track track;
   final bool isPlaying;
   final double progress;
+  final double buffered;
   final List<double> markers;
   final VoidCallback onPlay;
   final ValueChanged<double>? onSeek;
@@ -205,6 +209,7 @@ class _Hero extends StatelessWidget {
               WaveformView(
                 bars: track.waveform,
                 progress: progress,
+                buffered: buffered,
                 height: 84,
                 markers: markers,
                 onSeek: onSeek,

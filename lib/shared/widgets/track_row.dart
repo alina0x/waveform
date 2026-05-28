@@ -113,6 +113,7 @@ class TrackRow extends ConsumerWidget {
             child: WaveformView(
               bars: track.waveform,
               progress: progress,
+              buffered: isCurrent ? player.bufferedFraction : 0,
               height: 30,
               onSeek: isCurrent ? c.seekFraction : null,
             ),

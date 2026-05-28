@@ -17,6 +17,8 @@ class _FakeAudioEngine implements AudioEngine {
   @override
   Stream<Duration> get positionStream => const Stream.empty();
   @override
+  Stream<Duration> get bufferedPositionStream => const Stream.empty();
+  @override
   Stream<bool> get playingStream => const Stream.empty();
   @override
   Stream<void> get completedStream => const Stream.empty();

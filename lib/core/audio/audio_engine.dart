@@ -7,6 +7,10 @@ abstract interface class AudioEngine {
   /// Текущая позиция воспроизведения.
   Stream<Duration> get positionStream;
 
+  /// Граница того, насколько вперёд буферизировано (для buffered-полоски
+  /// на waveform). Может «дёргаться» назад при seek.
+  Stream<Duration> get bufferedPositionStream;
+
   /// Реальный признак «играет» от движка (учитывает буферизацию/паузы ОС).
   Stream<bool> get playingStream;
 
@@ -30,6 +34,9 @@ class JustAudioEngine implements AudioEngine {
 
   @override
   Stream<Duration> get positionStream => _player.positionStream;
+
+  @override
+  Stream<Duration> get bufferedPositionStream => _player.bufferedPositionStream;
 
   @override
   Stream<bool> get playingStream => _player.playingStream;

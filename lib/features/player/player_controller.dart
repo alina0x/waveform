@@ -21,6 +21,7 @@ class PlayerState {
     this.track,
     this.isPlaying = false,
     this.position = Duration.zero,
+    this.buffered = Duration.zero,
     this.shuffle = false,
     this.repeat = false,
     this.liked = false,
@@ -31,6 +32,7 @@ class PlayerState {
   final Track? track;
   final bool isPlaying;
   final Duration position;
+  final Duration buffered;
   final bool shuffle;
   final bool repeat;
   final bool liked;
@@ -46,10 +48,18 @@ class PlayerState {
     return (position.inMilliseconds / total).clamp(0.0, 1.0);
   }
 
+  /// Доля буферизированного (0..1) — для серого тиера на waveform.
+  double get bufferedFraction {
+    final total = track?.durationMs ?? 0;
+    if (total == 0) return 0;
+    return (buffered.inMilliseconds / total).clamp(0.0, 1.0);
+  }
+
   PlayerState copyWith({
     Track? track,
     bool? isPlaying,
     Duration? position,
+    Duration? buffered,
     bool? shuffle,
     bool? repeat,
     bool? liked,
@@ -60,6 +70,7 @@ class PlayerState {
         track: track ?? this.track,
         isPlaying: isPlaying ?? this.isPlaying,
         position: position ?? this.position,
+        buffered: buffered ?? this.buffered,
         shuffle: shuffle ?? this.shuffle,
         repeat: repeat ?? this.repeat,
         liked: liked ?? this.liked,
@@ -94,6 +105,9 @@ class PlayerController extends Notifier<PlayerState> {
 
     _subs.add(engine.positionStream.listen((p) {
       if (state.track != null) state = state.copyWith(position: p);
+    }));
+    _subs.add(engine.bufferedPositionStream.listen((b) {
+      if (state.track != null) state = state.copyWith(buffered: b);
     }));
     _subs.add(engine.playingStream.listen((playing) {
       if (state.track != null && state.isPlaying != playing) {

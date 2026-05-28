@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -108,6 +109,7 @@ class BottomPlayer extends ConsumerWidget {
               child: WaveformView(
                 bars: track.waveform,
                 progress: player.progress,
+                buffered: player.bufferedFraction,
                 onSeek: c.seekFraction,
                 height: 36,
               ),
@@ -183,29 +185,41 @@ class _Volume extends StatelessWidget {
         : volume < 0.5
             ? Icons.volume_down
             : Icons.volume_up;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _IconBtn(
-          icon: icon,
-          enabled: true,
-          onTap: () => onChanged(volume == 0 ? 1.0 : 0.0),
-        ),
-        SizedBox(
-          width: 84,
-          child: SliderTheme(
-            data: SliderThemeData(
-              trackHeight: 2,
-              activeTrackColor: AppColors.textMid,
-              inactiveTrackColor: AppColors.border,
-              thumbColor: AppColors.textHi,
-              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
-              overlayShape: const RoundSliderOverlayShape(overlayRadius: 11),
+    return Listener(
+      onPointerSignal: (e) {
+        // Scroll-wheel / trackpad-жест по громкости — нативно для macOS.
+        if (e is PointerScrollEvent) {
+          final delta = -e.scrollDelta.dy * 0.005; // вниз = тише
+          onChanged((volume + delta).clamp(0.0, 1.0));
+        }
+      },
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Tooltip(
+            message: volume == 0 ? 'muted' : '${(volume * 100).round()}%',
+            child: _IconBtn(
+              icon: icon,
+              enabled: true,
+              onTap: () => onChanged(volume == 0 ? 1.0 : 0.0),
             ),
-            child: Slider(value: volume, onChanged: onChanged),
           ),
-        ),
-      ],
+          SizedBox(
+            width: 84,
+            child: SliderTheme(
+              data: SliderThemeData(
+                trackHeight: 2,
+                activeTrackColor: AppColors.textMid,
+                inactiveTrackColor: AppColors.border,
+                thumbColor: AppColors.textHi,
+                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
+                overlayShape: const RoundSliderOverlayShape(overlayRadius: 11),
+              ),
+              child: Slider(value: volume, onChanged: onChanged),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
