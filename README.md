@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://i.ibb.co/GYvFdtX/waveform-banner.jpg" alt="Waveform" width="100%" />
+  <img src="https://i.ibb.co/PSv2BQ6/waveform-banner-transparent.png" alt="Waveform" width="100%" />
 </p>
 
 <p align="center">
