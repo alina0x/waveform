@@ -1,14 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// FocusNode для TextField внутри **центральной модалки**. Когда модалка
-/// смонтирована, поле автофокусится; вне модалки этот node detached.
-final omniboxFocusProvider = Provider<FocusNode>((ref) {
-  final node = FocusNode(debugLabel: 'omnibox');
-  ref.onDispose(node.dispose);
-  return node;
-});
-
 /// Один shared TextEditingController — переживает закрытие/открытие модалки,
 /// так что Esc + повторное ⌘K возвращают тот же запрос (как Raycast/Spotlight).
 final omniboxControllerProvider = Provider<TextEditingController>((ref) {
@@ -36,9 +28,20 @@ final omniboxQueryProvider =
 class OmniboxOpenController extends Notifier<bool> {
   @override
   bool build() => false;
-  void open() => state = true;
+  void open() {
+    // Снимаем primary focus с глобального `Focus(autofocus: true)` в AppShell:
+    // FocusScope.autofocus в модалке не *отнимает* фокус, а только занимает
+    // пустой. Без этого unfocus TextField не получит фокус → ввод не работает.
+    FocusManager.instance.primaryFocus?.unfocus();
+    state = true;
+  }
   void close() => state = false;
-  void toggle() => state = !state;
+  void toggle() {
+    if (!state) {
+      FocusManager.instance.primaryFocus?.unfocus();
+    }
+    state = !state;
+  }
 }
 
 final omniboxOpenProvider =

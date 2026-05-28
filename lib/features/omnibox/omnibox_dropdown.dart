@@ -10,6 +10,7 @@ import '../../app/theme/colors.dart';
 import '../../core/api/feeds.dart';
 import '../../core/api/soundcloud_auth.dart';
 import '../../core/cache/image_cache.dart';
+import '../../shared/widgets/cover_art.dart';
 import '../player/player_controller.dart';
 import 'omnibox_providers.dart';
 import 'recent_queries.dart';
@@ -30,32 +31,42 @@ class OmniboxDropdown extends ConsumerStatefulWidget {
 class _OmniboxDropdownState extends ConsumerState<OmniboxDropdown>
     with SingleTickerProviderStateMixin {
   Timer? _debounce;
+  // Локальный FocusNode на жизнь модалки.
+  final FocusNode _focus = FocusNode(debugLabel: 'omnibox-text');
   late final AnimationController _entry = AnimationController(
       vsync: this, duration: const Duration(milliseconds: 200))
     ..forward();
 
+  // Подсветка результата для ↑/↓ + Enter. Считается от плоского списка,
+  // который пересобирается каждый build (см. _buildItems).
+  int _selectedIndex = 0;
+  // Сюда build() кладёт текущий плоский список — используется в _onKey.
+  List<_Item> _items = const [];
+
   @override
   void initState() {
     super.initState();
-    // После маунта — выделить весь существующий текст. Фокус ставит
-    // FocusScope.autofocus у TextField, нам ничего вручную просить не надо
-    // (раньше competing autofocus в AppShell блокировал ввод).
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final ctrl = ref.read(omniboxControllerProvider);
       ctrl.selection =
           TextSelection(baseOffset: 0, extentOffset: ctrl.text.length);
+      FocusScope.of(context).requestFocus(_focus);
     });
   }
 
   @override
   void dispose() {
     _debounce?.cancel();
+    _focus.dispose();
     _entry.dispose();
     super.dispose();
   }
 
   void _onChanged(String v) {
+    // Сброс подсветки на верх — иначе старый индекс может торчать за
+    // пределами нового списка результатов.
+    setState(() => _selectedIndex = 0);
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 250), () {
       ref.read(omniboxQueryProvider.notifier).set(v.trim());
@@ -80,20 +91,52 @@ class _OmniboxDropdownState extends ConsumerState<OmniboxDropdown>
     _navigate('/search?q=${Uri.encodeQueryComponent(q)}');
   }
 
-  /// Esc → закрыть. Возвращает handled, чтобы не уходило в outer-onKeyEvent.
+  /// Esc → закрыть; ↑/↓ — двигают подсветку; Enter — выполняет подсвеченный
+  /// результат. Возвращаем handled, чтобы Shortcuts (VolumeUp/Down etc) не
+  /// перехватывали стрелки пока модалка открыта.
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
-    if (event is KeyDownEvent &&
-        event.logicalKey == LogicalKeyboardKey.escape) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    final key = event.logicalKey;
+    if (key == LogicalKeyboardKey.escape) {
       _close();
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.arrowDown) {
+      if (_items.isEmpty) return KeyEventResult.handled;
+      setState(() =>
+          _selectedIndex = (_selectedIndex + 1).clamp(0, _items.length - 1));
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.arrowUp) {
+      if (_items.isEmpty) return KeyEventResult.handled;
+      setState(() =>
+          _selectedIndex = (_selectedIndex - 1).clamp(0, _items.length - 1));
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.enter ||
+        key == LogicalKeyboardKey.numpadEnter) {
+      _activateSelected();
       return KeyEventResult.handled;
     }
     return KeyEventResult.ignored;
   }
 
+  /// Вызывается на Enter (через onKeyEvent или TextField.onSubmitted) — если
+  /// подсвечен item, активируем его, иначе fallback на «search → /search?q=».
+  void _activateSelected() {
+    if (_items.isEmpty) {
+      _submit(ref.read(omniboxControllerProvider).text);
+      return;
+    }
+    final i = _selectedIndex.clamp(0, _items.length - 1);
+    _items[i].onSelect();
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = ref.watch(omniboxControllerProvider);
-    final focus = ref.watch(omniboxFocusProvider);
     final query = ref.watch(omniboxQueryProvider);
     final recents = ref.watch(recentQueriesProvider);
     final actions = _matchedActions(query);
@@ -102,6 +145,96 @@ class _OmniboxDropdownState extends ConsumerState<OmniboxDropdown>
     final placeholder = (controller.text.isEmpty && track != null)
         ? 'playing: ${track.artist} — ${track.title}'
         : 'search tracks, artists, playlists, or run a command…';
+
+    // ── Сборка плоского списка секций+items для текущего query.
+    // Используется и для рендера (с подсветкой), и для ↑↓Enter в _onKey.
+    final scResults =
+        query.isEmpty ? null : ref.watch(searchProvider(query)).asData?.value;
+    final sections = <_ItemSection>[];
+
+    if (query.isEmpty) {
+      if (recents.isNotEmpty) {
+        sections.add(_ItemSection('recent', [
+          for (final r in recents)
+            _Item(
+              icon: Icons.history,
+              title: r,
+              onSelect: () {
+                ref.read(omniboxControllerProvider).text = r;
+                ref.read(omniboxQueryProvider.notifier).set(r);
+                _navigate('/search?q=${Uri.encodeQueryComponent(r)}');
+              },
+            ),
+        ]));
+      }
+    } else {
+      if (actions.isNotEmpty) {
+        sections.add(_ItemSection('actions', [
+          for (final a in actions)
+            _Item(
+              icon: a.icon,
+              title: a.label,
+              onSelect: () {
+                a.run(context, ref);
+                _close();
+              },
+            ),
+        ]));
+      }
+      if (scResults != null) {
+        final picks = <_Item>[];
+        for (final t in scResults.tracks.take(3)) {
+          picks.add(_Item(
+            coverSeed: t.id,
+            coverUrl: t.coverUrl,
+            icon: Icons.music_note,
+            title: t.title,
+            subtitle: t.artist,
+            onSelect: () => _navigate('/track/${t.id}'),
+          ));
+        }
+        for (final p in scResults.playlists.take(2)) {
+          picks.add(_Item(
+            coverSeed: p.id,
+            coverUrl: p.coverUrl,
+            icon: Icons.library_music_outlined,
+            title: p.title,
+            subtitle: p.subtitle,
+            onSelect: () => _navigate('/playlist/${p.id}'),
+          ));
+        }
+        for (final a in scResults.artists.take(2)) {
+          picks.add(_Item(
+            coverSeed: a.handle,
+            coverUrl: a.avatarUrl,
+            coverCircular: true,
+            icon: Icons.person_outline,
+            title: a.name,
+            subtitle: '@${a.handle}',
+            onSelect: () =>
+                _navigate('/artist/${Uri.encodeComponent(a.handle)}'),
+          ));
+        }
+        if (picks.isNotEmpty) {
+          sections.add(_ItemSection('from soundcloud', picks));
+        }
+      }
+      sections.add(_ItemSection('', [
+        _Item(
+          icon: Icons.search,
+          title: 'search "$query" →',
+          accent: true,
+          onSelect: () {
+            ref.read(recentQueriesProvider.notifier).add(query);
+            _navigate('/search?q=${Uri.encodeQueryComponent(query)}');
+          },
+        ),
+      ]));
+    }
+
+    _items = [for (final s in sections) ...s.items];
+    if (_selectedIndex >= _items.length) _selectedIndex = 0;
+    final showEmptyHint = query.isEmpty && _items.isEmpty;
 
     // Анимация входа: scale + fade.
     final scale = Tween<double>(begin: 0.96, end: 1.0).animate(
@@ -184,10 +317,10 @@ class _OmniboxDropdownState extends ConsumerState<OmniboxDropdown>
                             Expanded(
                               child: TextField(
                                 controller: controller,
-                                focusNode: focus,
+                                focusNode: _focus,
                                 autofocus: true,
                                 onChanged: _onChanged,
-                                onSubmitted: _submit,
+                                onSubmitted: (_) => _activateSelected(),
                                 textInputAction: TextInputAction.search,
                                 cursorColor: AppColors.acid,
                                 style: const TextStyle(
@@ -221,27 +354,18 @@ class _OmniboxDropdownState extends ConsumerState<OmniboxDropdown>
                     child: SingleChildScrollView(
                       padding: const EdgeInsets.symmetric(vertical: 6),
                       child: _Sections(
-                        query: query,
-                        actions: actions,
-                        recents: recents,
-                        onSelectAction: (a) {
-                          a.run(context, ref);
-                          _close();
+                        sections: sections,
+                        selectedIndex: _selectedIndex,
+                        showEmptyHint: showEmptyHint,
+                        onTap: (i) {
+                          setState(() => _selectedIndex = i);
+                          _items[i].onSelect();
                         },
-                        onSelectRecent: (r) {
-                          ref.read(omniboxControllerProvider).text = r;
-                          ref.read(omniboxQueryProvider.notifier).set(r);
-                          _navigate(
-                              '/search?q=${Uri.encodeQueryComponent(r)}');
+                        onHover: (i) {
+                          if (_selectedIndex != i) {
+                            setState(() => _selectedIndex = i);
+                          }
                         },
-                        onSearchAll: () {
-                          ref
-                              .read(recentQueriesProvider.notifier)
-                              .add(query);
-                          _navigate(
-                              '/search?q=${Uri.encodeQueryComponent(query)}');
-                        },
-                        onNavigate: _navigate,
                       ),
                     ),
                   ),
@@ -308,111 +432,79 @@ class _OmniboxDropdownState extends ConsumerState<OmniboxDropdown>
   }
 }
 
-class _Sections extends ConsumerWidget {
+/// Один результат в палитре. Если задан [coverSeed] — рендерим CoverArt
+/// (с [coverUrl] или fallback-процедурной обложкой); иначе — [icon].
+class _Item {
+  _Item({
+    this.icon,
+    this.coverSeed,
+    this.coverUrl,
+    this.coverCircular = false,
+    required this.title,
+    this.subtitle,
+    this.accent = false,
+    required this.onSelect,
+  });
+  final IconData? icon;
+  final String? coverSeed;
+  final String? coverUrl;
+  final bool coverCircular;
+  final String title;
+  final String? subtitle;
+  final bool accent;
+  final VoidCallback onSelect;
+}
+
+class _ItemSection {
+  _ItemSection(this.title, this.items);
+  final String title;
+  final List<_Item> items;
+}
+
+class _Sections extends StatelessWidget {
   const _Sections({
-    required this.query,
-    required this.actions,
-    required this.recents,
-    required this.onSelectAction,
-    required this.onSelectRecent,
-    required this.onSearchAll,
-    required this.onNavigate,
+    required this.sections,
+    required this.selectedIndex,
+    required this.showEmptyHint,
+    required this.onTap,
+    required this.onHover,
   });
 
-  final String query;
-  final List<_OmniboxAction> actions;
-  final List<String> recents;
-  final void Function(_OmniboxAction) onSelectAction;
-  final void Function(String) onSelectRecent;
-  final VoidCallback onSearchAll;
-  final void Function(String location, {bool push}) onNavigate;
+  final List<_ItemSection> sections;
+  final int selectedIndex;
+  final bool showEmptyHint;
+  final void Function(int flat) onTap;
+  final void Function(int flat) onHover;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final sections = <Widget>[];
-
-    if (query.isEmpty) {
-      if (recents.isNotEmpty) {
-        sections.add(_Section(
-          title: 'recent',
-          children: [
-            for (final r in recents)
-              _Row(
-                icon: Icons.history,
-                title: r,
-                onTap: () => onSelectRecent(r),
-              ),
-          ],
-        ));
-      } else {
-        sections.add(const _EmptyHint(
-            text:
-                'type to search SoundCloud — or try “settings”, “logs”, “stats”'));
-      }
-    } else {
-      if (actions.isNotEmpty) {
-        sections.add(_Section(
-          title: 'actions',
-          children: [
-            for (final a in actions)
-              _Row(
-                icon: a.icon,
-                title: a.label,
-                onTap: () => onSelectAction(a),
-              ),
-          ],
-        ));
-      }
-
-      final results = ref.watch(searchProvider(query));
-      results.when(
-        loading: () => null,
-        error: (_, _) => null,
-        data: (r) {
-          final picks = <Widget>[];
-          for (final t in r.tracks.take(3)) {
-            picks.add(_Row(
-              icon: Icons.music_note,
-              title: t.title,
-              subtitle: t.artist,
-              onTap: () => onNavigate('/track/${t.id}'),
-            ));
-          }
-          for (final p in r.playlists.take(2)) {
-            picks.add(_Row(
-              icon: Icons.library_music_outlined,
-              title: p.title,
-              subtitle: p.subtitle,
-              onTap: () => onNavigate('/playlist/${p.id}'),
-            ));
-          }
-          for (final a in r.artists.take(2)) {
-            picks.add(_Row(
-              icon: Icons.person_outline,
-              title: a.name,
-              subtitle: '@${a.handle}',
-              onTap: () => onNavigate(
-                  '/artist/${Uri.encodeComponent(a.handle)}'),
-            ));
-          }
-          if (picks.isNotEmpty) {
-            sections.add(_Section(title: 'from soundcloud', children: picks));
-          }
-        },
-      );
-
-      sections.add(_Row(
-        icon: Icons.search,
-        title: 'search "$query" →',
-        accent: true,
-        onTap: onSearchAll,
-      ));
+  Widget build(BuildContext context) {
+    if (showEmptyHint) {
+      return const _EmptyHint(
+          text:
+              'type to search SoundCloud — or try "settings", "logs", "stats"');
     }
-
+    final children = <Widget>[];
+    var flat = 0;
+    for (final sec in sections) {
+      if (sec.title.isNotEmpty) {
+        children.add(_SectionHeader(title: sec.title));
+      }
+      for (final item in sec.items) {
+        final idx = flat;
+        children.add(_Row(
+          item: item,
+          selected: idx == selectedIndex,
+          onTap: () => onTap(idx),
+          onHover: () => onHover(idx),
+        ));
+        flat++;
+      }
+      children.add(const SizedBox(height: 4));
+    }
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: sections,
+      children: children,
     );
   }
 }
@@ -424,89 +516,92 @@ class _OmniboxAction {
   final void Function(BuildContext context, WidgetRef ref) run;
 }
 
-class _Section extends StatelessWidget {
-  const _Section({required this.title, required this.children});
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.title});
   final String title;
-  final List<Widget> children;
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
-          child: Text(title.toUpperCase(),
-              style: AppTheme.mono(
-                  size: 9,
-                  color: AppColors.textLow,
-                  weight: FontWeight.w600,
-                  letterSpacing: 1.4)),
-        ),
-        ...children,
-        const SizedBox(height: 4),
-      ],
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
+      child: Text(title.toUpperCase(),
+          style: AppTheme.mono(
+              size: 9,
+              color: AppColors.textLow,
+              weight: FontWeight.w600,
+              letterSpacing: 1.4)),
     );
   }
 }
 
-class _Row extends StatefulWidget {
+class _Row extends StatelessWidget {
   const _Row({
-    required this.icon,
-    required this.title,
-    this.subtitle,
-    this.accent = false,
+    required this.item,
+    required this.selected,
     required this.onTap,
+    required this.onHover,
   });
-  final IconData icon;
-  final String title;
-  final String? subtitle;
-  final bool accent;
+  final _Item item;
+  final bool selected;
   final VoidCallback onTap;
-  @override
-  State<_Row> createState() => _RowState();
-}
+  final VoidCallback onHover;
 
-class _RowState extends State<_Row> {
-  bool _hover = false;
   @override
   Widget build(BuildContext context) {
+    final Widget leading;
+    if (item.coverSeed != null) {
+      leading = CoverArt(
+        seed: item.coverSeed!,
+        imageUrl: item.coverUrl,
+        size: 30,
+        circular: item.coverCircular,
+      );
+    } else {
+      leading = Center(
+        child: Icon(item.icon ?? Icons.circle_outlined,
+            size: 16,
+            color: item.accent ? AppColors.acid : AppColors.textMid),
+      );
+    }
     return MouseRegion(
       cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _hover = true),
-      onExit: (_) => setState(() => _hover = false),
+      onEnter: (_) => onHover(),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: widget.onTap,
+        onTap: onTap,
         child: Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          color: _hover
-              ? AppColors.textHi.withValues(alpha: 0.05)
-              : Colors.transparent,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+          decoration: BoxDecoration(
+            color: selected
+                ? AppColors.acid.withValues(alpha: 0.10)
+                : Colors.transparent,
+            borderRadius: AppTheme.borderRadius,
+            border: selected
+                ? Border.all(
+                    color: AppColors.acid.withValues(alpha: 0.45), width: 0.5)
+                : Border.all(color: Colors.transparent, width: 0.5),
+          ),
           child: Row(
             children: [
-              Icon(widget.icon,
-                  size: 16,
-                  color: widget.accent
-                      ? AppColors.acid
-                      : AppColors.textMid),
+              SizedBox(width: 30, height: 30, child: leading),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(widget.title,
+                    Text(item.title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
-                            color: widget.accent
+                            color: item.accent
                                 ? AppColors.acid
                                 : AppColors.textHi)),
-                    if (widget.subtitle != null) ...[
+                    if (item.subtitle != null) ...[
                       const SizedBox(height: 2),
-                      Text(widget.subtitle!,
+                      Text(item.subtitle!,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: AppTheme.mono(
@@ -515,6 +610,14 @@ class _RowState extends State<_Row> {
                   ],
                 ),
               ),
+              if (selected) ...[
+                const SizedBox(width: 8),
+                Text('↵',
+                    style: AppTheme.mono(
+                        size: 11,
+                        color: AppColors.acid,
+                        weight: FontWeight.w600)),
+              ],
             ],
           ),
         ),
