@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart' show kDebugMode;
@@ -10,6 +11,8 @@ import '../../app/theme/colors.dart';
 import '../../core/api/feeds.dart';
 import '../../core/api/soundcloud_auth.dart';
 import '../../features/auth/login_dialog.dart';
+import '../../features/omnibox/omnibox_providers.dart';
+import '../../features/player/player_controller.dart';
 import 'cover_art.dart';
 import 'pressable.dart';
 import 'wave_logo.dart';
@@ -170,30 +173,49 @@ class _NavLink extends StatelessWidget {
   }
 }
 
-class _SearchField extends StatefulWidget {
+class _SearchField extends ConsumerStatefulWidget {
   const _SearchField();
 
   @override
-  State<_SearchField> createState() => _SearchFieldState();
+  ConsumerState<_SearchField> createState() => _SearchFieldState();
 }
 
-class _SearchFieldState extends State<_SearchField> {
-  final _controller = TextEditingController();
+class _SearchFieldState extends ConsumerState<_SearchField> {
+  Timer? _debounce;
 
   @override
   void dispose() {
-    _controller.dispose();
+    _debounce?.cancel();
     super.dispose();
+  }
+
+  void _onChanged(String value) {
+    // Дебаунсим обновление query-провайдера — дроп-даун (Phase 2b) и любые
+    // живые подписки на `omniboxQueryProvider` обновятся через 250ms.
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 250), () {
+      ref.read(omniboxQueryProvider.notifier).set(value.trim());
+    });
   }
 
   void _submit(String value) {
     final q = value.trim();
     if (q.isEmpty) return;
+    // Запомним recent — Phase 2b будет читать. Пока запишем «впрок».
     context.go('/search?q=${Uri.encodeQueryComponent(q)}');
   }
 
   @override
   Widget build(BuildContext context) {
+    final focus = ref.watch(omniboxFocusProvider);
+    final controller = ref.watch(omniboxControllerProvider);
+    // Когда поле пустое и трек играет — placeholder показывает now-playing,
+    // закрывая потребность в отдельном ticker'е в TopBar.
+    final track = ref.watch(playerControllerProvider).track;
+    final hint = (controller.text.isEmpty && track != null)
+        ? '⌘K · playing: ${track.artist} — ${track.title}'
+        : '⌘K · search tracks, artists, playlists…';
+
     return Container(
       width: double.infinity,
       height: 32,
@@ -209,16 +231,19 @@ class _SearchFieldState extends State<_SearchField> {
           const SizedBox(width: 8),
           Expanded(
             child: TextField(
-              controller: _controller,
+              controller: controller,
+              focusNode: focus,
+              onChanged: _onChanged,
               onSubmitted: _submit,
               textInputAction: TextInputAction.search,
               cursorColor: AppColors.acid,
               style: const TextStyle(fontSize: 12, color: AppColors.textHi),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 isCollapsed: true,
                 border: InputBorder.none,
-                hintText: 'search tracks, artists, playlists…',
-                hintStyle: TextStyle(fontSize: 12, color: AppColors.textLow),
+                hintText: hint,
+                hintStyle:
+                    const TextStyle(fontSize: 12, color: AppColors.textLow),
               ),
             ),
           ),
