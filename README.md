@@ -6,7 +6,24 @@ A minimal, cross-platform **desktop SoundCloud client** built with Flutter — f
 
 Aesthetic: minimalism with light web3 accents. Closer to the canonical SoundCloud layout, but darker and quieter.
 
-> **Status: early work-in-progress.** Waveform is usable for everyday browsing and playback, but it is **far from a polished release** — APIs are unofficial, some flows are unverified, and rough edges remain. Treat it as a development preview, not a finished product.
+> **Status: early demo release (v0.1.0).** Waveform is usable as a daily-driver player but still far from a polished v1 — APIs are unofficial, some flows are best-effort, and rough edges remain. The full change log is in [`CHANGELOG.md`](CHANGELOG.md).
+
+## Install
+
+Pre-built binaries are attached to every GitHub release.
+
+### macOS
+1. Download `waveform-macos-vX.Y.Z.dmg` from the [latest release](https://github.com/alina0x/waveform/releases/latest).
+2. Open the DMG and drag `waveform_app` to your `Applications` folder.
+3. Double-click. The app is signed with Apple Developer ID and notarized, so it opens without Gatekeeper prompts.
+
+### Windows
+1. Download `waveform-windows-vX.Y.Z.zip` and unzip.
+2. Run `waveform_app.exe`. SmartScreen will say "Unknown publisher" the first time (no EV signing cert yet) — click **More info → Run anyway**.
+
+### Linux
+1. Download `waveform-linux-vX.Y.Z.tar.gz`.
+2. `tar xzf` it and run `./waveform_app`.
 
 ---
 
@@ -14,11 +31,18 @@ Aesthetic: minimalism with light web3 accents. Closer to the canonical SoundClou
 
 - **Live SoundCloud data** via the internal `api-v2` (no mock data in the shipping app).
 - **Per-user login** through SoundCloud's real sign-in page in an embedded WebView — your password is never seen by the app; only the session token is captured and persisted locally in the app's sandboxed data directory.
-- **Real audio playback** of HLS streams through [`just_audio`] (native AVPlayer on macOS).
-- **Screens:** Home (your stream + curated shelves), Feed, Library (likes / playlists / albums / stations / following / history), Search (tracks / people / playlists), Track page (waveform + comments with timecodes + related), Artist page, Playlist page.
-- **Player:** play/pause, next/previous, true full-coverage shuffle, repeat, scrubbing on the waveform, volume, and like (with optimistic state synced to your account).
-- **Right rail:** profile, real collection shortcuts (likes / playlists / following), recent likes, listening history.
-- **Logging:** in-app [Talker] log screen (`/logs`) with Riverpod + Dio integration.
+- **Real audio playback** of HLS streams via [`just_audio`] (native AVPlayer on macOS), with **gapless** and configurable **crossfade** (0–6 s) between tracks.
+- **OS media keys + now-playing** card via `audio_service` (Control Center on macOS, SystemMediaTransportControls on Windows, MPRIS on Linux).
+- **Screens:** Home (your stream + curated shelves), Feed, Library (likes / playlists / albums / stations / following / history), Search (tracks / people / playlists), Track page (waveform + comments with timecodes + related), Artist page, Playlist page, Settings, **Stats** (top artists, top genres, totals from your play-history).
+- **⌘K omnibox**: the top-bar search field doubles as a command palette. Type "settings", "logs", "likes", "shuffle", "sign out" to run actions; type any query for live SoundCloud results; Enter goes to the full search page. Recent queries persist.
+- **Global keyboard shortcuts**: Space play/pause; ← / → prev/next; ⌘/Ctrl + K or F focus omnibox; ⌘/Ctrl + L likes; ⌘/Ctrl + , settings; ⌘/Ctrl + Shift + L logs.
+- **Right-click context menus** on tracks (play / like / repost / copy link / open on SoundCloud / open artist).
+- **Persistent queue panel** with drag-reorder + remove (toggle via the queue icon in the top bar). True full-coverage shuffle within the loaded queue, plus a one-shot "shuffle all" on the playlist screen that paginates the full set first.
+- **Collapse mode** on the bottom player (44 px mini bar).
+- **Tiles ↔ list** view toggle (persisted), available in Library and Search.
+- **Hero transitions** on cover art when navigating cards → detail; subtle **hover fill** on every interactive element; **ambient album-art backdrop** behind hero blocks (via `palette_generator`); **skeleton loaders** on Home first paint.
+- **Optional Last.fm scrobbling** (off until configured — see [`lib/core/lastfm/lastfm_constants.dart`](lib/core/lastfm/lastfm_constants.dart)).
+- **In-app log screen** at `/logs` powered by [Talker] (Riverpod + Dio integration).
 
 ## Design
 
