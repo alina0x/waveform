@@ -14,6 +14,7 @@ import '../../features/auth/login_dialog.dart';
 import '../../features/omnibox/omnibox_providers.dart';
 import '../../features/omnibox/recent_queries.dart';
 import '../../features/player/player_controller.dart';
+import '../../features/queue/queue_visibility.dart';
 import 'cover_art.dart';
 import 'pressable.dart';
 import 'wave_logo.dart';
@@ -78,6 +79,19 @@ class TopBar extends ConsumerWidget {
             ),
             const SizedBox(width: 14),
           ],
+          Consumer(builder: (context, ref, _) {
+            final on = ref.watch(queueVisibleProvider);
+            return Pressable(
+              onTap: () => ref.read(queueVisibleProvider.notifier).toggle(),
+              child: Tooltip(
+                message: 'queue',
+                child: Icon(Icons.queue_music,
+                    size: 16,
+                    color: on ? AppColors.acid : AppColors.textLow),
+              ),
+            );
+          }),
+          const SizedBox(width: 14),
           Pressable(
             onTap: () => context.push('/settings'),
             child: const Tooltip(

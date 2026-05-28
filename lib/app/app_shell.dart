@@ -9,6 +9,8 @@ import '../features/omnibox/omnibox_dropdown.dart';
 import '../features/omnibox/omnibox_providers.dart';
 import '../features/player/player_controller.dart';
 import '../features/player/widgets/bottom_player.dart';
+import '../features/queue/queue_panel.dart';
+import '../features/queue/queue_visibility.dart';
 import '../shared/intents.dart';
 import '../shared/widgets/frosted.dart';
 import '../shared/widgets/top_bar.dart';
@@ -109,16 +111,26 @@ class AppShell extends ConsumerWidget {
             autofocus: true,
             child: Consumer(builder: (context, ref, _) {
               final omniOpen = ref.watch(omniboxFocusedProvider);
+              final queueOpen = ref.watch(queueVisibleProvider);
               return Stack(
                 children: [
                   Positioned.fill(child: child),
+                  // Queue-панель справа, под TopBar и над BottomPlayer.
+                  if (queueOpen)
+                    const Positioned(
+                      top: AppTheme.topBarHeight,
+                      bottom: AppTheme.playerHeight,
+                      right: 0,
+                      width: 320,
+                      child: QueuePanel(),
+                    ),
                   // Невидимый scrim над контентом, чтобы клик мимо дроп-дауна
                   // снимал фокус. Под TopBar / над BottomPlayer, не мешает им.
                   if (omniOpen)
                     Positioned(
                       top: AppTheme.topBarHeight,
                       left: 0,
-                      right: 0,
+                      right: queueOpen ? 320 : 0,
                       bottom: AppTheme.playerHeight,
                       child: GestureDetector(
                         behavior: HitTestBehavior.translucent,
@@ -139,7 +151,7 @@ class AppShell extends ConsumerWidget {
                   if (omniOpen)
                     Positioned(
                       top: AppTheme.topBarHeight + 4,
-                      right: 16,
+                      right: queueOpen ? 320 + 16 : 16,
                       width: 360,
                       child: const OmniboxDropdown(),
                     ),

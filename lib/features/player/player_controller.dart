@@ -27,6 +27,7 @@ class PlayerState {
     this.liked = false,
     this.volume = 1.0,
     this.unplayable,
+    this.queueVersion = 0,
   });
 
   final Track? track;
@@ -37,6 +38,11 @@ class PlayerState {
   final bool repeat;
   final bool liked;
   final double volume;
+
+  /// Монотонно растущий счётчик — bump'ится контроллером на любую мутацию
+  /// очереди. UI слушает `select((s) => s.queueVersion)` и пере-читает
+  /// `notifier.upcomingTracks` для актуального списка.
+  final int queueVersion;
 
   /// Последний непроигравшийся трек (GO+/недоступен) — UI показывает уведомление.
   final Unplayable? unplayable;
@@ -65,6 +71,7 @@ class PlayerState {
     bool? liked,
     double? volume,
     Unplayable? unplayable,
+    int? queueVersion,
   }) =>
       PlayerState(
         track: track ?? this.track,
@@ -76,6 +83,7 @@ class PlayerState {
         liked: liked ?? this.liked,
         volume: volume ?? this.volume,
         unplayable: unplayable ?? this.unplayable,
+        queueVersion: queueVersion ?? this.queueVersion,
       );
 }
 
@@ -156,14 +164,75 @@ class PlayerController extends Notifier<PlayerState> {
   /// без него очередью становится сам трек.
   void play(Track track, {List<Track>? queue}) {
     _queue = (queue != null && queue.isNotEmpty) ? queue : [track];
+    _orderSource = null; // queue сменилась → пересоберём шафл при необходимости
     state = state.copyWith(
       track: track,
       isPlaying: true,
       position: Duration.zero,
       // Подсветка лайка — из реального множества лайков (а не сброс в false).
       liked: ref.read(likedTracksProvider).contains(track.id),
+      queueVersion: state.queueVersion + 1,
     );
     _load(track);
+  }
+
+  // ── Публичная queue-API (для queue-панели) ──────────────────────────────
+  /// Текущий список «дальше будет» — без проигрываемого. В shuffle —
+  /// из тасованного `_order`, иначе линейный хвост `_queue` от current'а.
+  List<Track> get upcomingTracks {
+    if (state.shuffle &&
+        _order.isNotEmpty &&
+        identical(_orderSource, _queue)) {
+      final i = _order.indexWhere((t) => t.id == state.track?.id);
+      if (i == -1) return List.unmodifiable(_order);
+      return List.unmodifiable(_order.skip(i + 1));
+    }
+    final i = _queue.indexWhere((t) => t.id == state.track?.id);
+    if (i == -1) return List.unmodifiable(_queue);
+    return List.unmodifiable(_queue.skip(i + 1));
+  }
+
+  /// Индекс играющего в основной `_queue`; −1 если нет в очереди.
+  int get currentQueueIndex =>
+      _queue.indexWhere((t) => t.id == state.track?.id);
+
+  /// Переставить трек в upcoming-секции. Индексы — в координатах списка
+  /// `upcomingTracks` (0 = первый после current), внутри транслируется в
+  /// абсолютные индексы `_queue`.
+  void reorderUpcoming(int upcomingOld, int upcomingNew) {
+    final cur = currentQueueIndex;
+    if (cur < 0) return;
+    final base = cur + 1;
+    final oldAbs = base + upcomingOld;
+    var newAbs = base + upcomingNew;
+    if (oldAbs < base || oldAbs >= _queue.length) return;
+    if (newAbs > _queue.length) newAbs = _queue.length;
+    if (newAbs > oldAbs) newAbs -= 1; // ReorderableListView соглашение
+    final item = _queue.removeAt(oldAbs);
+    _queue.insert(newAbs, item);
+    _orderSource = null;
+    state = state.copyWith(queueVersion: state.queueVersion + 1);
+  }
+
+  /// Убрать трек из очереди (нельзя текущий — он играет).
+  void removeFromQueue(String trackId) {
+    if (trackId == state.track?.id) return;
+    final n = _queue.length;
+    _queue.removeWhere((t) => t.id == trackId);
+    if (_queue.length == n) return;
+    _orderSource = null;
+    state = state.copyWith(queueVersion: state.queueVersion + 1);
+  }
+
+  /// Добавить трек в конец очереди; игнорим дубликат.
+  void addToQueue(Track t) {
+    if (_queue.any((x) => x.id == t.id)) {
+      // Можно «поднять» наверх; пока проще no-op для дубликата.
+      return;
+    }
+    _queue.add(t);
+    _orderSource = null;
+    state = state.copyWith(queueVersion: state.queueVersion + 1);
   }
 
   /// Резолв стрима (transcoding → m3u8/mp3) и передача в движок.
