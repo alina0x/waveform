@@ -40,8 +40,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       return const Padding(
         padding: EdgeInsets.only(top: AppTheme.topBarHeight),
         child: Center(
-          child: Text('type in the search bar above to find tracks, people, playlists',
-              style: TextStyle(color: AppColors.textLow)),
+          child: Text(
+            'type in the search bar above to find tracks, people, playlists',
+            style: TextStyle(color: AppColors.textLow),
+          ),
         ),
       );
     }
@@ -52,9 +54,16 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         children: [
           const SizedBox(height: AppTheme.topBarHeight),
           Padding(
-            padding: const EdgeInsets.fromLTRB(AppTheme.pagePad, 18, AppTheme.pagePad, 4),
-            child: Text('results for “$q”',
-                style: AppTheme.mono(size: 12, color: AppColors.textMid)),
+            padding: const EdgeInsets.fromLTRB(
+              AppTheme.pagePad,
+              18,
+              AppTheme.pagePad,
+              4,
+            ),
+            child: Text(
+              'results for “$q”',
+              style: AppTheme.mono(size: 12, color: AppColors.textMid),
+            ),
           ),
           _Tabs(
             tabs: _tabs,
@@ -77,7 +86,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   Widget _body(SearchResults r) {
     final pad = const EdgeInsets.fromLTRB(
-        AppTheme.pagePad, 18, AppTheme.pagePad, AppTheme.playerHeight + 32);
+      AppTheme.pagePad,
+      18,
+      AppTheme.pagePad,
+      AppTheme.playerHeight + 32,
+    );
     final q = widget.query.trim();
     switch (_tabs[_tab]) {
       case 'people':
@@ -88,9 +101,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             subtitle: 'no SoundCloud users matched “$q” — try a shorter query',
           );
         }
-        return ListView(padding: pad, children: [
-          for (final a in r.artists) _ArtistRow(artist: a),
-        ]);
+        return ListView(
+          padding: pad,
+          children: [for (final a in r.artists) _ArtistRow(artist: a)],
+        );
       case 'playlists':
         if (r.playlists.isEmpty) {
           return EmptyState(
@@ -101,18 +115,17 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         }
         final mode = ref.watch(viewModeProvider);
         if (mode == ViewMode.list) {
-          return ListView(padding: pad, children: [
-            for (final p in r.playlists) CollectionRow(item: p),
-          ]);
+          return ListView(
+            padding: pad,
+            children: [for (final p in r.playlists) CollectionRow(item: p)],
+          );
         }
         return SingleChildScrollView(
           padding: pad,
           child: Wrap(
             spacing: 20,
             runSpacing: 24,
-            children: [
-              for (final p in r.playlists) CollectionCard(item: p),
-            ],
+            children: [for (final p in r.playlists) CollectionCard(item: p)],
           ),
         );
       case 'tracks':
@@ -124,11 +137,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             subtitle: 'no SoundCloud tracks matched “$q”',
           );
         }
-        return ListView(padding: pad, children: [
-          const SectionHeader(title: 'tracks'),
-          const SizedBox(height: AppTheme.headerGap),
-          for (final t in r.tracks) TrackRow(track: t, queue: r.tracks),
-        ]);
+        return ListView(
+          padding: pad,
+          children: [
+            const SectionHeader(title: 'tracks'),
+            const SizedBox(height: AppTheme.headerGap),
+            for (final t in r.tracks) TrackRow(track: t, queue: r.tracks),
+          ],
+        );
     }
   }
 }
@@ -153,32 +169,37 @@ class _Tabs extends StatelessWidget {
       decoration: const BoxDecoration(
         border: Border(bottom: AppTheme.borderSideStatic),
       ),
-      child: Row(children: [
-        for (var i = 0; i < tabs.length; i++)
-          Pressable(
-            onTap: () => onSelect(i),
-            child: Container(
-              margin: const EdgeInsets.only(right: 22),
-              decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(
+      child: Row(
+        children: [
+          for (var i = 0; i < tabs.length; i++)
+            Pressable(
+              onTap: () => onSelect(i),
+              child: Container(
+                margin: const EdgeInsets.only(right: 22),
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(
                       color: i == current ? AppColors.acid : Colors.transparent,
-                      width: 2),
+                      width: 2,
+                    ),
+                  ),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  tabs[i],
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: i == current
+                        ? FontWeight.w600
+                        : FontWeight.w400,
+                    color: i == current ? AppColors.textHi : AppColors.textMid,
+                  ),
                 ),
               ),
-              alignment: Alignment.center,
-              child: Text(tabs[i],
-                  style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: i == current ? FontWeight.w600 : FontWeight.w400,
-                      color: i == current ? AppColors.textHi : AppColors.textMid)),
             ),
-          ),
-        if (trailing != null) ...[
-          const Spacer(),
-          trailing!,
+          if (trailing != null) ...[const Spacer(), trailing!],
         ],
-      ]),
+      ),
     );
   }
 }
@@ -199,42 +220,55 @@ class _ArtistRow extends StatelessWidget {
           borderRadius: AppTheme.borderRadius,
           border: AppTheme.border(),
         ),
-        child: Row(children: [
-          CoverArt(
+        child: Row(
+          children: [
+            CoverArt(
               seed: artist.coverSeed,
               imageUrl: artist.avatarUrl,
               size: 44,
-              circular: true),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(children: [
-                  Flexible(
-                    child: Text(artist.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+              circular: true,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          artist.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
-                            color: AppColors.textHi)),
+                            color: AppColors.textHi,
+                          ),
+                        ),
+                      ),
+                      if (artist.verified) ...[
+                        const SizedBox(width: 5),
+                        const Icon(
+                          Icons.verified,
+                          size: 13,
+                          color: AppColors.acid,
+                        ),
+                      ],
+                    ],
                   ),
-                  if (artist.verified) ...[
-                    const SizedBox(width: 5),
-                    const Icon(Icons.verified, size: 13, color: AppColors.acid),
-                  ],
-                ]),
-                const SizedBox(height: 3),
-                Text('${Fmt.count(artist.followers)} followers',
-                    style: AppTheme.mono(size: 11, color: AppColors.textMid)),
-              ],
+                  const SizedBox(height: 3),
+                  Text(
+                    '${Fmt.count(artist.followers)} followers',
+                    style: AppTheme.mono(size: 11, color: AppColors.textMid),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const Icon(Icons.chevron_right, size: 18, color: AppColors.textLow),
-        ]),
+            const Icon(Icons.chevron_right, size: 18, color: AppColors.textLow),
+          ],
+        ),
       ),
     );
   }
 }
-

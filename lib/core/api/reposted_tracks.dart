@@ -25,8 +25,9 @@ class RepostedTracksController extends Notifier<Set<String>> {
   Future<LikeOutcome> toggle(String trackId) async {
     final repost = !state.contains(trackId);
     state = repost ? {...state, trackId} : ({...state}..remove(trackId));
-    final outcome =
-        await ref.read(soundcloudApiProvider).setReposted(trackId, repost);
+    final outcome = await ref
+        .read(soundcloudApiProvider)
+        .setReposted(trackId, repost);
     if (outcome != LikeOutcome.ok) {
       state = repost ? ({...state}..remove(trackId)) : {...state, trackId};
     }
@@ -36,4 +37,5 @@ class RepostedTracksController extends Notifier<Set<String>> {
 
 final repostedTracksProvider =
     NotifierProvider<RepostedTracksController, Set<String>>(
-        RepostedTracksController.new);
+      RepostedTracksController.new,
+    );

@@ -26,9 +26,18 @@ class CoverArt extends StatelessWidget {
   Widget build(BuildContext context) {
     final h = seed.hashCode;
     // Приглушённые тёмные тона — обложка не должна спорить с acid orange.
-    final base = HSLColor.fromAHSL(1, (h % 360).toDouble(), 0.18, 0.16).toColor();
-    final tint = HSLColor.fromAHSL(1, ((h >> 3) % 360).toDouble(), 0.22, 0.24)
-        .toColor();
+    final base = HSLColor.fromAHSL(
+      1,
+      (h % 360).toDouble(),
+      0.18,
+      0.16,
+    ).toColor();
+    final tint = HSLColor.fromAHSL(
+      1,
+      ((h >> 3) % 360).toDouble(),
+      0.22,
+      0.24,
+    ).toColor();
 
     final procedural = CustomPaint(
       size: Size(size, size),
@@ -91,10 +100,12 @@ class _CoverPainter extends CustomPainter {
       ..color = Colors.white.withValues(alpha: 0.03)
       ..strokeWidth = 1;
     final offset = (seed % 20) - 10;
-    for (var x = -size.height + offset.toDouble();
-        x < size.width;
-        x += 14) {
-      canvas.drawLine(Offset(x, 0), Offset(x + size.height, size.height), stripe);
+    for (var x = -size.height + offset.toDouble(); x < size.width; x += 14) {
+      canvas.drawLine(
+        Offset(x, 0),
+        Offset(x + size.height, size.height),
+        stripe,
+      );
     }
   }
 

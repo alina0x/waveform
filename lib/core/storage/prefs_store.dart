@@ -41,11 +41,9 @@ class PrefsStore {
     return v is bool ? v : null;
   }
 
-  Future<void> writeString(String key, String value) =>
-      _write(key, value);
+  Future<void> writeString(String key, String value) => _write(key, value);
 
-  Future<void> writeBool(String key, bool value) =>
-      _write(key, value);
+  Future<void> writeBool(String key, bool value) => _write(key, value);
 
   Future<void> _write(String key, Object value) async {
     final m = await _load();

@@ -20,7 +20,10 @@ CustomTransitionPage<void> _page(Widget child) {
     transitionDuration: const Duration(milliseconds: 240),
     reverseTransitionDuration: const Duration(milliseconds: 160),
     transitionsBuilder: (context, animation, secondary, child) {
-      final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+      final curved = CurvedAnimation(
+        parent: animation,
+        curve: Curves.easeOutCubic,
+      );
       return FadeTransition(
         opacity: curved,
         child: SlideTransition(
@@ -44,11 +47,15 @@ final appRouter = GoRouter(
           AppShell(location: state.uri.path, child: child),
       routes: [
         GoRoute(path: '/', pageBuilder: (c, s) => _page(const HomeScreen())),
-        GoRoute(path: '/feed', pageBuilder: (c, s) => _page(const FeedScreen())),
         GoRoute(
-            path: '/library',
-            pageBuilder: (c, s) =>
-                _page(LibraryScreen(initialTab: s.uri.queryParameters['tab']))),
+          path: '/feed',
+          pageBuilder: (c, s) => _page(const FeedScreen()),
+        ),
+        GoRoute(
+          path: '/library',
+          pageBuilder: (c, s) =>
+              _page(LibraryScreen(initialTab: s.uri.queryParameters['tab'])),
+        ),
         GoRoute(
           path: '/track/:id',
           pageBuilder: (c, s) =>
@@ -56,8 +63,11 @@ final appRouter = GoRouter(
         ),
         GoRoute(
           path: '/artist/:handle',
-          pageBuilder: (c, s) => _page(ArtistScreen(
-              handle: Uri.decodeComponent(s.pathParameters['handle']!))),
+          pageBuilder: (c, s) => _page(
+            ArtistScreen(
+              handle: Uri.decodeComponent(s.pathParameters['handle']!),
+            ),
+          ),
         ),
         GoRoute(
           path: '/search',
@@ -70,11 +80,13 @@ final appRouter = GoRouter(
               _page(PlaylistScreen(id: s.pathParameters['id']!)),
         ),
         GoRoute(
-            path: '/settings',
-            pageBuilder: (c, s) => _page(const SettingsScreen())),
+          path: '/settings',
+          pageBuilder: (c, s) => _page(const SettingsScreen()),
+        ),
         GoRoute(
-            path: '/stats',
-            pageBuilder: (c, s) => _page(const StatsScreen())),
+          path: '/stats',
+          pageBuilder: (c, s) => _page(const StatsScreen()),
+        ),
       ],
     ),
     // Экран логов — вне shell (на весь экран, без TopBar/плеера).

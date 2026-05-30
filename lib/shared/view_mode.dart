@@ -23,7 +23,9 @@ class ViewModeController extends Notifier<ViewMode> {
     try {
       final v = await _store.readString(_key);
       if (v == ViewMode.list.name) state = ViewMode.list;
-    } catch (_) {/* плагина нет в тестах — игнорируем */}
+    } catch (_) {
+      /* плагина нет в тестах — игнорируем */
+    }
   }
 
   void set(ViewMode mode) {
@@ -42,5 +44,6 @@ class ViewModeController extends Notifier<ViewMode> {
   }
 }
 
-final viewModeProvider =
-    NotifierProvider<ViewModeController, ViewMode>(ViewModeController.new);
+final viewModeProvider = NotifierProvider<ViewModeController, ViewMode>(
+  ViewModeController.new,
+);

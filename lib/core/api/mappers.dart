@@ -13,8 +13,7 @@ import 'dto/page_dto.dart';
 /// Изолирует UI от формы внешнего API: меняется API — правим только тут.
 
 /// Артворк в высоком разрешении: `...-large.jpg` → `...-t500x500.jpg`.
-String? hiResArtwork(String? url) =>
-    url?.replaceFirst('-large.', '-t500x500.');
+String? hiResArtwork(String? url) => url?.replaceFirst('-large.', '-t500x500.');
 
 /// ISO-дата → человекочитаемое «N days ago».
 String relativeTime(String? iso) {
@@ -33,68 +32,70 @@ String relativeTime(String? iso) {
 
 extension TrackDtoMapper on TrackDto {
   Track toDomain() => Track(
-        id: '$id',
-        title: title,
-        artist: user.username,
-        artistPermalink: user.permalink,
-        durationMs: durationMs,
-        likes: likesCount,
-        reposts: repostsCount,
-        plays: playbackCount,
-        // Реальная waveform тянется отдельным запросом к waveform_url;
-        // до интеграции — детерминированный placeholder по id.
-        waveform: Track.generateWaveform(id),
-        coverUrl: hiResArtwork(artworkUrl),
-        permalinkUrl: permalinkUrl,
-        // HLS-кандидаты сначала, progressive — как фолбэк (часть HLS-ссылок 404).
-        // Зашифрованные (DRM) транскодинги исключаем — just_audio их не играет.
-        streamCandidates: [
-          for (final t in transcodings)
-            if (t.isHls && !t.isEncrypted) t.url,
-          for (final t in transcodings)
-            if (!t.isHls && !t.isEncrypted) t.url,
-        ],
-        goPlus: isGoPlus,
-        genre: (genre == null || genre!.isEmpty) ? 'electronic' : genre!,
-        postedAt: relativeTime(createdAt),
-        description: description ?? '',
-      );
+    id: '$id',
+    title: title,
+    artist: user.username,
+    artistPermalink: user.permalink,
+    durationMs: durationMs,
+    likes: likesCount,
+    reposts: repostsCount,
+    plays: playbackCount,
+    // Процедурная заглушка по id — мгновенный плейсхолдер; реальная форма
+    // лениво подгружается из [waveformUrl] виджетом LiveWaveform.
+    waveform: Track.generateWaveform(id),
+    waveformUrl: waveformUrl,
+    coverUrl: hiResArtwork(artworkUrl),
+    permalinkUrl: permalinkUrl,
+    // HLS-кандидаты сначала, progressive — как фолбэк (часть HLS-ссылок 404).
+    // Зашифрованные (DRM) транскодинги исключаем — just_audio их не играет.
+    streamCandidates: [
+      for (final t in transcodings)
+        if (t.isHls && !t.isEncrypted) t.url,
+      for (final t in transcodings)
+        if (!t.isHls && !t.isEncrypted) t.url,
+    ],
+    goPlus: isGoPlus,
+    genre: (genre == null || genre!.isEmpty) ? 'electronic' : genre!,
+    postedAt: relativeTime(createdAt),
+    description: description ?? '',
+  );
 }
 
 extension UserDtoMapper on UserDto {
   Artist toDomain() => Artist(
-        id: '$id',
-        handle: permalink, // слаг для /resolve, а не отображаемое имя
-        name: username,
-        followers: followersCount,
-        trackCount: trackCount,
-        likesCount: likesCount,
-        playlistCount: playlistCount,
-        followingsCount: followingsCount,
-        verified: verified,
-        avatarUrl: hiResArtwork(avatarUrl),
-      );
+    id: '$id',
+    handle: permalink, // слаг для /resolve, а не отображаемое имя
+    name: username,
+    followers: followersCount,
+    trackCount: trackCount,
+    likesCount: likesCount,
+    playlistCount: playlistCount,
+    followingsCount: followingsCount,
+    verified: verified,
+    avatarUrl: hiResArtwork(avatarUrl),
+  );
 }
 
 extension PlaylistDtoMapper on PlaylistDto {
   Collection toDomain() => Collection(
-        id: '$id',
-        title: title,
-        subtitle: user.username,
-        kind: (isAlbum || setType == 'album')
-            ? CollectionKind.album
-            : CollectionKind.playlist,
-        trackCount: trackCount,
-        coverUrl: hiResArtwork(artworkUrl),
-      );
+    id: '$id',
+    title: title,
+    subtitle: user.username,
+    kind: (isAlbum || setType == 'album')
+        ? CollectionKind.album
+        : CollectionKind.playlist,
+    trackCount: trackCount,
+    coverUrl: hiResArtwork(artworkUrl),
+  );
 }
 
 extension CommentDtoMapper on CommentDto {
   Comment toDomain() => Comment(
-        author: user.username,
-        timecodeMs: timestampMs,
-        text: body,
-      );
+    id: '$id',
+    author: user.username,
+    timecodeMs: timestampMs,
+    text: body,
+  );
 }
 
 extension StreamItemDtoMapper on StreamItemDto {
@@ -121,14 +122,14 @@ extension PageMapper<T> on PageDto<T> {
 extension TrackListFeedMapper on List<Track> {
   /// Анонимная лента: треки как посты «posted».
   List<FeedPost> toFeedPosts() => [
-        for (final t in this)
-          FeedPost(
-            id: t.id,
-            actor: t.artist,
-            action: FeedAction.posted,
-            timeAgo: t.postedAt,
-            track: t,
-            tag: t.genre,
-          ),
-      ];
+    for (final t in this)
+      FeedPost(
+        id: t.id,
+        actor: t.artist,
+        action: FeedAction.posted,
+        timeAgo: t.postedAt,
+        track: t,
+        tag: t.genre,
+      ),
+  ];
 }

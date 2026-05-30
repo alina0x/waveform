@@ -1,11 +1,14 @@
 /// Комментарий, привязанный к позиции на waveform (как в каноне SoundCloud).
 class Comment {
   const Comment({
+    required this.id,
     required this.author,
     required this.timecodeMs,
     required this.text,
   });
 
+  /// ID коммента — используется как стабильный ключ в списке.
+  final String id;
   final String author;
   final int timecodeMs;
   final String text;

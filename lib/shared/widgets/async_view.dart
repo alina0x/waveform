@@ -45,16 +45,20 @@ class AsyncView<T> extends StatelessWidget {
           children: [
             const Icon(Icons.cloud_off, size: 28, color: AppColors.textLow),
             const SizedBox(height: 12),
-            const Text("couldn't load",
-                style: TextStyle(fontSize: 14, color: AppColors.textMid)),
+            const Text(
+              "couldn't load",
+              style: TextStyle(fontSize: 14, color: AppColors.textMid),
+            ),
             const SizedBox(height: 6),
             ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 360),
-              child: Text('$e',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: AppTheme.mono(size: 10, color: AppColors.textLow)),
+              child: Text(
+                '$e',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: AppTheme.mono(size: 10, color: AppColors.textLow),
+              ),
             ),
             if (onRetry != null) ...[
               const SizedBox(height: 16),
@@ -83,8 +87,10 @@ class _RetryButton extends StatelessWidget {
             borderRadius: AppTheme.borderRadius,
             border: AppTheme.border(),
           ),
-          child: Text('retry',
-              style: AppTheme.mono(size: 12, color: AppColors.textHi)),
+          child: Text(
+            'retry',
+            style: AppTheme.mono(size: 12, color: AppColors.textHi),
+          ),
         ),
       ),
     );

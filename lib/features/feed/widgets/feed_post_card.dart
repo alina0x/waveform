@@ -10,7 +10,7 @@ import '../../../shared/models/track.dart';
 import '../../../shared/widgets/cover_art.dart';
 import '../../../shared/widgets/minted_badge.dart';
 import '../../../shared/widgets/pressable.dart';
-import '../../../shared/widgets/waveform_view.dart';
+import '../../../shared/widgets/live_waveform.dart';
 import '../../player/player_controller.dart';
 
 /// Карточка поста ленты: шапка автора + waveform-плеер + бар действий.
@@ -67,21 +67,29 @@ class FeedPostCard extends ConsumerWidget {
                             children: [
                               Pressable(
                                 onTap: () => context.go(
-                                    '/artist/${Uri.encodeComponent(track.artistHandle)}'),
-                                child: Text(track.artist,
-                                    style: AppTheme.mono(
-                                        size: 11, color: AppColors.textMid)),
+                                  '/artist/${Uri.encodeComponent(track.artistHandle)}',
+                                ),
+                                child: Text(
+                                  track.artist,
+                                  style: AppTheme.mono(
+                                    size: 11,
+                                    color: AppColors.textMid,
+                                  ),
+                                ),
                               ),
                               const SizedBox(height: 2),
                               Pressable(
                                 onTap: () => context.go('/track/${track.id}'),
-                                child: Text(track.title,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.textHi)),
+                                child: Text(
+                                  track.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textHi,
+                                  ),
+                                ),
                               ),
                             ],
                           ),
@@ -90,8 +98,9 @@ class FeedPostCard extends ConsumerWidget {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    WaveformView(
-                      bars: track.waveform,
+                    LiveWaveform(
+                      waveformUrl: track.waveformUrl,
+                      fallbackBars: track.waveform,
                       progress: progress,
                       height: 56,
                       onSeek: isCurrent ? controller.seekFraction : null,
@@ -118,19 +127,20 @@ class _ActorHeader extends StatelessWidget {
     return Row(
       children: [
         Pressable(
-          onTap: () =>
-              context.go('/artist/${Uri.encodeComponent(post.actor)}'),
+          onTap: () => context.go('/artist/${Uri.encodeComponent(post.actor)}'),
           child: CoverArt(seed: post.actorSeed, size: 28, circular: true),
         ),
         const SizedBox(width: 10),
         Pressable(
-          onTap: () =>
-              context.go('/artist/${Uri.encodeComponent(post.actor)}'),
-          child: Text(post.actor,
-              style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textHi)),
+          onTap: () => context.go('/artist/${Uri.encodeComponent(post.actor)}'),
+          child: Text(
+            post.actor,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textHi,
+            ),
+          ),
         ),
         const SizedBox(width: 8),
         if (post.action == FeedAction.reposted)
@@ -138,8 +148,10 @@ class _ActorHeader extends StatelessWidget {
             padding: EdgeInsets.only(right: 5),
             child: Icon(Icons.repeat, size: 13, color: AppColors.textLow),
           ),
-        Text('${post.actionLabel} · ${post.timeAgo}',
-            style: AppTheme.mono(size: 11, color: AppColors.textLow)),
+        Text(
+          '${post.actionLabel} · ${post.timeAgo}',
+          style: AppTheme.mono(size: 11, color: AppColors.textLow),
+        ),
       ],
     );
   }
@@ -160,9 +172,14 @@ class _PlayButton extends StatelessWidget {
           width: 40,
           height: 40,
           decoration: const BoxDecoration(
-              color: AppColors.acid, shape: BoxShape.circle),
-          child: Icon(isPlaying ? Icons.pause : Icons.play_arrow,
-              color: AppColors.bg, size: 24),
+            color: AppColors.acid,
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            isPlaying ? Icons.pause : Icons.play_arrow,
+            color: AppColors.bg,
+            size: 24,
+          ),
         ),
       ),
     );
@@ -182,8 +199,10 @@ class _TagChip extends StatelessWidget {
         borderRadius: AppTheme.borderRadius,
         border: AppTheme.border(),
       ),
-      child: Text('#$tag',
-          style: AppTheme.mono(size: 11, color: AppColors.textMid)),
+      child: Text(
+        '#$tag',
+        style: AppTheme.mono(size: 11, color: AppColors.textMid),
+      ),
     );
   }
 }

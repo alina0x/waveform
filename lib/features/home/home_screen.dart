@@ -42,8 +42,12 @@ class _HomeSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(AppTheme.pagePad,
-          AppTheme.topBarHeight + 26, AppTheme.pagePad, AppTheme.playerHeight + 32),
+      padding: const EdgeInsets.fromLTRB(
+        AppTheme.pagePad,
+        AppTheme.topBarHeight + 26,
+        AppTheme.pagePad,
+        AppTheme.playerHeight + 32,
+      ),
       children: [
         const SkeletonBox(width: 140, height: 12),
         const SizedBox(height: AppTheme.headerGap),
@@ -107,13 +111,15 @@ class _FeedCardSkeleton extends StatelessWidget {
                 SizedBox(height: 16),
                 SkeletonBox(width: double.infinity, height: 36),
                 SizedBox(height: 14),
-                Row(children: [
-                  SkeletonBox(width: 40, height: 11),
-                  SizedBox(width: 12),
-                  SkeletonBox(width: 40, height: 11),
-                  SizedBox(width: 12),
-                  SkeletonBox(width: 40, height: 11),
-                ]),
+                Row(
+                  children: [
+                    SkeletonBox(width: 40, height: 11),
+                    SizedBox(width: 12),
+                    SkeletonBox(width: 40, height: 11),
+                    SizedBox(width: 12),
+                    SkeletonBox(width: 40, height: 11),
+                  ],
+                ),
               ],
             ),
           ),
@@ -134,17 +140,20 @@ class _HomeBody extends ConsumerWidget {
 
     // Полки главной — реальные плейлисты/альбомы. Карточка сама ведёт по target
     // (плейлист/трек/артист) — никакого случайного трека из стрима.
-    MediaCarousel carousel(String title, List<Collection> items) => MediaCarousel(
+    MediaCarousel carousel(String title, List<Collection> items) =>
+        MediaCarousel(
           title: title,
           height: 206,
-          children: [
-            for (final item in items) CollectionCard(item: item),
-          ],
+          children: [for (final item in items) CollectionCard(item: item)],
         );
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(AppTheme.pagePad,
-          AppTheme.topBarHeight + 26, AppTheme.pagePad, AppTheme.playerHeight + 32),
+      padding: const EdgeInsets.fromLTRB(
+        AppTheme.pagePad,
+        AppTheme.topBarHeight + 26,
+        AppTheme.pagePad,
+        AppTheme.playerHeight + 32,
+      ),
       children: [
         // Личная лента подписок — только залогиненным.
         if (authed && data.stream.isNotEmpty) ...[

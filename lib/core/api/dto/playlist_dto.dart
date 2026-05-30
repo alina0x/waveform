@@ -33,21 +33,20 @@ class PlaylistDto {
   final List<TrackDto> tracks;
 
   factory PlaylistDto.fromJson(Map<String, dynamic> j) => PlaylistDto(
-        id: asInt(j['id']),
-        title: asStr(j['title']),
-        user: UserDto.fromJson(asMap(j['user'])),
-        isAlbum: asBool(j['is_album']),
-        setType: j['set_type'] as String?,
-        trackCount: asInt(j['track_count']),
-        durationMs: asInt(j['duration']),
-        artworkUrl: j['artwork_url'] as String?,
-        permalinkUrl: j['permalink_url'] as String?,
-        likesCount: asInt(j['likes_count']),
-        genre: j['genre'] as String?,
-        // В списках треки часто приходят «обрезанными» (только id) — берём полные.
-        tracks: asMapList(j['tracks'])
-            .where((t) => t.containsKey('title'))
-            .map(TrackDto.fromJson)
-            .toList(),
-      );
+    id: asInt(j['id']),
+    title: asStr(j['title']),
+    user: UserDto.fromJson(asMap(j['user'])),
+    isAlbum: asBool(j['is_album']),
+    setType: j['set_type'] as String?,
+    trackCount: asInt(j['track_count']),
+    durationMs: asInt(j['duration']),
+    artworkUrl: j['artwork_url'] as String?,
+    permalinkUrl: j['permalink_url'] as String?,
+    likesCount: asInt(j['likes_count']),
+    genre: j['genre'] as String?,
+    // В списках треки часто приходят «обрезанными» (только id) — берём полные.
+    tracks: asMapList(
+      j['tracks'],
+    ).where((t) => t.containsKey('title')).map(TrackDto.fromJson).toList(),
+  );
 }

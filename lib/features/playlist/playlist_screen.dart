@@ -92,58 +92,58 @@ class _Body extends ConsumerWidget {
         ),
         const SizedBox(height: 16),
         Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Hero(
-                tag: 'cover-playlist-${p.id}',
-                child: CoverArt(seed: p.id, imageUrl: p.coverUrl, size: 180),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Hero(
+              tag: 'cover-playlist-${p.id}',
+              child: CoverArt(seed: p.id, imageUrl: p.coverUrl, size: 180),
+            ),
+            const SizedBox(width: 24),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    p.kind.name.toUpperCase(),
+                    style: AppTheme.mono(size: 11, color: AppColors.acid),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    p.title,
+                    style: const TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textHi,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'by ${p.subtitle}',
+                    style: AppTheme.mono(size: 12, color: AppColors.textMid),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${tracks.length} of ${p.trackCount} tracks',
+                    style: AppTheme.mono(size: 11, color: AppColors.textLow),
+                  ),
+                  const SizedBox(height: 16),
+                  if (tracks.isNotEmpty)
+                    Row(
+                      children: [
+                        _PlayAll(tracks: tracks),
+                        const SizedBox(width: 10),
+                        _ShuffleAll(
+                          playlistId: p.id,
+                          loadedTracks: tracks,
+                          totalCount: p.trackCount,
+                        ),
+                      ],
+                    ),
+                ],
               ),
-              const SizedBox(width: 24),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      p.kind.name.toUpperCase(),
-                      style: AppTheme.mono(size: 11, color: AppColors.acid),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      p.title,
-                      style: const TextStyle(
-                        fontSize: 26,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textHi,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'by ${p.subtitle}',
-                      style: AppTheme.mono(size: 12, color: AppColors.textMid),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${tracks.length} of ${p.trackCount} tracks',
-                      style: AppTheme.mono(size: 11, color: AppColors.textLow),
-                    ),
-                    const SizedBox(height: 16),
-                    if (tracks.isNotEmpty)
-                      Row(
-                        children: [
-                          _PlayAll(tracks: tracks),
-                          const SizedBox(width: 10),
-                          _ShuffleAll(
-                            playlistId: p.id,
-                            loadedTracks: tracks,
-                            totalCount: p.trackCount,
-                          ),
-                        ],
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
+        ),
         const SizedBox(height: 28),
         const SectionHeader(title: 'tracks'),
         const SizedBox(height: AppTheme.headerGap),

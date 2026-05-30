@@ -6,13 +6,14 @@ import '../../app/theme/colors.dart';
 import '../../core/api/providers.dart';
 import '../../core/api/soundcloud_auth.dart';
 import '../../core/api/webview_login.dart';
+import '../../shared/url_share.dart';
 import '../../shared/widgets/pressable.dart';
 
 Future<void> showLoginDialog(BuildContext context) => showDialog(
-      context: context,
-      barrierColor: AppColors.bg.withValues(alpha: 0.6),
-      builder: (_) => const _LoginDialog(),
-    );
+  context: context,
+  barrierColor: AppColors.bg.withValues(alpha: 0.6),
+  builder: (_) => const _LoginDialog(),
+);
 
 class _LoginDialog extends ConsumerStatefulWidget {
   const _LoginDialog();
@@ -24,6 +25,7 @@ class _LoginDialog extends ConsumerStatefulWidget {
 class _LoginDialogState extends ConsumerState<_LoginDialog> {
   final _token = TextEditingController();
   bool _busy = false;
+  bool _showHelp = false;
   String? _hint;
 
   @override
@@ -83,37 +85,96 @@ class _LoginDialogState extends ConsumerState<_LoginDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('sign in',
-                style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textHi)),
+            const Text(
+              'sign in',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textHi,
+              ),
+            ),
             const SizedBox(height: 6),
-            Text('log in with your free SoundCloud account',
-                style: AppTheme.mono(size: 11, color: AppColors.textMid)),
+            Text(
+              'log in with your free SoundCloud account',
+              style: AppTheme.mono(size: 11, color: AppColors.textMid),
+            ),
             const SizedBox(height: 20),
             _PrimaryButton(
-              label: _busy ? 'waiting for sign-in…' : 'continue with SoundCloud',
+              label: _busy
+                  ? 'waiting for sign-in…'
+                  : 'continue with SoundCloud',
               busy: _busy,
               onTap: _busy ? null : _webviewLogin,
             ),
             if (_hint != null) ...[
               const SizedBox(height: 10),
-              Text(_hint!,
-                  style: AppTheme.mono(size: 10, color: AppColors.acid)),
+              Text(
+                _hint!,
+                style: AppTheme.mono(size: 10, color: AppColors.acid),
+              ),
             ],
             const SizedBox(height: 20),
-            Row(children: [
-              const Expanded(child: Divider(color: AppColors.border)),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                child: Text('or paste oauth_token',
-                    style: AppTheme.mono(size: 10, color: AppColors.textLow)),
-              ),
-              const Expanded(child: Divider(color: AppColors.border)),
-            ]),
+            Row(
+              children: [
+                const Expanded(child: Divider(color: AppColors.border)),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Text(
+                    'or paste oauth_token',
+                    style: AppTheme.mono(size: 10, color: AppColors.textLow),
+                  ),
+                ),
+                const Expanded(child: Divider(color: AppColors.border)),
+              ],
+            ),
             const SizedBox(height: 14),
             _TokenField(controller: _token),
+            const SizedBox(height: 10),
+            // На Windows webview-логин лагает/не открывается — ручная вставка
+            // токена это основной путь. Помогаем достать его.
+            Row(
+              children: [
+                Pressable(
+                  onTap: () => openExternalUrl('https://soundcloud.com'),
+                  child: Text(
+                    'open soundcloud.com ↗',
+                    style: AppTheme.mono(size: 10, color: AppColors.acid),
+                  ),
+                ),
+                const Spacer(),
+                Pressable(
+                  onTap: () => setState(() => _showHelp = !_showHelp),
+                  child: Text(
+                    _showHelp ? 'hide help' : 'how to get token?',
+                    style: AppTheme.mono(size: 10, color: AppColors.textMid),
+                  ),
+                ),
+              ],
+            ),
+            if (_showHelp) ...[
+              const SizedBox(height: 8),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.bg,
+                  borderRadius: AppTheme.borderRadius,
+                  border: AppTheme.border(),
+                ),
+                child: Text(
+                  '1. open soundcloud.com and log in\n'
+                  '2. open devtools — F12 (win) / ⌥⌘I (mac)\n'
+                  '3. application ▸ cookies ▸ soundcloud.com\n'
+                  '4. copy the value of "oauth_token"\n'
+                  '5. paste it above and hit save',
+                  style: AppTheme.mono(
+                    size: 10,
+                    color: AppColors.textMid,
+                    height: 1.7,
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
@@ -121,16 +182,23 @@ class _LoginDialogState extends ConsumerState<_LoginDialog> {
                 Pressable(
                   onTap: () => Navigator.of(context).pop(),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    child: Text('cancel',
-                        style: AppTheme.mono(size: 12, color: AppColors.textMid)),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    child: Text(
+                      'cancel',
+                      style: AppTheme.mono(size: 12, color: AppColors.textMid),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
                 _PrimaryButton(
                   label: 'save',
                   compact: true,
-                  onTap: _token.text.trim().isEmpty ? null : () => _done(_token.text),
+                  onTap: _token.text.trim().isEmpty
+                      ? null
+                      : () => _done(_token.text),
                 ),
               ],
             ),
@@ -190,7 +258,10 @@ class _PrimaryButton extends StatelessWidget {
       onTap: onTap,
       child: Container(
         width: compact ? null : double.infinity,
-        padding: EdgeInsets.symmetric(horizontal: compact ? 18 : 14, vertical: 11),
+        padding: EdgeInsets.symmetric(
+          horizontal: compact ? 18 : 14,
+          vertical: 11,
+        ),
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: enabled ? AppColors.acid : AppColors.surface2,
@@ -203,15 +274,21 @@ class _PrimaryButton extends StatelessWidget {
               const SizedBox(
                 width: 12,
                 height: 12,
-                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.bg),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.bg,
+                ),
               ),
               const SizedBox(width: 8),
             ],
-            Text(label,
-                style: AppTheme.mono(
-                    size: 12,
-                    color: enabled ? AppColors.bg : AppColors.textLow,
-                    weight: FontWeight.w600)),
+            Text(
+              label,
+              style: AppTheme.mono(
+                size: 12,
+                color: enabled ? AppColors.bg : AppColors.textLow,
+                weight: FontWeight.w600,
+              ),
+            ),
           ],
         ),
       ),

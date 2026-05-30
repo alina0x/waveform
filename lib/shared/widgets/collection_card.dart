@@ -10,11 +10,7 @@ import 'pressable.dart';
 /// Карточка подборки для каруселей и сеток: обложка (квадрат/круг) с оверлеями
 /// (MIX-плашка, вордмарк, ◆ minted, hover-play) + название и подпись.
 class CollectionCard extends StatefulWidget {
-  const CollectionCard({
-    super.key,
-    required this.item,
-    this.size = 150,
-  });
+  const CollectionCard({super.key, required this.item, this.size = 150});
 
   final Collection item;
   final double size;
@@ -52,8 +48,9 @@ class _CollectionCardState extends State<CollectionCard> {
         child: Pressable(
           onTap: _open,
           child: Column(
-            crossAxisAlignment:
-                circular ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+            crossAxisAlignment: circular
+                ? CrossAxisAlignment.center
+                : CrossAxisAlignment.start,
             children: [
               _Cover(item: item, size: widget.size, hover: _hover),
               const SizedBox(height: 10),
@@ -122,11 +119,7 @@ class _Cover extends StatelessWidget {
 
           // Плашка MIX N.
           if (item.mixLabel != null)
-            Positioned(
-              left: 8,
-              bottom: 8,
-              child: _Plate(text: item.mixLabel!),
-            ),
+            Positioned(left: 8, bottom: 8, child: _Plate(text: item.mixLabel!)),
 
           // web3-маркер.
           if (item.minted)
@@ -146,7 +139,11 @@ class _Cover extends StatelessWidget {
                   color: AppColors.acid,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.play_arrow, color: AppColors.bg, size: 22),
+                child: const Icon(
+                  Icons.play_arrow,
+                  color: AppColors.bg,
+                  size: 22,
+                ),
               ),
             ),
           ),

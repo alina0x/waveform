@@ -73,7 +73,8 @@ class TrackDto {
   final int commentCount;
   final bool streamable;
   final String? policy; // ALLOW / SNIP / BLOCK
-  final String? monetizationModel; // NOT_APPLICABLE / AD_SUPPORTED / SUB_HIGH_TIER
+  final String?
+  monetizationModel; // NOT_APPLICABLE / AD_SUPPORTED / SUB_HIGH_TIER
   final List<TranscodingDto> transcodings;
 
   /// GO+ (платная подписка): полный поток зашифрован, бесплатно — только сниппет.
@@ -109,9 +110,9 @@ class TrackDto {
       streamable: asBool(j['streamable'], true),
       policy: j['policy'] as String?,
       monetizationModel: j['monetization_model'] as String?,
-      transcodings: asMapList(media['transcodings'])
-          .map(TranscodingDto.fromJson)
-          .toList(),
+      transcodings: asMapList(
+        media['transcodings'],
+      ).map(TranscodingDto.fromJson).toList(),
     );
   }
 }

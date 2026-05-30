@@ -12,8 +12,9 @@ import 'colors.dart';
 abstract final class AppTheme {
   /// Радиус скруглений — брутальные углы.
   static const double radius = 3;
-  static const BorderRadius borderRadius =
-      BorderRadius.all(Radius.circular(radius));
+  static const BorderRadius borderRadius = BorderRadius.all(
+    Radius.circular(radius),
+  );
 
   /// Толщина границ.
   static const double borderWidth = 0.5;
@@ -37,8 +38,10 @@ abstract final class AppTheme {
       Border.all(color: color, width: borderWidth);
 
   /// Const-вариант для использования внутри `const BoxDecoration`.
-  static const BorderSide borderSideStatic =
-      BorderSide(color: AppColors.border, width: borderWidth);
+  static const BorderSide borderSideStatic = BorderSide(
+    color: AppColors.border,
+    width: borderWidth,
+  );
 
   /// Моноширинный стиль (JetBrains Mono) для чисел, тайм-кодов,
   /// адресов кошельков и технических меток.
@@ -48,22 +51,20 @@ abstract final class AppTheme {
     FontWeight weight = FontWeight.w400,
     double? letterSpacing,
     double? height,
-  }) =>
-      GoogleFonts.jetBrainsMono(
-        fontSize: size,
-        color: color,
-        fontWeight: weight,
-        letterSpacing: letterSpacing,
-        height: height,
-      );
+  }) => GoogleFonts.jetBrainsMono(
+    fontSize: size,
+    color: color,
+    fontWeight: weight,
+    letterSpacing: letterSpacing,
+    height: height,
+  );
 
   /// Тёмная тема — единственная на старте.
   static ThemeData get dark {
     final base = ThemeData.dark(useMaterial3: true);
-    final textTheme = GoogleFonts.interTextTheme(base.textTheme).apply(
-      bodyColor: AppColors.textHi,
-      displayColor: AppColors.textHi,
-    );
+    final textTheme = GoogleFonts.interTextTheme(
+      base.textTheme,
+    ).apply(bodyColor: AppColors.textHi, displayColor: AppColors.textHi);
 
     return base.copyWith(
       scaffoldBackgroundColor: AppColors.bg,

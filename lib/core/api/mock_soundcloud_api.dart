@@ -14,29 +14,29 @@ class MockSoundcloudApi implements SoundcloudApi {
 
   @override
   Future<HomeData> home() => _delayed((
-        stream: Mock.stream,
-        shelves: const [
-          (title: 'more of what you like', items: Mock.moreYouLike),
-          (title: 'recently played', items: Mock.recentlyPlayed),
-          (title: 'mixed for you', items: Mock.mixedForYou),
-          (title: 'albums for you', items: Mock.albums),
-          (title: 'discover with stations', items: Mock.stations),
-          (title: 'liked by', items: Mock.likedBy),
-          (title: 'made for you', items: Mock.madeForYou),
-          (title: 'new crew, suggested for you', items: Mock.newCrew),
-        ],
-      ));
+    stream: Mock.stream,
+    shelves: const [
+      (title: 'more of what you like', items: Mock.moreYouLike),
+      (title: 'recently played', items: Mock.recentlyPlayed),
+      (title: 'mixed for you', items: Mock.mixedForYou),
+      (title: 'albums for you', items: Mock.albums),
+      (title: 'discover with stations', items: Mock.stations),
+      (title: 'liked by', items: Mock.likedBy),
+      (title: 'made for you', items: Mock.madeForYou),
+      (title: 'new crew, suggested for you', items: Mock.newCrew),
+    ],
+  ));
 
   @override
   Future<LibraryData> library() => _delayed((
-        recentlyPlayed: Mock.recentlyPlayed,
-        likes: Mock.likes,
-        playlists: Mock.playlists,
-        albums: Mock.albums,
-        stations: Mock.stations,
-        following: Mock.newCrew,
-        history: Mock.listeningHistory,
-      ));
+    recentlyPlayed: Mock.recentlyPlayed,
+    likes: Mock.likes,
+    playlists: Mock.playlists,
+    albums: Mock.albums,
+    stations: Mock.stations,
+    following: Mock.newCrew,
+    history: Mock.listeningHistory,
+  ));
 
   @override
   Future<List<FeedPost>> feed() => _delayed(Mock.feed);
@@ -70,10 +70,10 @@ class MockSoundcloudApi implements SoundcloudApi {
 
   @override
   Future<RailData> rail() => _delayed((
-        me: null,
-        likes: Mock.tracks.take(6).toList(),
-        history: Mock.listeningHistory,
-      ));
+    me: null,
+    likes: Mock.tracks.take(6).toList(),
+    history: Mock.listeningHistory,
+  ));
 
   @override
   Future<SearchResults> search(String query) {
@@ -90,8 +90,10 @@ class MockSoundcloudApi implements SoundcloudApi {
 
   @override
   Future<PlaylistDetail> playlist(String id) {
-    final p = Mock.playlists.firstWhere((c) => c.id == id,
-        orElse: () => Mock.playlists.first);
+    final p = Mock.playlists.firstWhere(
+      (c) => c.id == id,
+      orElse: () => Mock.playlists.first,
+    );
     return _delayed((playlist: p, tracks: Mock.tracks));
   }
 
@@ -103,14 +105,15 @@ class MockSoundcloudApi implements SoundcloudApi {
   @override
   Future<String?> resolveStreamUrl(String transcodingUrl) async => null;
 
+  @override
+  Future<String?> resolveUrl(String url) async => null;
+
+  @override
+  Future<List<double>?> fetchWaveform(String url) async => null;
+
   /// В мок-режиме любой непустой токен «валиден» (paste-fallback в тестах).
   @override
   Future<bool> verifyToken(String token) async => token.isNotEmpty;
-
-  /// Первые пару мок-треков считаем «лайкнутыми» — для UI-подсветки.
-  @override
-  Future<Set<String>> likedTrackIds() async =>
-      {for (final t in Mock.tracks.take(2)) t.id};
 
   @override
   Future<LikeOutcome> setLiked(String trackId, bool liked) async =>
@@ -121,11 +124,16 @@ class MockSoundcloudApi implements SoundcloudApi {
       Mock.listeningHistory.skip(offset).take(limit).toList();
 
   @override
-  Future<({List<Track> tracks, String? nextHref})> likesPage(
-      {String? nextHref, int limit = 50}) async {
+  Future<({List<Track> tracks, String? nextHref})> likesPage({
+    String? nextHref,
+    int limit = 50,
+  }) async {
     // Имитируем курсор как simple "p:<n>" — на странице 0/1 отдаём mock.
     final page = nextHref == null ? 0 : int.tryParse(nextHref) ?? 0;
-    final tracks = Mock.listeningHistory.skip(page * limit).take(limit).toList();
+    final tracks = Mock.listeningHistory
+        .skip(page * limit)
+        .take(limit)
+        .toList();
     final next = tracks.length < limit ? null : '${page + 1}';
     return (tracks: tracks, nextHref: next);
   }

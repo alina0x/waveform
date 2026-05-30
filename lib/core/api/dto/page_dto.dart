@@ -13,11 +13,10 @@ class PageDto<T> {
   factory PageDto.parse(
     Map<String, dynamic> j,
     T Function(Map<String, dynamic>) item,
-  ) =>
-      PageDto(
-        collection: asMapList(j['collection']).map(item).toList(),
-        nextHref: j['next_href'] as String?,
-      );
+  ) => PageDto(
+    collection: asMapList(j['collection']).map(item).toList(),
+    nextHref: j['next_href'] as String?,
+  );
 }
 
 /// Элемент ленты `/stream`: репост/пост трека или плейлиста.

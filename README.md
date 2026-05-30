@@ -8,7 +8,7 @@
   <img alt="Dart" src="https://img.shields.io/badge/Dart-3.11-0175C2?logo=dart&logoColor=white" />
   <img alt="Riverpod" src="https://img.shields.io/badge/Riverpod-3.3-2c3e50" />
   <img alt="Platforms" src="https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey" />
-  <img alt="Version" src="https://img.shields.io/badge/version-0.1.0-FF5500" />
+  <img alt="Version" src="https://img.shields.io/badge/version-0.2.0-FF5500" />
 </p>
 
 # Waveform
@@ -17,7 +17,7 @@
 
 Closer to canonical SoundCloud than any other unofficial client — but darker, quieter, and built so you almost never have to touch the mouse.
 
-> **v0.1.0 — first public demo.** Daily-driver loop works end-to-end on macOS (Windows/Linux build too, less exercised). APIs are unofficial; rough edges remain. Full change log in [`CHANGELOG.md`](CHANGELOG.md).
+> **v0.2.0 — stability pass.** A week of daily-driving shook out the audio-engine, shuffle and likes bugs that made the core loop feel broken; v0.2.0 fixes those and adds clipboard deep-links, top-right toasts, a perceptual volume curve, and consistent real waveforms everywhere. Daily-driver loop works end-to-end on macOS (Windows/Linux build too, less exercised). APIs are unofficial; rough edges remain. Full change log in [`CHANGELOG.md`](CHANGELOG.md).
 
 ---
 
@@ -147,16 +147,21 @@ Daily-driver loop:
 
 - **Live SoundCloud data** via the internal `api-v2`. No mock data in the shipping app.
 - **Per-user login** through SoundCloud's real sign-in page in an embedded WebView. The session token is captured and persisted locally in `getApplicationSupportDirectory()` (sandboxed per-user app data).
-- **Real HLS playback** via [`just_audio`] (native AVPlayer on macOS). Gapless + crossfade. Progressive-stream fallback when HLS variants fail. Encrypted HLS (`cbc-/ctr-encrypted-hls`) is detected and skipped with a UI notice (GO+ tracks).
+- **Real HLS playback** via [`just_audio`] (native AVPlayer on macOS). Gapless + crossfade, with serialized engine ops so the volume slider, progress bar and play/pause never desync mid-transition. Progressive-stream fallback when HLS variants fail. Encrypted HLS (`cbc-/ctr-encrypted-hls`) is detected and skipped with a UI notice (GO+ tracks).
+- **True-shuffle with real history** — next / previous retrace the exact path you played, no repeats within a cycle, stable upcoming queue.
+- **Perceptual volume** (cubic taper) — usable range spread across the whole slider instead of the bottom few percent.
+- **Real waveforms everywhere** — lists, player, feed cards and the track page all show the same SoundCloud waveform (fetched lazily with a shared cache; procedural shape as an instant fallback).
 - **OS media keys + now-playing card** via `audio_service`.
-- **Screens:** Home (your stream + curated shelves), Feed, Library (likes / playlists / albums / stations / following / history), Search (tracks / people / playlists), Track page (waveform + comments with timecodes + related), Artist page, Playlist page, Settings, Stats.
-- **Liked / reposted state** synced across track rows, player, and track page. Optimistic +1/−1 with revert on API failure.
-- **Persistent queue panel** with drag-reorder + remove.
+- **Screens:** Home (your stream + curated shelves), Feed, Library (likes / playlists / albums / stations / following / history), Search (tracks / people / playlists), Track page (waveform + comments with timecodes + related), Artist page, Playlist page, Settings, Stats. Content is centered and width-capped on wide displays; the right rail stays pinned to the window edge.
+- **Liked / reposted state** synced across track rows, player, and track page. The full likes set loads progressively so highlighting is complete, not capped. Optimistic +1/−1 with revert on API failure.
+- **Open SoundCloud links in-app** — copy a `soundcloud.com/…` link and a toast offers to open it here (toggle in Settings → links); or paste it into ⌘K. `waveform://` scheme registered on macOS.
+- **Top-right toasts** that dismiss on click.
+- **Persistent queue panel** with drag-reorder + remove; likes list is virtualized (smooth with hundreds of tracks / "shuffle all").
 - **Tiles ↔ list** view toggle (persisted), available in Library + Search.
 - **Hero transitions** on cover art when navigating cards → detail.
 - **Ambient album-art backdrop** behind hero blocks (full window width, blur 80, soft top→bg gradient).
 - **Skeleton loaders** on first paint.
-- **Dynamic window title** — `Waveform · {artist} — {title}`.
+- **Dynamic window title** — `Waveform · {artist} — {title}`; drag the window by the top bar (all platforms).
 - **In-app log screen** at `/logs` powered by [Talker] (Riverpod + Dio integration).
 
 <p align="center">
@@ -241,6 +246,9 @@ flutter analyze
 - **DRM tracks won't play.** SoundCloud increasingly serves encrypted HLS (`cbc-/ctr-encrypted-hls`), which the desktop audio engine can't decode. Such tracks are detected, marked `🔒 GO+` in UI, and skipped — playing them would require Widevine/EME support that `just_audio` doesn't provide on desktop.
 - **macOS-first.** Windows/Linux build but are less exercised.
 - **Like / repost writes are best-effort.** The api-v2 write endpoints aren't a stable contract; blocked writes (e.g. behind a VPN / captcha challenge) are surfaced in the UI but may not always recover.
+- **No play-history writing or comment likes.** Verified against api-v2 with a token client — the write endpoints return 404 and tracks/comments expose no per-user like flag — so these aren't implemented. The home "listening history" rail reflects plays recorded by official SoundCloud clients.
+- **Deep links are clipboard / paste based, not OS-level.** Becoming the system handler for `https://soundcloud.com` would need Universal Links hosted on SoundCloud's own servers (impossible) or hijacking all `https` (unacceptable), so Waveform watches the clipboard and accepts pasted links instead. A `waveform://` scheme is registered on macOS; Windows/Linux scheme registration is installer-level and pending.
+- **Windows sign-in lags.** The embedded WebView2 sign-in page is heavy; the reliable path on Windows is pasting your `oauth_token` (the login dialog has a step-by-step guide).
 - **Official OAuth 2.1 + PKCE** is not used — SoundCloud's developer-app registration has been effectively closed for years, so the WebView token flow stands in for it.
 - **No light theme yet** — design is dark-by-default.
 - **No real WalletConnect yet** — web3 markers are visual accents only.
@@ -250,7 +258,6 @@ flutter analyze
 ## Roadmap
 
 - Light theme + system-appearance follow
-- Full-collection true shuffle for likes (cursor-paginate `/users/{id}/track_likes`)
 - Drag tracks between playlists
 - Lyrics view on the track page
 - Reduced-motion + full VoiceOver pass (accessibility audit)
@@ -283,17 +290,17 @@ The CI/release pipeline is wired up; tagging is what you do by hand.
    flutter clean
    ```
 
-### Cutting v0.1.X
+### Cutting v0.X.Y
 
 ```bash
 # 1. Bump version in pubspec.yaml and lib/features/settings/settings_screen.dart::_kAppVersion
 # 2. Update CHANGELOG.md
 # 3. Commit + push
-git tag v0.1.0
+git tag v0.2.0
 git push --tags
 ```
 
-GitHub Actions runs `release.yml`: parallel macOS / Windows / Linux builds, signs and notarizes the macOS `.app`, packs everything into a release, and publishes at `https://github.com/alina0x/waveform/releases/tag/v0.1.0`. Notes come from `.github/release_template.md`.
+GitHub Actions runs `release.yml`: parallel macOS / Windows / Linux builds, signs and notarizes the macOS `.app`, packs everything into a release, and publishes at `https://github.com/alina0x/waveform/releases/tag/v0.2.0`. Notes come from `.github/release_template.md`.
 
 If the macOS job fails at codesign or notarytool, check `gh run view --log-failed <id>` and validate the secrets are present + the `.p12` is exportable on a fresh machine.
 

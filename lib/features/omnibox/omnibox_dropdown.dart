@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/theme/app_theme.dart';
 import '../../app/theme/colors.dart';
 import '../../core/api/feeds.dart';
+import '../../core/api/providers.dart';
 import '../../core/api/soundcloud_auth.dart';
 import '../../core/cache/image_cache.dart';
 import '../../shared/widgets/cover_art.dart';
@@ -34,8 +35,9 @@ class _OmniboxDropdownState extends ConsumerState<OmniboxDropdown>
   // Локальный FocusNode на жизнь модалки.
   final FocusNode _focus = FocusNode(debugLabel: 'omnibox-text');
   late final AnimationController _entry = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 200))
-    ..forward();
+    vsync: this,
+    duration: const Duration(milliseconds: 200),
+  )..forward();
 
   // Подсветка результата для ↑/↓ + Enter. Считается от плоского списка,
   // который пересобирается каждый build (см. _buildItems).
@@ -49,8 +51,10 @@ class _OmniboxDropdownState extends ConsumerState<OmniboxDropdown>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final ctrl = ref.read(omniboxControllerProvider);
-      ctrl.selection =
-          TextSelection(baseOffset: 0, extentOffset: ctrl.text.length);
+      ctrl.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: ctrl.text.length,
+      );
       FocusScope.of(context).requestFocus(_focus);
     });
   }
@@ -64,6 +68,9 @@ class _OmniboxDropdownState extends ConsumerState<OmniboxDropdown>
   }
 
   void _onChanged(String v) {
+    // Пробел печатается как обычный символ: пока палитра открыта, глобальные
+    // шорткаты (в т.ч. Space→play/pause) отключены на уровне AppShell, так что
+    // поле получает пробел штатно.
     // Сброс подсветки на верх — иначе старый индекс может торчать за
     // пределами нового списка результатов.
     setState(() => _selectedIndex = 0);
@@ -105,14 +112,16 @@ class _OmniboxDropdownState extends ConsumerState<OmniboxDropdown>
     }
     if (key == LogicalKeyboardKey.arrowDown) {
       if (_items.isEmpty) return KeyEventResult.handled;
-      setState(() =>
-          _selectedIndex = (_selectedIndex + 1).clamp(0, _items.length - 1));
+      setState(
+        () => _selectedIndex = (_selectedIndex + 1).clamp(0, _items.length - 1),
+      );
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.arrowUp) {
       if (_items.isEmpty) return KeyEventResult.handled;
-      setState(() =>
-          _selectedIndex = (_selectedIndex - 1).clamp(0, _items.length - 1));
+      setState(
+        () => _selectedIndex = (_selectedIndex - 1).clamp(0, _items.length - 1),
+      );
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.enter ||
@@ -148,88 +157,125 @@ class _OmniboxDropdownState extends ConsumerState<OmniboxDropdown>
 
     // ── Сборка плоского списка секций+items для текущего query.
     // Используется и для рендера (с подсветкой), и для ↑↓Enter в _onKey.
-    final scResults =
-        query.isEmpty ? null : ref.watch(searchProvider(query)).asData?.value;
+    final scResults = query.isEmpty
+        ? null
+        : ref.watch(searchProvider(query)).asData?.value;
     final sections = <_ItemSection>[];
 
     if (query.isEmpty) {
       if (recents.isNotEmpty) {
-        sections.add(_ItemSection('recent', [
-          for (final r in recents)
-            _Item(
-              icon: Icons.history,
-              title: r,
-              onSelect: () {
-                ref.read(omniboxControllerProvider).text = r;
-                ref.read(omniboxQueryProvider.notifier).set(r);
-                _navigate('/search?q=${Uri.encodeQueryComponent(r)}');
-              },
-            ),
-        ]));
+        sections.add(
+          _ItemSection('recent', [
+            for (final r in recents)
+              _Item(
+                icon: Icons.history,
+                title: r,
+                onSelect: () {
+                  ref.read(omniboxControllerProvider).text = r;
+                  ref.read(omniboxQueryProvider.notifier).set(r);
+                  _navigate('/search?q=${Uri.encodeQueryComponent(r)}');
+                },
+              ),
+          ]),
+        );
       }
     } else {
-      if (actions.isNotEmpty) {
-        sections.add(_ItemSection('actions', [
-          for (final a in actions)
+      // Вставлена ссылка soundcloud.com → топ-результат «открыть в клиенте»:
+      // резолвим в маршрут и навигируем (трек/артист/плейлист).
+      if (_looksLikeScUrl(query)) {
+        sections.add(
+          _ItemSection('link', [
             _Item(
-              icon: a.icon,
-              title: a.label,
-              onSelect: () {
-                a.run(context, ref);
-                _close();
+              icon: Icons.link,
+              title: 'open this SoundCloud link →',
+              accent: true,
+              onSelect: () async {
+                final route = await ref
+                    .read(soundcloudApiProvider)
+                    .resolveUrl(query);
+                if (!mounted) return;
+                if (route != null) {
+                  _navigate(route);
+                } else {
+                  _submit(query); // не распозналось — обычный поиск
+                }
               },
             ),
-        ]));
+          ]),
+        );
+      }
+      if (actions.isNotEmpty) {
+        sections.add(
+          _ItemSection('actions', [
+            for (final a in actions)
+              _Item(
+                icon: a.icon,
+                title: a.label,
+                onSelect: () {
+                  a.run(context, ref);
+                  _close();
+                },
+              ),
+          ]),
+        );
       }
       if (scResults != null) {
         final picks = <_Item>[];
         for (final t in scResults.tracks.take(3)) {
-          picks.add(_Item(
-            coverSeed: t.id,
-            coverUrl: t.coverUrl,
-            icon: Icons.music_note,
-            title: t.title,
-            subtitle: t.artist,
-            onSelect: () => _navigate('/track/${t.id}'),
-          ));
+          picks.add(
+            _Item(
+              coverSeed: t.id,
+              coverUrl: t.coverUrl,
+              icon: Icons.music_note,
+              title: t.title,
+              subtitle: t.artist,
+              onSelect: () => _navigate('/track/${t.id}'),
+            ),
+          );
         }
         for (final p in scResults.playlists.take(2)) {
-          picks.add(_Item(
-            coverSeed: p.id,
-            coverUrl: p.coverUrl,
-            icon: Icons.library_music_outlined,
-            title: p.title,
-            subtitle: p.subtitle,
-            onSelect: () => _navigate('/playlist/${p.id}'),
-          ));
+          picks.add(
+            _Item(
+              coverSeed: p.id,
+              coverUrl: p.coverUrl,
+              icon: Icons.library_music_outlined,
+              title: p.title,
+              subtitle: p.subtitle,
+              onSelect: () => _navigate('/playlist/${p.id}'),
+            ),
+          );
         }
         for (final a in scResults.artists.take(2)) {
-          picks.add(_Item(
-            coverSeed: a.handle,
-            coverUrl: a.avatarUrl,
-            coverCircular: true,
-            icon: Icons.person_outline,
-            title: a.name,
-            subtitle: '@${a.handle}',
-            onSelect: () =>
-                _navigate('/artist/${Uri.encodeComponent(a.handle)}'),
-          ));
+          picks.add(
+            _Item(
+              coverSeed: a.handle,
+              coverUrl: a.avatarUrl,
+              coverCircular: true,
+              icon: Icons.person_outline,
+              title: a.name,
+              subtitle: '@${a.handle}',
+              onSelect: () =>
+                  _navigate('/artist/${Uri.encodeComponent(a.handle)}'),
+            ),
+          );
         }
         if (picks.isNotEmpty) {
           sections.add(_ItemSection('from soundcloud', picks));
         }
       }
-      sections.add(_ItemSection('', [
-        _Item(
-          icon: Icons.search,
-          title: 'search "$query" →',
-          accent: true,
-          onSelect: () {
-            ref.read(recentQueriesProvider.notifier).add(query);
-            _navigate('/search?q=${Uri.encodeQueryComponent(query)}');
-          },
-        ),
-      ]));
+      sections.add(
+        _ItemSection('', [
+          _Item(
+            icon: Icons.search,
+            title: 'search "$query" →',
+            accent: true,
+            onSelect: () {
+              ref.read(recentQueriesProvider.notifier).add(query);
+              _navigate('/search?q=${Uri.encodeQueryComponent(query)}');
+            },
+          ),
+        ]),
+      );
     }
 
     _items = [for (final s in sections) ...s.items];
@@ -237,10 +283,14 @@ class _OmniboxDropdownState extends ConsumerState<OmniboxDropdown>
     final showEmptyHint = query.isEmpty && _items.isEmpty;
 
     // Анимация входа: scale + fade.
-    final scale = Tween<double>(begin: 0.96, end: 1.0).animate(
-        CurvedAnimation(parent: _entry, curve: Curves.easeOutCubic));
-    final opacity = Tween<double>(begin: 0.0, end: 1.0)
-        .animate(CurvedAnimation(parent: _entry, curve: Curves.easeOutCubic));
+    final scale = Tween<double>(
+      begin: 0.96,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _entry, curve: Curves.easeOutCubic));
+    final opacity = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _entry, curve: Curves.easeOutCubic));
 
     return FocusScope(
       autofocus: true,
@@ -274,28 +324,36 @@ class _OmniboxDropdownState extends ConsumerState<OmniboxDropdown>
                     children: [
                       Row(
                         children: [
-                          Text('⌘K · SEARCH WAVEFORM',
-                              style: AppTheme.mono(
-                                  size: 10,
-                                  color: AppColors.textLow,
-                                  weight: FontWeight.w600,
-                                  letterSpacing: 1.6)),
+                          Text(
+                            '⌘K · SEARCH WAVEFORM',
+                            style: AppTheme.mono(
+                              size: 10,
+                              color: AppColors.textLow,
+                              weight: FontWeight.w600,
+                              letterSpacing: 1.6,
+                            ),
+                          ),
                           const Spacer(),
                           // Кнопка-крестик закрыть — для discoverability.
                           GestureDetector(
                             onTap: _close,
                             child: Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 3),
+                                horizontal: 6,
+                                vertical: 3,
+                              ),
                               decoration: BoxDecoration(
                                 borderRadius: AppTheme.borderRadius,
                                 border: AppTheme.border(),
                               ),
-                              child: Text('esc',
-                                  style: AppTheme.mono(
-                                      size: 9,
-                                      color: AppColors.textLow,
-                                      weight: FontWeight.w600)),
+                              child: Text(
+                                'esc',
+                                style: AppTheme.mono(
+                                  size: 9,
+                                  color: AppColors.textLow,
+                                  weight: FontWeight.w600,
+                                ),
+                              ),
                             ),
                           ),
                         ],
@@ -307,10 +365,7 @@ class _OmniboxDropdownState extends ConsumerState<OmniboxDropdown>
                         decoration: BoxDecoration(
                           color: AppColors.bg,
                           borderRadius: AppTheme.borderRadius,
-                          border: Border.all(
-                            color: AppColors.acid,
-                            width: 1.0,
-                          ),
+                          border: Border.all(color: AppColors.acid, width: 1.0),
                         ),
                         child: Row(
                           children: [
@@ -324,22 +379,28 @@ class _OmniboxDropdownState extends ConsumerState<OmniboxDropdown>
                                 textInputAction: TextInputAction.search,
                                 cursorColor: AppColors.acid,
                                 style: const TextStyle(
-                                    fontSize: 15,
-                                    color: AppColors.textHi,
-                                    fontWeight: FontWeight.w500),
+                                  fontSize: 15,
+                                  color: AppColors.textHi,
+                                  fontWeight: FontWeight.w500,
+                                ),
                                 decoration: InputDecoration(
                                   isCollapsed: true,
                                   border: InputBorder.none,
                                   hintText: placeholder,
                                   hintStyle: TextStyle(
-                                      fontSize: 15,
-                                      color: AppColors.textLow
-                                          .withValues(alpha: 0.85)),
+                                    fontSize: 15,
+                                    color: AppColors.textLow.withValues(
+                                      alpha: 0.85,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
-                            const Icon(Icons.search,
-                                size: 18, color: AppColors.textMid),
+                            const Icon(
+                              Icons.search,
+                              size: 18,
+                              color: AppColors.textMid,
+                            ),
                           ],
                         ),
                       ),
@@ -347,7 +408,10 @@ class _OmniboxDropdownState extends ConsumerState<OmniboxDropdown>
                   ),
                 ),
                 const Divider(
-                    color: AppColors.border, height: 0.5, thickness: 0.5),
+                  color: AppColors.border,
+                  height: 0.5,
+                  thickness: 0.5,
+                ),
                 Flexible(
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxHeight: 420),
@@ -376,6 +440,14 @@ class _OmniboxDropdownState extends ConsumerState<OmniboxDropdown>
         ),
       ),
     );
+  }
+
+  /// Похоже ли на публичную ссылку soundcloud.com.
+  bool _looksLikeScUrl(String q) {
+    final s = q.toLowerCase();
+    return s.contains('soundcloud.com/') &&
+        // нужен хотя бы один сегмент после домена (не голый soundcloud.com)
+        s.split('soundcloud.com/').last.isNotEmpty;
   }
 
   /// Сматчить query на доступные actions. Простой substring + alias-набор.
@@ -419,8 +491,7 @@ class _OmniboxDropdownState extends ConsumerState<OmniboxDropdown>
         _OmniboxAction(
           icon: Icons.logout,
           label: 'sign out of soundcloud',
-          run: (_, ref) =>
-              ref.read(authControllerProvider.notifier).signOut(),
+          run: (_, ref) => ref.read(authControllerProvider.notifier).signOut(),
         ),
       if (m(const ['cache', 'clear cache', 'reset cache', 'covers']))
         _OmniboxAction(
@@ -480,8 +551,8 @@ class _Sections extends StatelessWidget {
   Widget build(BuildContext context) {
     if (showEmptyHint) {
       return const _EmptyHint(
-          text:
-              'type to search SoundCloud — or try "settings", "logs", "stats"');
+        text: 'type to search SoundCloud — or try "settings", "logs", "stats"',
+      );
     }
     final children = <Widget>[];
     var flat = 0;
@@ -491,12 +562,14 @@ class _Sections extends StatelessWidget {
       }
       for (final item in sec.items) {
         final idx = flat;
-        children.add(_Row(
-          item: item,
-          selected: idx == selectedIndex,
-          onTap: () => onTap(idx),
-          onHover: () => onHover(idx),
-        ));
+        children.add(
+          _Row(
+            item: item,
+            selected: idx == selectedIndex,
+            onTap: () => onTap(idx),
+            onHover: () => onHover(idx),
+          ),
+        );
         flat++;
       }
       children.add(const SizedBox(height: 4));
@@ -523,12 +596,15 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
-      child: Text(title.toUpperCase(),
-          style: AppTheme.mono(
-              size: 9,
-              color: AppColors.textLow,
-              weight: FontWeight.w600,
-              letterSpacing: 1.4)),
+      child: Text(
+        title.toUpperCase(),
+        style: AppTheme.mono(
+          size: 9,
+          color: AppColors.textLow,
+          weight: FontWeight.w600,
+          letterSpacing: 1.4,
+        ),
+      ),
     );
   }
 }
@@ -557,9 +633,11 @@ class _Row extends StatelessWidget {
       );
     } else {
       leading = Center(
-        child: Icon(item.icon ?? Icons.circle_outlined,
-            size: 16,
-            color: item.accent ? AppColors.acid : AppColors.textMid),
+        child: Icon(
+          item.icon ?? Icons.circle_outlined,
+          size: 16,
+          color: item.accent ? AppColors.acid : AppColors.textMid,
+        ),
       );
     }
     return MouseRegion(
@@ -578,7 +656,9 @@ class _Row extends StatelessWidget {
             borderRadius: AppTheme.borderRadius,
             border: selected
                 ? Border.all(
-                    color: AppColors.acid.withValues(alpha: 0.45), width: 0.5)
+                    color: AppColors.acid.withValues(alpha: 0.45),
+                    width: 0.5,
+                  )
                 : Border.all(color: Colors.transparent, width: 0.5),
           ),
           child: Row(
@@ -590,33 +670,41 @@ class _Row extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(item.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: item.accent
-                                ? AppColors.acid
-                                : AppColors.textHi)),
+                    Text(
+                      item.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: item.accent ? AppColors.acid : AppColors.textHi,
+                      ),
+                    ),
                     if (item.subtitle != null) ...[
                       const SizedBox(height: 2),
-                      Text(item.subtitle!,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTheme.mono(
-                              size: 10, color: AppColors.textMid)),
+                      Text(
+                        item.subtitle!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTheme.mono(
+                          size: 10,
+                          color: AppColors.textMid,
+                        ),
+                      ),
                     ],
                   ],
                 ),
               ),
               if (selected) ...[
                 const SizedBox(width: 8),
-                Text('↵',
-                    style: AppTheme.mono(
-                        size: 11,
-                        color: AppColors.acid,
-                        weight: FontWeight.w600)),
+                Text(
+                  '↵',
+                  style: AppTheme.mono(
+                    size: 11,
+                    color: AppColors.acid,
+                    weight: FontWeight.w600,
+                  ),
+                ),
               ],
             ],
           ),
@@ -633,8 +721,10 @@ class _EmptyHint extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
-      child: Text(text,
-          style: AppTheme.mono(size: 11, color: AppColors.textMid)),
+      child: Text(
+        text,
+        style: AppTheme.mono(size: 11, color: AppColors.textMid),
+      ),
     );
   }
 }

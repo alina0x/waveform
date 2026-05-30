@@ -13,4 +13,5 @@ class PlayerCollapsedController extends Notifier<bool> {
 
 final playerCollapsedProvider =
     NotifierProvider<PlayerCollapsedController, bool>(
-        PlayerCollapsedController.new);
+      PlayerCollapsedController.new,
+    );

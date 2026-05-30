@@ -53,32 +53,36 @@ class WaveformAudioHandler extends BaseAudioHandler {
   void sync(PlayerState s) {
     final t = s.track;
     if (t != null) {
-      mediaItem.add(MediaItem(
-        id: t.id,
-        title: t.title,
-        artist: t.artist,
-        duration: t.duration,
-        artUri: t.coverUrl != null && t.coverUrl!.isNotEmpty
-            ? Uri.tryParse(t.coverUrl!)
-            : null,
-      ));
+      mediaItem.add(
+        MediaItem(
+          id: t.id,
+          title: t.title,
+          artist: t.artist,
+          duration: t.duration,
+          artUri: t.coverUrl != null && t.coverUrl!.isNotEmpty
+              ? Uri.tryParse(t.coverUrl!)
+              : null,
+        ),
+      );
     } else {
       mediaItem.add(null);
     }
-    playbackState.add(PlaybackState(
-      controls: [
-        MediaControl.skipToPrevious,
-        if (s.isPlaying) MediaControl.pause else MediaControl.play,
-        MediaControl.skipToNext,
-      ],
-      systemActions: const {MediaAction.seek},
-      androidCompactActionIndices: const [0, 1, 2],
-      processingState: AudioProcessingState.ready,
-      playing: s.isPlaying,
-      updatePosition: s.position,
-      bufferedPosition: s.buffered,
-      speed: 1.0,
-    ));
+    playbackState.add(
+      PlaybackState(
+        controls: [
+          MediaControl.skipToPrevious,
+          if (s.isPlaying) MediaControl.pause else MediaControl.play,
+          MediaControl.skipToNext,
+        ],
+        systemActions: const {MediaAction.seek},
+        androidCompactActionIndices: const [0, 1, 2],
+        processingState: AudioProcessingState.ready,
+        playing: s.isPlaying,
+        updatePosition: s.position,
+        bufferedPosition: s.buffered,
+        speed: 1.0,
+      ),
+    );
   }
 }
 
@@ -88,5 +92,6 @@ late WaveformAudioHandler _audioHandlerSingleton;
 void setAudioHandlerSingleton(WaveformAudioHandler h) =>
     _audioHandlerSingleton = h;
 
-final audioHandlerProvider =
-    Provider<WaveformAudioHandler>((_) => _audioHandlerSingleton);
+final audioHandlerProvider = Provider<WaveformAudioHandler>(
+  (_) => _audioHandlerSingleton,
+);

@@ -14,7 +14,7 @@ import 'cover_art.dart';
 import 'go_plus_badge.dart';
 import 'pressable.dart';
 import 'track_context_menu.dart';
-import 'waveform_view.dart';
+import 'live_waveform.dart';
 
 /// Компактная играбельная строка трека: play + обложка + название/артист
 /// + мини-waveform + моно-метрики. Используется в related, popular, и т.д.
@@ -144,8 +144,9 @@ class TrackRow extends ConsumerWidget {
             const SizedBox(width: 16),
             Expanded(
               flex: 6,
-              child: WaveformView(
-                bars: track.waveform,
+              child: LiveWaveform(
+                waveformUrl: track.waveformUrl,
+                fallbackBars: track.waveform,
                 progress: progress,
                 buffered: isCurrent ? player.bufferedFraction : 0,
                 height: 30,

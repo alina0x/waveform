@@ -50,8 +50,13 @@ class LastfmScrobbler {
         final fourMin = played >= 4 * 60 * 1000;
         if (reachedHalf || fourMin) {
           _scrobbled = true;
-          _sendScrobble(t.artist, t.title, t.duration,
-              _trackStartedAt ?? DateTime.now(), session.key);
+          _sendScrobble(
+            t.artist,
+            t.title,
+            t.duration,
+            _trackStartedAt ?? DateTime.now(),
+            session.key,
+          );
         }
       }
     });
@@ -64,10 +69,16 @@ class LastfmScrobbler {
     _scrobbled = false;
   }
 
-  Future<void> _sendNowPlaying(String artist, String title, Duration dur,
-      String sessionKey) async {
+  Future<void> _sendNowPlaying(
+    String artist,
+    String title,
+    Duration dur,
+    String sessionKey,
+  ) async {
     try {
-      await _ref.read(lastfmClientProvider).updateNowPlaying(
+      await _ref
+          .read(lastfmClientProvider)
+          .updateNowPlaying(
             artist: artist,
             track: title,
             duration: dur,
@@ -78,10 +89,17 @@ class LastfmScrobbler {
     }
   }
 
-  Future<void> _sendScrobble(String artist, String title, Duration dur,
-      DateTime startedAt, String sessionKey) async {
+  Future<void> _sendScrobble(
+    String artist,
+    String title,
+    Duration dur,
+    DateTime startedAt,
+    String sessionKey,
+  ) async {
     try {
-      await _ref.read(lastfmClientProvider).scrobble(
+      await _ref
+          .read(lastfmClientProvider)
+          .scrobble(
             artist: artist,
             track: title,
             duration: dur,

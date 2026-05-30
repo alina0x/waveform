@@ -46,3 +46,6 @@ app.*.map.json
 
 # Logs exported from the in-app Talker screen
 talker_logs_*.txt
+
+# Local build artifacts
+*.dmg

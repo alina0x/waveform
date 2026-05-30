@@ -23,30 +23,43 @@ class LoggedOutView extends StatelessWidget {
           children: [
             const Icon(Icons.lock_outline, size: 30, color: AppColors.textLow),
             const SizedBox(height: 16),
-            Text(title,
-                style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textHi)),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textHi,
+              ),
+            ),
             const SizedBox(height: 8),
             ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 360),
-              child: Text(subtitle,
-                  textAlign: TextAlign.center,
-                  style: AppTheme.mono(size: 12, color: AppColors.textMid)),
+              child: Text(
+                subtitle,
+                textAlign: TextAlign.center,
+                style: AppTheme.mono(size: 12, color: AppColors.textMid),
+              ),
             ),
             const SizedBox(height: 20),
             Pressable(
               onTap: () => showLoginDialog(context),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 11),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 11,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.acid,
                   borderRadius: AppTheme.borderRadius,
                 ),
-                child: Text('log in',
-                    style: AppTheme.mono(
-                        size: 12, color: AppColors.bg, weight: FontWeight.w600)),
+                child: Text(
+                  'log in',
+                  style: AppTheme.mono(
+                    size: 12,
+                    color: AppColors.bg,
+                    weight: FontWeight.w600,
+                  ),
+                ),
               ),
             ),
           ],

@@ -49,10 +49,12 @@ abstract final class WebviewLogin {
       try {
         final cookies = await webview.getAllCookies();
         final raw = cookies
-            .where((c) =>
-                c.name == 'oauth_token' &&
-                c.value.isNotEmpty &&
-                c.domain.contains('soundcloud'))
+            .where(
+              (c) =>
+                  c.name == 'oauth_token' &&
+                  c.value.isNotEmpty &&
+                  c.domain.contains('soundcloud'),
+            )
             .map((c) => c.value)
             .firstOrNull;
         if (raw == null) return;

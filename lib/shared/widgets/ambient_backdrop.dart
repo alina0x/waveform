@@ -49,7 +49,9 @@ class AmbientBackdrop extends StatelessWidget {
                   errorWidget: (_, _, _) => const SizedBox.shrink(),
                   imageBuilder: (_, provider) => ImageFiltered(
                     imageFilter: ImageFilter.blur(
-                        sigmaX: blurSigma, sigmaY: blurSigma),
+                      sigmaX: blurSigma,
+                      sigmaY: blurSigma,
+                    ),
                     child: Image(image: provider, fit: BoxFit.cover),
                   ),
                 ),
@@ -57,7 +59,8 @@ class AmbientBackdrop extends StatelessWidget {
               // 2) Затемнение поверх (равномерное).
               Positioned.fill(
                 child: Container(
-                    color: Colors.black.withValues(alpha: dimAlpha)),
+                  color: Colors.black.withValues(alpha: dimAlpha),
+                ),
               ),
               // 3) Градиент от transparent сверху → bg снизу: плавный
               //    переход в обычный фон страницы.

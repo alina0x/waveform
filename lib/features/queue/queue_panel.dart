@@ -19,8 +19,7 @@ class QueuePanel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final player = ref.watch(playerControllerProvider);
     // Подписка на queueVersion → когда меняется queue, перечитываем upcoming.
-    ref.watch(
-        playerControllerProvider.select((s) => s.queueVersion));
+    ref.watch(playerControllerProvider.select((s) => s.queueVersion));
     final pc = ref.read(playerControllerProvider.notifier);
     final upcoming = pc.upcomingTracks;
     final current = player.track;
@@ -35,23 +34,19 @@ class QueuePanel extends ConsumerWidget {
           _Header(
             current: current,
             upcomingCount: upcoming.length,
-            onClose: () =>
-                ref.read(queueVisibleProvider.notifier).hide(),
+            onClose: () => ref.read(queueVisibleProvider.notifier).hide(),
           ),
           const Divider(color: AppColors.border, height: 0.5, thickness: 0.5),
           Expanded(
             child: upcoming.isEmpty
                 ? const _EmptyUpcoming()
                 : ReorderableListView.builder(
-                    padding:
-                        const EdgeInsets.fromLTRB(8, 8, 8, 8),
+                    padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
                     itemCount: upcoming.length,
                     buildDefaultDragHandles: false,
                     onReorder: pc.reorderUpcoming,
-                    proxyDecorator: (child, _, _) => Material(
-                      color: Colors.transparent,
-                      child: child,
-                    ),
+                    proxyDecorator: (child, _, _) =>
+                        Material(color: Colors.transparent, child: child),
                     itemBuilder: (context, index) {
                       final t = upcoming[index];
                       return _QueueRow(
@@ -89,19 +84,21 @@ class _Header extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text('QUEUE',
-                    style: AppTheme.mono(
-                        size: 10,
-                        color: AppColors.textLow,
-                        weight: FontWeight.w600,
-                        letterSpacing: 1.4)),
+                child: Text(
+                  'QUEUE',
+                  style: AppTheme.mono(
+                    size: 10,
+                    color: AppColors.textLow,
+                    weight: FontWeight.w600,
+                    letterSpacing: 1.4,
+                  ),
+                ),
               ),
               Pressable(
                 onTap: onClose,
                 child: const Padding(
                   padding: EdgeInsets.all(4),
-                  child: Icon(Icons.close,
-                      size: 14, color: AppColors.textMid),
+                  child: Icon(Icons.close, size: 14, color: AppColors.textMid),
                 ),
               ),
             ],
@@ -111,45 +108,55 @@ class _Header extends StatelessWidget {
             Row(
               children: [
                 CoverArt(
-                    seed: current!.id,
-                    imageUrl: current!.coverUrl,
-                    size: 40),
+                  seed: current!.id,
+                  imageUrl: current!.coverUrl,
+                  size: 40,
+                ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(current!.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textHi)),
+                      Text(
+                        current!.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textHi,
+                        ),
+                      ),
                       const SizedBox(height: 2),
-                      Text(current!.artist,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTheme.mono(
-                              size: 11, color: AppColors.textMid)),
+                      Text(
+                        current!.artist,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTheme.mono(
+                          size: 11,
+                          color: AppColors.textMid,
+                        ),
+                      ),
                     ],
                   ),
                 ),
               ],
             )
           else
-            Text('nothing playing',
-                style: AppTheme.mono(size: 12, color: AppColors.textMid)),
+            Text(
+              'nothing playing',
+              style: AppTheme.mono(size: 12, color: AppColors.textMid),
+            ),
           const SizedBox(height: 12),
           Text(
-              upcomingCount == 0
-                  ? 'UP NEXT'
-                  : 'UP NEXT · $upcomingCount',
-              style: AppTheme.mono(
-                  size: 10,
-                  color: AppColors.textLow,
-                  weight: FontWeight.w600,
-                  letterSpacing: 1.4)),
+            upcomingCount == 0 ? 'UP NEXT' : 'UP NEXT · $upcomingCount',
+            style: AppTheme.mono(
+              size: 10,
+              color: AppColors.textLow,
+              weight: FontWeight.w600,
+              letterSpacing: 1.4,
+            ),
+          ),
         ],
       ),
     );
@@ -198,27 +205,30 @@ class _QueueRow extends StatelessWidget {
         children: [
           Pressable(
             onTap: () => context.go('/track/${track.id}'),
-            child: CoverArt(
-                seed: track.id, imageUrl: track.coverUrl, size: 36),
+            child: CoverArt(seed: track.id, imageUrl: track.coverUrl, size: 36),
           ),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(track.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.textHi)),
+                Text(
+                  track.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textHi,
+                  ),
+                ),
                 const SizedBox(height: 2),
-                Text(track.artist,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style:
-                        AppTheme.mono(size: 10, color: AppColors.textMid)),
+                Text(
+                  track.artist,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTheme.mono(size: 10, color: AppColors.textMid),
+                ),
               ],
             ),
           ),
@@ -235,8 +245,11 @@ class _QueueRow extends StatelessWidget {
             index: index,
             child: const Padding(
               padding: EdgeInsets.only(left: 2, right: 4),
-              child: Icon(Icons.drag_handle,
-                  size: 16, color: AppColors.textLow),
+              child: Icon(
+                Icons.drag_handle,
+                size: 16,
+                color: AppColors.textLow,
+              ),
             ),
           ),
         ],

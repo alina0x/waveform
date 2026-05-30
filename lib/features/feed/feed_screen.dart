@@ -40,10 +40,11 @@ class FeedScreen extends ConsumerWidget {
               )
             : ListView(
                 padding: const EdgeInsets.fromLTRB(
-                    AppTheme.pagePad,
-                    AppTheme.topBarHeight + 26,
-                    AppTheme.pagePad,
-                    AppTheme.playerHeight + 32),
+                  AppTheme.pagePad,
+                  AppTheme.topBarHeight + 26,
+                  AppTheme.pagePad,
+                  AppTheme.playerHeight + 32,
+                ),
                 children: [
                   const _FeedIntro(),
                   const SizedBox(height: 20),
@@ -71,21 +72,28 @@ class _FeedIntro extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('this is your feed',
-                  style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textHi)),
+              const Text(
+                'this is your feed',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textHi,
+                ),
+              ),
               const SizedBox(height: 4),
-              Text('latest posts from the people you follow',
-                  style: AppTheme.mono(size: 12, color: AppColors.textMid)),
+              Text(
+                'latest posts from the people you follow',
+                style: AppTheme.mono(size: 12, color: AppColors.textMid),
+              ),
             ],
           ),
         ),
         Row(
           children: [
-            Text('reposts',
-                style: AppTheme.mono(size: 11, color: AppColors.textMid)),
+            Text(
+              'reposts',
+              style: AppTheme.mono(size: 11, color: AppColors.textMid),
+            ),
             const SizedBox(width: 8),
             Container(
               width: 34,
@@ -100,7 +108,9 @@ class _FeedIntro extends StatelessWidget {
                 width: 14,
                 height: 14,
                 decoration: const BoxDecoration(
-                    color: AppColors.bg, shape: BoxShape.circle),
+                  color: AppColors.bg,
+                  shape: BoxShape.circle,
+                ),
               ),
             ),
           ],

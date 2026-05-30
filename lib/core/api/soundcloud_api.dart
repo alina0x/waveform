@@ -9,10 +9,7 @@ import '../../shared/models/track.dart';
 /// Полка главной: заголовок (реальный, от SoundCloud) + карточки.
 typedef Shelf = ({String title, List<Collection> items});
 
-typedef HomeData = ({
-  List<Track> stream,
-  List<Shelf> shelves,
-});
+typedef HomeData = ({List<Track> stream, List<Shelf> shelves});
 
 typedef LibraryData = ({
   List<Collection> recentlyPlayed,
@@ -50,10 +47,7 @@ typedef SearchResults = ({
 });
 
 /// Плейлист/альбом + его треки.
-typedef PlaylistDetail = ({
-  Collection playlist,
-  List<Track> tracks,
-});
+typedef PlaylistDetail = ({Collection playlist, List<Track> tracks});
 
 /// Исход записи лайка. [blocked] — SoundCloud отклонил запрос (часто
 /// анти-абуз/капча, особенно под VPN: 401/403/429) → можно предложить
@@ -78,18 +72,24 @@ abstract interface class SoundcloudApi {
 
   Future<RailData> rail();
 
+  /// Загружает реальную waveform-форму трека по `waveform_url` (JSON `samples`,
+  /// нормализованные в 0..1). null — недоступна/ошибка. Кэшируется в UI.
+  Future<List<double>?> fetchWaveform(String url);
+
   /// Резолвит URL транскодинга ([Track.streamUrl]) в проигрываемый
   /// HLS/progressive URL (m3u8/mp3). null — если трек не проигрываем
   /// (мок-данные, не streamable, недоступный транскодинг).
   Future<String?> resolveStreamUrl(String transcodingUrl);
 
+  /// Резолвит публичную ссылку soundcloud.com (трек/артист/плейлист) во
+  /// внутренний маршрут приложения (`/track/:id`, `/artist/:handle`,
+  /// `/playlist/:id`). Для deep-link'ов и вставки ссылки в omnibox.
+  /// null — не распознано/ошибка.
+  Future<String?> resolveUrl(String url);
+
   /// Проверяет, что OAuth-токен опознаётся как пользовательский (`/me`).
   /// Используется при логине, чтобы не принять гостевой/просроченный токен.
   Future<bool> verifyToken(String token);
-
-  /// ID треков, лайкнутых текущим пользователем (для подсветки «liked»).
-  /// Аноним/ошибка → пустое множество.
-  Future<Set<String>> likedTrackIds();
 
   /// Лайкнуть/снять лайк с трека (PUT/DELETE). См. [LikeOutcome]: при `blocked`
   /// UI может предложить пройти верификацию (капча/VPN), при `failed`/`blocked`
@@ -104,8 +104,10 @@ abstract interface class SoundcloudApi {
   /// числовой offset, только курсор формата `timestamp,type,id` из
   /// `next_href` предыдущего ответа. На первой странице [nextHref] = null.
   /// Возвращает доменные [Track] + следующий курсор (null = всё).
-  Future<({List<Track> tracks, String? nextHref})> likesPage(
-      {String? nextHref, int limit = 50});
+  Future<({List<Track> tracks, String? nextHref})> likesPage({
+    String? nextHref,
+    int limit = 50,
+  });
 
   /// ID треков, репостнутых текущим пользователем (для подсветки «reposted»).
   Future<Set<String>> repostedTrackIds();

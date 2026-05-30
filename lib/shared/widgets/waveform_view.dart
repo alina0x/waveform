@@ -40,15 +40,17 @@ class WaveformView extends StatelessWidget {
           return GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTapDown: onSeek == null ? null : (d) => seekAt(d.localPosition),
-            onHorizontalDragUpdate:
-                onSeek == null ? null : (d) => seekAt(d.localPosition),
+            onHorizontalDragUpdate: onSeek == null
+                ? null
+                : (d) => seekAt(d.localPosition),
             child: CustomPaint(
               size: Size(c.maxWidth, height),
               painter: _WaveformPainter(
-                  bars: bars,
-                  progress: progress,
-                  buffered: buffered,
-                  markers: markers),
+                bars: bars,
+                progress: progress,
+                buffered: buffered,
+                markers: markers,
+              ),
             ),
           );
         },
@@ -78,10 +80,12 @@ class _WaveformPainter extends CustomPainter {
     if (bars.isEmpty) return;
 
     // Подгоняем число баров под ширину, чтобы не сжимать в кашу.
-    final maxBars = (size.width / (_minBar + _gap)).floor().clamp(1, bars.length);
+    final maxBars = (size.width / (_minBar + _gap)).floor().clamp(
+      1,
+      bars.length,
+    );
     final step = bars.length / maxBars;
-    final barWidth =
-        (size.width - _gap * (maxBars - 1)) / maxBars;
+    final barWidth = (size.width - _gap * (maxBars - 1)) / maxBars;
 
     final mid = size.height / 2;
     final playedX = size.width * progress;

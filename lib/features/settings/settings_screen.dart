@@ -10,6 +10,7 @@ import '../../core/api/feeds.dart';
 import '../../core/api/soundcloud_auth.dart';
 import '../../core/audio/playback_prefs.dart';
 import '../../core/cache/image_cache.dart';
+import '../../core/deeplinks/clipboard_watcher.dart';
 import '../../core/lastfm/lastfm_constants.dart';
 import '../../core/lastfm/lastfm_session.dart';
 import '../../core/log/talker.dart';
@@ -17,12 +18,13 @@ import '../../shared/url_share.dart';
 import '../../shared/widgets/cover_art.dart';
 import '../../shared/widgets/pressable.dart';
 import '../../shared/widgets/section_header.dart';
+import '../../shared/widgets/toast.dart';
 import '../../shared/widgets/view_toggle.dart';
 import '../auth/login_dialog.dart';
 
 /// Версия отображается в секции About; обновлять руками синхронно с pubspec.yaml.
 // Bumped on every tagged release. Matches `version:` in pubspec.yaml.
-const _kAppVersion = '0.1.0';
+const _kAppVersion = '0.2.0';
 const _kRepoUrl = 'https://github.com/alina0x/waveform';
 
 /// Экран настроек. Сейчас покрывает то, что реально реализовано: аккаунт,
@@ -37,8 +39,12 @@ class SettingsScreen extends ConsumerWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 640),
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(AppTheme.pagePad,
-              AppTheme.topBarHeight + 20, AppTheme.pagePad, AppTheme.playerHeight + 32),
+          padding: const EdgeInsets.fromLTRB(
+            AppTheme.pagePad,
+            AppTheme.topBarHeight + 20,
+            AppTheme.pagePad,
+            AppTheme.playerHeight + 32,
+          ),
           children: const [
             _Back(),
             SizedBox(height: 16),
@@ -47,6 +53,8 @@ class SettingsScreen extends ConsumerWidget {
             _AccountSection(),
             SizedBox(height: 28),
             _ViewSection(),
+            SizedBox(height: 28),
+            _LinksSection(),
             SizedBox(height: 28),
             _PlaybackSection(),
             SizedBox(height: 28),
@@ -78,7 +86,10 @@ class _Back extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Icon(Icons.chevron_left, size: 18, color: AppColors.textMid),
-            Text('back', style: AppTheme.mono(size: 12, color: AppColors.textMid)),
+            Text(
+              'back',
+              style: AppTheme.mono(size: 12, color: AppColors.textMid),
+            ),
           ],
         ),
       ),
@@ -90,11 +101,14 @@ class _Title extends StatelessWidget {
   const _Title();
   @override
   Widget build(BuildContext context) {
-    return const Text('settings',
-        style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textHi));
+    return const Text(
+      'settings',
+      style: TextStyle(
+        fontSize: 28,
+        fontWeight: FontWeight.w700,
+        color: AppColors.textHi,
+      ),
+    );
   }
 }
 
@@ -111,26 +125,34 @@ class _AccountSection extends ConsumerWidget {
           ? Row(
               children: [
                 CoverArt(
-                    seed: 'artist-${me?.handle ?? 'me'}',
-                    imageUrl: me?.avatarUrl,
-                    size: 44,
-                    circular: true),
+                  seed: 'artist-${me?.handle ?? 'me'}',
+                  imageUrl: me?.avatarUrl,
+                  size: 44,
+                  circular: true,
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(me?.name ?? 'logged in',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textHi)),
+                      Text(
+                        me?.name ?? 'logged in',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textHi,
+                        ),
+                      ),
                       const SizedBox(height: 3),
-                      Text('@${me?.handle ?? ''}',
-                          style: AppTheme.mono(
-                              size: 11, color: AppColors.textMid)),
+                      Text(
+                        '@${me?.handle ?? ''}',
+                        style: AppTheme.mono(
+                          size: 11,
+                          color: AppColors.textMid,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -144,11 +166,15 @@ class _AccountSection extends ConsumerWidget {
           : Row(
               children: [
                 Expanded(
-                  child: Text('not signed in',
-                      style:
-                          AppTheme.mono(size: 12, color: AppColors.textMid)),
+                  child: Text(
+                    'not signed in',
+                    style: AppTheme.mono(size: 12, color: AppColors.textMid),
+                  ),
                 ),
-                _Button(label: 'sign in', onTap: () => showLoginDialog(context)),
+                _Button(
+                  label: 'sign in',
+                  onTap: () => showLoginDialog(context),
+                ),
               ],
             ),
     );
@@ -211,12 +237,15 @@ class _ShortcutGroup extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
-            child: Text(title.toUpperCase(),
-                style: AppTheme.mono(
-                    size: 9,
-                    color: AppColors.textLow,
-                    weight: FontWeight.w700,
-                    letterSpacing: 1.4)),
+            child: Text(
+              title.toUpperCase(),
+              style: AppTheme.mono(
+                size: 9,
+                color: AppColors.textLow,
+                weight: FontWeight.w700,
+                letterSpacing: 1.4,
+              ),
+            ),
           ),
           ...rows,
         ],
@@ -246,9 +275,13 @@ class _ShortcutRow extends StatelessWidget {
                   if (i > 0)
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 2),
-                      child: Text('+',
-                          style: AppTheme.mono(
-                              size: 10, color: AppColors.textLow)),
+                      child: Text(
+                        '+',
+                        style: AppTheme.mono(
+                          size: 10,
+                          color: AppColors.textLow,
+                        ),
+                      ),
                     ),
                   _KeyCap(label: keys[i]),
                 ],
@@ -256,9 +289,14 @@ class _ShortcutRow extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: Text(action,
-                style: AppTheme.mono(
-                    size: 12, color: AppColors.textHi, weight: FontWeight.w500)),
+            child: Text(
+              action,
+              style: AppTheme.mono(
+                size: 12,
+                color: AppColors.textHi,
+                weight: FontWeight.w500,
+              ),
+            ),
           ),
         ],
       ),
@@ -278,11 +316,14 @@ class _KeyCap extends StatelessWidget {
         borderRadius: BorderRadius.circular(3),
         border: AppTheme.border(),
       ),
-      child: Text(label,
-          style: AppTheme.mono(
-              size: 10.5,
-              color: AppColors.textHi,
-              weight: FontWeight.w600)),
+      child: Text(
+        label,
+        style: AppTheme.mono(
+          size: 10.5,
+          color: AppColors.textHi,
+          weight: FontWeight.w600,
+        ),
+      ),
     );
   }
 }
@@ -303,7 +344,8 @@ class _LastfmSectionState extends ConsumerState<_LastfmSection> {
       final client = ref.read(lastfmClientProvider);
       final token = await client.getAuthToken();
       if (token == null) throw 'auth.getToken returned null';
-      final authUrl = 'https://www.last.fm/api/auth/'
+      final authUrl =
+          'https://www.last.fm/api/auth/'
           '?api_key=$lastfmApiKey&token=$token';
       await openExternalUrl(authUrl);
       if (!mounted) return;
@@ -314,13 +356,18 @@ class _LastfmSectionState extends ConsumerState<_LastfmSection> {
           shape: RoundedRectangleBorder(
             borderRadius: AppTheme.borderRadius,
             side: const BorderSide(
-                color: AppColors.border, width: AppTheme.borderWidth),
+              color: AppColors.border,
+              width: AppTheme.borderWidth,
+            ),
           ),
-          title: Text('connect last.fm',
-              style: AppTheme.mono(
-                  size: 14,
-                  color: AppColors.textHi,
-                  weight: FontWeight.w600)),
+          title: Text(
+            'connect last.fm',
+            style: AppTheme.mono(
+              size: 14,
+              color: AppColors.textHi,
+              weight: FontWeight.w600,
+            ),
+          ),
           content: Text(
             'authorize Waveform in your browser, then click continue',
             style: AppTheme.mono(size: 12, color: AppColors.textMid),
@@ -328,17 +375,21 @@ class _LastfmSectionState extends ConsumerState<_LastfmSection> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(c).pop(false),
-              child: Text('cancel',
-                  style: AppTheme.mono(
-                      size: 12, color: AppColors.textMid)),
+              child: Text(
+                'cancel',
+                style: AppTheme.mono(size: 12, color: AppColors.textMid),
+              ),
             ),
             TextButton(
               onPressed: () => Navigator.of(c).pop(true),
-              child: Text('continue',
-                  style: AppTheme.mono(
-                      size: 12,
-                      color: AppColors.acid,
-                      weight: FontWeight.w600)),
+              child: Text(
+                'continue',
+                style: AppTheme.mono(
+                  size: 12,
+                  color: AppColors.acid,
+                  weight: FontWeight.w600,
+                ),
+              ),
             ),
           ],
         ),
@@ -350,22 +401,12 @@ class _LastfmSectionState extends ConsumerState<_LastfmSection> {
           .read(lastfmSessionProvider.notifier)
           .set(LastfmSession(key: session.key, name: session.name));
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: AppColors.surface2,
-          content: Text('connected as @${session.name}',
-              style: AppTheme.mono(size: 12, color: AppColors.textHi)),
-        ));
+        showToast(context, 'connected as @${session.name}');
       }
     } catch (e, st) {
       ref.read(talkerProvider).warning('lastfm connect failed', e, st);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: AppColors.surface2,
-          content: Text('last.fm connect failed',
-              style: AppTheme.mono(size: 12, color: AppColors.textHi)),
-        ));
+        showToast(context, 'last.fm connect failed');
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -401,8 +442,7 @@ class _LastfmSectionState extends ConsumerState<_LastfmSection> {
           if (session != null)
             _Button(
               label: 'disconnect',
-              onTap: () =>
-                  ref.read(lastfmSessionProvider.notifier).clear(),
+              onTap: () => ref.read(lastfmSessionProvider.notifier).clear(),
             )
           else
             _Button(
@@ -433,14 +473,19 @@ class _PlaybackSection extends ConsumerWidget {
           Row(
             children: [
               Expanded(
-                child: Text('crossfade between tracks',
-                    style: AppTheme.mono(size: 12, color: AppColors.textMid)),
+                child: Text(
+                  'crossfade between tracks',
+                  style: AppTheme.mono(size: 12, color: AppColors.textMid),
+                ),
               ),
-              Text(label,
-                  style: AppTheme.mono(
-                      size: 12,
-                      color: AppColors.textHi,
-                      weight: FontWeight.w600)),
+              Text(
+                label,
+                style: AppTheme.mono(
+                  size: 12,
+                  color: AppColors.textHi,
+                  weight: FontWeight.w600,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 4),
@@ -467,6 +512,43 @@ class _PlaybackSection extends ConsumerWidget {
   }
 }
 
+class _LinksSection extends ConsumerWidget {
+  const _LinksSection();
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final on = ref.watch(clipboardWatchEnabledProvider);
+    return _Section(
+      title: 'links',
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'open SoundCloud links from clipboard',
+                  style: AppTheme.mono(size: 12, color: AppColors.textMid),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  'copy a soundcloud.com link → offer to open it here',
+                  style: AppTheme.mono(size: 10, color: AppColors.textLow),
+                ),
+              ],
+            ),
+          ),
+          Switch.adaptive(
+            value: on,
+            activeThumbColor: AppColors.acid,
+            onChanged: (_) =>
+                ref.read(clipboardWatchEnabledProvider.notifier).toggle(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ViewSection extends StatelessWidget {
   const _ViewSection();
   @override
@@ -476,8 +558,10 @@ class _ViewSection extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: Text('library & search layout',
-                style: AppTheme.mono(size: 12, color: AppColors.textMid)),
+            child: Text(
+              'library & search layout',
+              style: AppTheme.mono(size: 12, color: AppColors.textMid),
+            ),
           ),
           const ViewToggle(),
         ],
@@ -501,14 +585,7 @@ class _CacheSectionState extends State<_CacheSection> {
     try {
       await waveformImageCache.emptyCache();
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: AppColors.surface2,
-          content: Text('cover cache cleared',
-              style: AppTheme.mono(size: 12, color: AppColors.textHi)),
-        ));
+      showToast(context, 'cover cache cleared');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -521,8 +598,10 @@ class _CacheSectionState extends State<_CacheSection> {
       child: Row(
         children: [
           Expanded(
-            child: Text('clear downloaded cover art',
-                style: AppTheme.mono(size: 12, color: AppColors.textMid)),
+            child: Text(
+              'clear downloaded cover art',
+              style: AppTheme.mono(size: 12, color: AppColors.textMid),
+            ),
           ),
           _Button(label: _busy ? 'clearing…' : 'clear', onTap: _clear),
         ],
@@ -540,8 +619,10 @@ class _LogsSection extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: Text('in-app Talker log screen',
-                style: AppTheme.mono(size: 12, color: AppColors.textMid)),
+            child: Text(
+              'in-app Talker log screen',
+              style: AppTheme.mono(size: 12, color: AppColors.textMid),
+            ),
           ),
           _Button(label: 'open', onTap: () => context.push('/logs')),
         ],
@@ -562,22 +643,29 @@ class _AboutSection extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text('version',
-                    style: AppTheme.mono(size: 12, color: AppColors.textMid)),
+                child: Text(
+                  'version',
+                  style: AppTheme.mono(size: 12, color: AppColors.textMid),
+                ),
               ),
-              Text(_kAppVersion,
-                  style: AppTheme.mono(
-                      size: 12,
-                      color: AppColors.textHi,
-                      weight: FontWeight.w600)),
+              Text(
+                _kAppVersion,
+                style: AppTheme.mono(
+                  size: 12,
+                  color: AppColors.textHi,
+                  weight: FontWeight.w600,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 14),
           Row(
             children: [
               Expanded(
-                child: Text('source code',
-                    style: AppTheme.mono(size: 12, color: AppColors.textMid)),
+                child: Text(
+                  'source code',
+                  style: AppTheme.mono(size: 12, color: AppColors.textMid),
+                ),
               ),
               _Button(label: 'open ↗', onTap: () => openExternalUrl(_kRepoUrl)),
             ],
@@ -630,11 +718,14 @@ class _Button extends StatelessWidget {
           borderRadius: AppTheme.borderRadius,
           border: AppTheme.border(),
         ),
-        child: Text(label,
-            style: AppTheme.mono(
-                size: 11,
-                color: AppColors.textHi,
-                weight: FontWeight.w500)),
+        child: Text(
+          label,
+          style: AppTheme.mono(
+            size: 11,
+            color: AppColors.textHi,
+            weight: FontWeight.w500,
+          ),
+        ),
       ),
     );
   }
