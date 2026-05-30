@@ -10,6 +10,6 @@ class QueueVisibilityController extends Notifier<bool> {
   void hide() => state = false;
 }
 
-final queueVisibleProvider =
-    NotifierProvider<QueueVisibilityController, bool>(
-        QueueVisibilityController.new);
+final queueVisibleProvider = NotifierProvider<QueueVisibilityController, bool>(
+  QueueVisibilityController.new,
+);

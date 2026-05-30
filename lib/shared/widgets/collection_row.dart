@@ -59,34 +59,42 @@ class CollectionRow extends StatelessWidget {
                   Row(
                     children: [
                       Flexible(
-                        child: Text(item.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textHi)),
+                        child: Text(
+                          item.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textHi,
+                          ),
+                        ),
                       ),
                       if (item.minted) ...[
                         const SizedBox(width: 6),
-                        const Text('◆',
-                            style: TextStyle(
-                                color: AppColors.lime, fontSize: 11)),
+                        const Text(
+                          '◆',
+                          style: TextStyle(color: AppColors.lime, fontSize: 11),
+                        ),
                       ],
                     ],
                   ),
                   const SizedBox(height: 2),
-                  Text(item.subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTheme.mono(size: 11, color: AppColors.textMid)),
+                  Text(
+                    item.subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTheme.mono(size: 11, color: AppColors.textMid),
+                  ),
                 ],
               ),
             ),
             if (item.trackCount > 0) ...[
               const SizedBox(width: 12),
-              Text('${item.trackCount} tracks',
-                  style: AppTheme.mono(size: 11, color: AppColors.textLow)),
+              Text(
+                '${item.trackCount} tracks',
+                style: AppTheme.mono(size: 11, color: AppColors.textLow),
+              ),
             ],
             const SizedBox(width: 8),
             const Icon(Icons.chevron_right, size: 18, color: AppColors.textLow),

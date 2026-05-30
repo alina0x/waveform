@@ -304,6 +304,19 @@ lib/
   + CustomPainter сетки 7×24).
 - **Audio_service: configurable mini-window mode** (always-on-top
   компактное 300×120 окно «just the player»).
+- **Deep-link схема на Windows/Linux.** На macOS `waveform://`
+  зарегистрирована (Info.plist CFBundleURLTypes). На Windows нужна запись
+  в реестр, на Linux — `.desktop` с `x-scheme-handler/waveform` (уровень
+  инсталлятора). Кроссплатформенно уже работает вставка `soundcloud.com`
+  ссылки в omnibox → resolve → навигация.
+- **Windows webview-логин лагает** (`desktop_webview_window`/WebView2 на
+  тяжёлой странице SC). Сейчас основной путь на Windows — ручная вставка
+  oauth_token (в login-диалоге есть гайд + «open soundcloud.com»). Чинить:
+  либо лёгкий signin-flow, либо другой webview-бэкенд.
+- **Запись play-history / лайки комментов** — api-v2 их не поддерживает
+  (проверено курлом: POST/PUT play-history и `/comments/{id}/likes` → 404,
+  пер-юзерного поля лайка на треке/комменте нет). Появятся — ревайвить
+  через тот же `_send`-паттерн.
 
 ## Договорённости
 - Feature-first структура

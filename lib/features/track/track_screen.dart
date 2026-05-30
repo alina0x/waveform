@@ -20,6 +20,7 @@ import '../../shared/widgets/empty_state.dart';
 import '../../shared/widgets/go_plus_badge.dart';
 import '../../shared/widgets/pressable.dart';
 import '../../shared/widgets/section_header.dart';
+import '../../shared/widgets/toast.dart';
 import '../../shared/widgets/track_row.dart';
 import '../../shared/widgets/waveform_view.dart';
 import '../player/player_controller.dart';
@@ -36,8 +37,10 @@ class TrackScreen extends ConsumerWidget {
     // prev.id == trackId (мы были в синхроне), next.id != trackId
     // (плеер ушёл вперёд) → context.go. Если юзер сам перешёл на чужой
     // /track/X (prev.id != trackId), не таскаем — он смотрит другое.
-    ref.listen<Track?>(
-        playerControllerProvider.select((s) => s.track), (prev, next) {
+    ref.listen<Track?>(playerControllerProvider.select((s) => s.track), (
+      prev,
+      next,
+    ) {
       if (prev == null || next == null) return;
       if (next.id == trackId) return;
       if (prev.id == trackId) {
@@ -90,8 +93,12 @@ class _TrackBody extends ConsumerWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 940),
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(AppTheme.pagePad,
-              AppTheme.topBarHeight + 20, AppTheme.pagePad, AppTheme.playerHeight + 32),
+          padding: const EdgeInsets.fromLTRB(
+            AppTheme.pagePad,
+            AppTheme.topBarHeight + 20,
+            AppTheme.pagePad,
+            AppTheme.playerHeight + 32,
+          ),
           children: [
             const _BackButton(),
             const SizedBox(height: 16),
@@ -101,7 +108,7 @@ class _TrackBody extends ConsumerWidget {
               progress: progress,
               buffered: buffered,
               markers: [
-                for (final cm in comments) cm.fraction(track.durationMs)
+                for (final cm in comments) cm.fraction(track.durationMs),
               ],
               onPlay: () =>
                   isCurrent ? c.toggle() : c.play(track, queue: queue),
@@ -109,22 +116,17 @@ class _TrackBody extends ConsumerWidget {
             ),
             const SizedBox(height: 24),
             if (track.description.isNotEmpty) ...[
-              Text(track.description,
-                  style: const TextStyle(
-                      fontSize: 14, height: 1.6, color: AppColors.textMid)),
+              Text(
+                track.description,
+                style: const TextStyle(
+                  fontSize: 14,
+                  height: 1.6,
+                  color: AppColors.textMid,
+                ),
+              ),
               const SizedBox(height: 28),
             ],
-            SectionHeader(title: 'comments · ${comments.length}'),
-            const SizedBox(height: AppTheme.headerGap),
-            if (comments.isEmpty)
-              const EmptyState(
-                icon: Icons.chat_bubble_outline,
-                title: 'no comments yet',
-                compact: true,
-              )
-            else
-              for (final cm in comments)
-                _CommentRow(comment: cm, trackMs: track.durationMs),
+            _CommentsSection(comments: comments, trackMs: track.durationMs),
             const SizedBox(height: 28),
             const SectionHeader(title: 'related tracks'),
             const SizedBox(height: AppTheme.headerGap),
@@ -149,7 +151,10 @@ class _BackButton extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Icon(Icons.chevron_left, size: 18, color: AppColors.textMid),
-            Text('back', style: AppTheme.mono(size: 12, color: AppColors.textMid)),
+            Text(
+              'back',
+              style: AppTheme.mono(size: 12, color: AppColors.textMid),
+            ),
           ],
         ),
       ),
@@ -194,21 +199,25 @@ class _Hero extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Pressable(
-                    onTap: track.goPlus ? () => showGoPlusNotice(context) : onPlay,
+                    onTap: track.goPlus
+                        ? () => showGoPlusNotice(context)
+                        : onPlay,
                     child: Container(
                       width: 56,
                       height: 56,
                       decoration: BoxDecoration(
-                          color: track.goPlus
-                              ? AppColors.surface2
-                              : AppColors.acid,
-                          shape: BoxShape.circle),
+                        color: track.goPlus
+                            ? AppColors.surface2
+                            : AppColors.acid,
+                        shape: BoxShape.circle,
+                      ),
                       child: Icon(
-                          track.goPlus
-                              ? Icons.lock
-                              : (isPlaying ? Icons.pause : Icons.play_arrow),
-                          color: track.goPlus ? AppColors.textLow : AppColors.bg,
-                          size: track.goPlus ? 26 : 32),
+                        track.goPlus
+                            ? Icons.lock
+                            : (isPlaying ? Icons.pause : Icons.play_arrow),
+                        color: track.goPlus ? AppColors.textLow : AppColors.bg,
+                        size: track.goPlus ? 26 : 32,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -220,10 +229,15 @@ class _Hero extends StatelessWidget {
                           children: [
                             Pressable(
                               onTap: () => context.go(
-                                  '/artist/${Uri.encodeComponent(track.artistHandle)}'),
-                              child: Text(track.artist,
-                                  style: AppTheme.mono(
-                                      size: 12, color: AppColors.textMid)),
+                                '/artist/${Uri.encodeComponent(track.artistHandle)}',
+                              ),
+                              child: Text(
+                                track.artist,
+                                style: AppTheme.mono(
+                                  size: 12,
+                                  color: AppColors.textMid,
+                                ),
+                              ),
                             ),
                             if (track.goPlus) ...[
                               const SizedBox(width: 10),
@@ -232,14 +246,17 @@ class _Hero extends StatelessWidget {
                           ],
                         ),
                         const SizedBox(height: 4),
-                        Text(track.title,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.w700,
-                                height: 1.1,
-                                color: AppColors.textHi)),
+                        Text(
+                          track.title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w700,
+                            height: 1.1,
+                            color: AppColors.textHi,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -282,8 +299,9 @@ class _ActionBarState extends ConsumerState<_ActionBar> {
   Future<void> _toggleLike() async {
     final wasLiked = ref.read(likedTracksProvider).contains(widget.track.id);
     setState(() => _likesDelta += wasLiked ? -1 : 1);
-    final outcome =
-        await ref.read(likedTracksProvider.notifier).toggle(widget.track.id);
+    final outcome = await ref
+        .read(likedTracksProvider.notifier)
+        .toggle(widget.track.id);
     if (outcome != LikeOutcome.ok) {
       // Контроллер уже откатил `liked`-set; здесь откатываем дельту счётчика.
       if (mounted) setState(() => _likesDelta += wasLiked ? 1 : -1);
@@ -292,8 +310,9 @@ class _ActionBarState extends ConsumerState<_ActionBar> {
   }
 
   Future<void> _toggleRepost() async {
-    final wasReposted =
-        ref.read(repostedTracksProvider).contains(widget.track.id);
+    final wasReposted = ref
+        .read(repostedTracksProvider)
+        .contains(widget.track.id);
     setState(() => _repostsDelta += wasReposted ? -1 : 1);
     final outcome = await ref
         .read(repostedTracksProvider.notifier)
@@ -331,8 +350,10 @@ class _ActionBarState extends ConsumerState<_ActionBar> {
         const Spacer(),
         const Icon(Icons.play_arrow, size: 13, color: AppColors.textLow),
         const SizedBox(width: 4),
-        Text('${Fmt.count(track.plays)} plays · ${track.postedAt}',
-            style: AppTheme.mono(size: 11, color: AppColors.textLow)),
+        Text(
+          '${Fmt.count(track.plays)} plays · ${track.postedAt}',
+          style: AppTheme.mono(size: 11, color: AppColors.textLow),
+        ),
       ],
     );
   }
@@ -342,12 +363,7 @@ class _ActionBarState extends ConsumerState<_ActionBar> {
 Future<void> _share(BuildContext context, Track track) async {
   final url = track.permalinkUrl;
   if (url == null || url.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      behavior: SnackBarBehavior.floating,
-      backgroundColor: AppColors.surface2,
-      content: Text("no shareable link for this track",
-          style: AppTheme.mono(size: 12, color: AppColors.textHi)),
-    ));
+    showToast(context, 'no shareable link for this track');
     return;
   }
   await copyToClipboard(context, url);
@@ -369,18 +385,25 @@ class _MoreAction extends StatelessWidget {
       color: AppColors.surface,
       shape: RoundedRectangleBorder(
         borderRadius: AppTheme.borderRadius,
-        side: const BorderSide(color: AppColors.border, width: AppTheme.borderWidth),
+        side: const BorderSide(
+          color: AppColors.border,
+          width: AppTheme.borderWidth,
+        ),
       ),
       itemBuilder: (_) => [
         PopupMenuItem(
           value: 'copy',
-          child: Text('copy link',
-              style: AppTheme.mono(size: 12, color: AppColors.textHi)),
+          child: Text(
+            'copy link',
+            style: AppTheme.mono(size: 12, color: AppColors.textHi),
+          ),
         ),
         PopupMenuItem(
           value: 'open',
-          child: Text('open on soundcloud ↗',
-              style: AppTheme.mono(size: 12, color: AppColors.textHi)),
+          child: Text(
+            'open on soundcloud ↗',
+            style: AppTheme.mono(size: 12, color: AppColors.textHi),
+          ),
         ),
       ],
       onSelected: (v) async {
@@ -400,8 +423,12 @@ class _MoreAction extends StatelessWidget {
 }
 
 class _Action extends StatelessWidget {
-  const _Action(
-      {required this.icon, this.value, this.active = false, this.onTap});
+  const _Action({
+    required this.icon,
+    this.value,
+    this.active = false,
+    this.onTap,
+  });
   final IconData icon;
   final String? value;
   final bool active;
@@ -441,13 +468,89 @@ class _TagChip extends StatelessWidget {
         borderRadius: AppTheme.borderRadius,
         border: AppTheme.border(),
       ),
-      child: Text(text, style: AppTheme.mono(size: 11, color: AppColors.textMid)),
+      child: Text(
+        text,
+        style: AppTheme.mono(size: 11, color: AppColors.textMid),
+      ),
+    );
+  }
+}
+
+/// Секция комментариев с «потолком» на первичный рендер: показываем первые
+/// [_kInitial], остальное — по кнопке «show all N». Иначе на треках с десятками
+/// комментариев related-секция уезжала далеко вниз.
+class _CommentsSection extends StatefulWidget {
+  const _CommentsSection({required this.comments, required this.trackMs});
+
+  final List<Comment> comments;
+  final int trackMs;
+
+  @override
+  State<_CommentsSection> createState() => _CommentsSectionState();
+}
+
+class _CommentsSectionState extends State<_CommentsSection> {
+  static const _kInitial = 6;
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final all = widget.comments;
+    final shown = _expanded ? all : all.take(_kInitial).toList();
+    final hidden = all.length - shown.length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SectionHeader(title: 'comments · ${all.length}'),
+        const SizedBox(height: AppTheme.headerGap),
+        if (all.isEmpty)
+          const EmptyState(
+            icon: Icons.chat_bubble_outline,
+            title: 'no comments yet',
+            compact: true,
+          )
+        else ...[
+          for (final cm in shown)
+            _CommentRow(
+              key: ValueKey(cm.id),
+              comment: cm,
+              trackMs: widget.trackMs,
+            ),
+          if (hidden > 0)
+            Pressable(
+              onTap: () => setState(() => _expanded = true),
+              child: Padding(
+                padding: const EdgeInsets.only(top: 2, bottom: 4),
+                child: Text(
+                  'show all ${all.length} comments',
+                  style: AppTheme.mono(
+                    size: 11,
+                    color: AppColors.acid,
+                    weight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            )
+          else if (_expanded && all.length > _kInitial)
+            Pressable(
+              onTap: () => setState(() => _expanded = false),
+              child: Padding(
+                padding: const EdgeInsets.only(top: 2, bottom: 4),
+                child: Text(
+                  'show less',
+                  style: AppTheme.mono(size: 11, color: AppColors.textMid),
+                ),
+              ),
+            ),
+        ],
+      ],
     );
   }
 }
 
 class _CommentRow extends StatelessWidget {
-  const _CommentRow({required this.comment, required this.trackMs});
+  const _CommentRow({super.key, required this.comment, required this.trackMs});
   final Comment comment;
   final int trackMs;
 
@@ -466,19 +569,29 @@ class _CommentRow extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Text(comment.author,
-                        style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textHi)),
+                    Text(
+                      comment.author,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textHi,
+                      ),
+                    ),
                     const SizedBox(width: 8),
-                    Text('@ ${Fmt.time(Duration(milliseconds: comment.timecodeMs))}',
-                        style: AppTheme.mono(size: 10, color: AppColors.acid)),
+                    Text(
+                      '@ ${Fmt.time(Duration(milliseconds: comment.timecodeMs))}',
+                      style: AppTheme.mono(size: 10, color: AppColors.acid),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 3),
-                Text(comment.text,
-                    style: const TextStyle(fontSize: 13, color: AppColors.textMid)),
+                Text(
+                  comment.text,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textMid,
+                  ),
+                ),
               ],
             ),
           ),

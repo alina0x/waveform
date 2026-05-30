@@ -62,6 +62,13 @@ class JustAudioEngine implements AudioEngine {
 
   bool _preloadReady = false;
 
+  /// Поколение «переходных» операций (load/swap). Каждая новая операция
+  /// инкрементит счётчик; долгая crossfade-рампа на каждой итерации сверяет
+  /// своё поколение и прекращается, если её перебила более новая операция —
+  /// иначе `_active` мог 6с указывать на старый (паузный) плеер, и громкость/
+  /// прогресс/play-pause рулили «не тем» плеером (главный баг десинка).
+  int _swapGen = 0;
+
   // Прокси-стримы.
   final _positionCtrl = StreamController<Duration>.broadcast();
   final _bufferedCtrl = StreamController<Duration>.broadcast();
@@ -104,16 +111,37 @@ class JustAudioEngine implements AudioEngine {
 
   @override
   Future<void> load(String url) async {
-    // Новый источник на active — отменяем preload (если он был под старый
-    // «следующий», теперь не актуален).
+    // Новая авторитетная загрузка отменяет любую идущую crossfade-рампу и
+    // preload (он был под старый «следующий»).
+    ++_swapGen;
     _preloadReady = false;
+    // Глушим теневой плеер — чтобы не остался «призрачный» звук от
+    // прерванного crossfade'а.
+    try {
+      await _inactive.pause();
+      await _inactive.setVolume(0);
+    } catch (_) {}
     await _active.setUrl(url);
     await _active.setVolume(_userVolume);
+    // Явный seek(0): setUrl обычно сбрасывает позицию, но защищаемся от
+    // унаследованной позиции у переиспользуемого AudioPlayer'а.
+    await _active.seek(Duration.zero);
     await _active.play();
   }
 
   @override
-  Future<void> pause() => _active.pause();
+  Future<void> pause() async {
+    // Отменяем идущую crossfade-рампу — иначе она доиграет старый плеер и
+    // докрутит громкости поверх нашей паузы.
+    ++_swapGen;
+    // Глушим ОБА плеера: во время crossfade старый (`from`) ещё звучит, и
+    // пауза только `_active` оставляла бы его играющим («поставил на паузу —
+    // а играет»). Пауза второго плеера идемпотентна, когда он и так стоит.
+    await _a.pause();
+    await _b.pause();
+    // Рампа могла оставить активный на промежуточной громкости — возвращаем.
+    await _active.setVolume(_userVolume);
+  }
 
   @override
   Future<void> resume() => _active.play();
@@ -154,36 +182,43 @@ class JustAudioEngine implements AudioEngine {
   @override
   Future<void> swapToNext({Duration crossfade = Duration.zero}) async {
     if (!_preloadReady) return;
+    final gen = ++_swapGen;
     final from = _active;
     final to = _inactive;
     _preloadReady = false;
+
+    // ИНВАРИАНТ: `_active` указывает на плеер «текущего трека» сразу, ещё до
+    // окончания рампы. Тогда громкость/позиция/play-pause всегда рулят новым
+    // треком, а старый просто гаснет в фоне — даже если нас прервут.
+    _active = to;
+    _bindActive();
+    // Защита от унаследованной позиции у preload'ного плеера.
+    await to.seek(Duration.zero);
 
     if (crossfade <= Duration.zero) {
       // Gapless: мгновенный swap.
       await to.setVolume(_userVolume);
       await to.play();
       await from.pause();
-      _active = to;
-      _bindActive();
       return;
     }
 
-    // Crossfade: оба играют, линейная рампа громкости.
+    // Crossfade: оба играют, линейная рампа громкости. Фон (`from`) гаснет,
+    // передний (`to` = новый `_active`) набирает до _userVolume.
     const stepMs = 50;
-    final steps =
-        (crossfade.inMilliseconds / stepMs).clamp(1, 10000).toInt();
+    final steps = (crossfade.inMilliseconds / stepMs).clamp(1, 10000).toInt();
     await to.setVolume(0);
     await to.play();
     for (var i = 1; i <= steps; i++) {
+      if (gen != _swapGen) return; // нас перебила новая load/swap — выходим
       final t = i / steps;
-      // Старый плавно гаснет, новый плавно набирает.
       await from.setVolume(_userVolume * (1 - t));
       await to.setVolume(_userVolume * t);
       await Future<void>.delayed(const Duration(milliseconds: stepMs));
     }
+    if (gen != _swapGen) return;
     await from.pause();
-    _active = to;
-    _bindActive();
+    await to.setVolume(_userVolume);
   }
 
   @override

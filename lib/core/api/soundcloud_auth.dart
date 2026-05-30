@@ -58,8 +58,9 @@ class AuthController extends Notifier<SoundcloudAuth> {
   }
 
   // Маскируем токен в логах: видно форму (`2-…` = пользовательский), не секрет.
-  String _mask(String t) =>
-      t.length <= 10 ? '***' : '${t.substring(0, 6)}…${t.substring(t.length - 3)}';
+  String _mask(String t) => t.length <= 10
+      ? '***'
+      : '${t.substring(0, 6)}…${t.substring(t.length - 3)}';
 
   /// client_id добывается автоматически из веб-бандла (как в yt-dlp/FetchClientID).
   void setClientId(String id) => state = state.copyWith(clientId: id);
@@ -70,7 +71,9 @@ class AuthController extends Notifier<SoundcloudAuth> {
     state = state.copyWith(userToken: userToken);
     ref
         .read(talkerProvider)
-        .info('auth: signIn token ${_mask(userToken)} (len ${userToken.length})');
+        .info(
+          'auth: signIn token ${_mask(userToken)} (len ${userToken.length})',
+        );
     unawaited(_safe(() => _store.write(userToken)));
   }
 
@@ -89,5 +92,6 @@ class AuthController extends Notifier<SoundcloudAuth> {
   }
 }
 
-final authControllerProvider =
-    NotifierProvider<AuthController, SoundcloudAuth>(AuthController.new);
+final authControllerProvider = NotifierProvider<AuthController, SoundcloudAuth>(
+  AuthController.new,
+);

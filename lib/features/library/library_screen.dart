@@ -97,28 +97,39 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       );
     }
     final currentTab = _tabs[_tab];
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: AppTheme.topBarHeight),
-        _TabBar(
-          tabs: _tabs,
-          current: _tab,
-          onSelect: _selectTab,
-          // На history-табе тогл tile/list упрощён (только треки).
-          trailing: currentTab == 'history' ? null : const ViewToggle(),
+    // Центрируем + ограничиваем ширину на широких экранах (без рейла —
+    // чуть уже, чем home/feed).
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1100),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: AppTheme.topBarHeight),
+            _TabBar(
+              tabs: _tabs,
+              current: _tab,
+              onSelect: _selectTab,
+              // На history-табе тогл tile/list упрощён (только треки).
+              trailing: currentTab == 'history' ? null : const ViewToggle(),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppTheme.pagePad,
+                12,
+                AppTheme.pagePad,
+                0,
+              ),
+              child: _FilterField(
+                controller: _queryCtl,
+                hint: 'filter $currentTab…',
+                onChanged: (v) => setState(() => _query = v.trim()),
+              ),
+            ),
+            Expanded(child: _tabBody(currentTab)),
+          ],
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(AppTheme.pagePad, 12,
-              AppTheme.pagePad, 0),
-          child: _FilterField(
-            controller: _queryCtl,
-            hint: 'filter $currentTab…',
-            onChanged: (v) => setState(() => _query = v.trim()),
-          ),
-        ),
-        Expanded(child: _tabBody(currentTab)),
-      ],
+      ),
     );
   }
 
@@ -131,8 +142,12 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       value: lib,
       onRetry: () => ref.invalidate(libraryProvider),
       data: (data) => SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(AppTheme.pagePad, 16,
-            AppTheme.pagePad, AppTheme.playerHeight + 32),
+        padding: const EdgeInsets.fromLTRB(
+          AppTheme.pagePad,
+          16,
+          AppTheme.pagePad,
+          AppTheme.playerHeight + 32,
+        ),
         child: _bulkBody(tab, data),
       ),
     );
@@ -152,27 +167,39 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       case 'playlists':
         final items = _filterCollections(d.playlists);
         if (items.isEmpty && _query.isEmpty) {
-          return noneFor('playlists', Icons.queue_music_outlined,
-              'create a playlist on SoundCloud — it appears here');
+          return noneFor(
+            'playlists',
+            Icons.queue_music_outlined,
+            'create a playlist on SoundCloud — it appears here',
+          );
         }
         return _grid('playlists', items);
       case 'albums':
         final items = _filterCollections(d.albums);
         return items.isEmpty && _query.isEmpty
-            ? noneFor('albums', Icons.album_outlined,
-                'liked albums show up here')
+            ? noneFor(
+                'albums',
+                Icons.album_outlined,
+                'liked albums show up here',
+              )
             : _grid('albums for you', items);
       case 'stations':
         final items = _filterCollections(d.stations);
         return items.isEmpty && _query.isEmpty
-            ? noneFor('stations', Icons.radio_outlined,
-                'follow artists / genres to seed personal stations')
+            ? noneFor(
+                'stations',
+                Icons.radio_outlined,
+                'follow artists / genres to seed personal stations',
+              )
             : _grid('your stations', items);
       case 'following':
         final items = _filterCollections(d.following);
         return items.isEmpty && _query.isEmpty
-            ? noneFor('one followed', Icons.people_outline,
-                'follow artists to see their releases first')
+            ? noneFor(
+                'one followed',
+                Icons.people_outline,
+                'follow artists to see their releases first',
+              )
             : _grid('following', items);
       case 'history':
         final items = _filterTracks(d.history);
@@ -193,9 +220,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     if (_query.isEmpty) return src;
     final q = _query.toLowerCase();
     return src
-        .where((c) =>
-            c.title.toLowerCase().contains(q) ||
-            c.subtitle.toLowerCase().contains(q))
+        .where(
+          (c) =>
+              c.title.toLowerCase().contains(q) ||
+              c.subtitle.toLowerCase().contains(q),
+        )
         .toList();
   }
 
@@ -203,9 +232,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     if (_query.isEmpty) return src;
     final q = _query.toLowerCase();
     return src
-        .where((t) =>
-            t.title.toLowerCase().contains(q) ||
-            t.artist.toLowerCase().contains(q))
+        .where(
+          (t) =>
+              t.title.toLowerCase().contains(q) ||
+              t.artist.toLowerCase().contains(q),
+        )
         .toList();
   }
 
@@ -222,16 +253,12 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           Wrap(
             spacing: 20,
             runSpacing: 24,
-            children: [
-              for (final item in items) CollectionCard(item: item),
-            ],
+            children: [for (final item in items) CollectionCard(item: item)],
           )
         else
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (final item in items) CollectionRow(item: item),
-            ],
+            children: [for (final item in items) CollectionRow(item: item)],
           ),
       ],
     );
@@ -244,8 +271,7 @@ class _PaginatedLikesTab extends ConsumerStatefulWidget {
   const _PaginatedLikesTab({required this.query});
   final String query;
   @override
-  ConsumerState<_PaginatedLikesTab> createState() =>
-      _PaginatedLikesTabState();
+  ConsumerState<_PaginatedLikesTab> createState() => _PaginatedLikesTabState();
 }
 
 class _PaginatedLikesTabState extends ConsumerState<_PaginatedLikesTab> {
@@ -281,8 +307,11 @@ class _PaginatedLikesTabState extends ConsumerState<_PaginatedLikesTab> {
     if (state.isInitial && state.tracks.isEmpty) {
       return SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(
-            AppTheme.pagePad, 16, AppTheme.pagePad,
-            AppTheme.playerHeight + 32),
+          AppTheme.pagePad,
+          16,
+          AppTheme.pagePad,
+          AppTheme.playerHeight + 32,
+        ),
         child: const _LikesSkeletons(rows: 8),
       );
     }
@@ -317,68 +346,110 @@ class _PaginatedLikesTabState extends ConsumerState<_PaginatedLikesTab> {
     final tracks = q.isEmpty
         ? state.tracks
         : state.tracks
-            .where((t) =>
-                t.title.toLowerCase().contains(q) ||
-                t.artist.toLowerCase().contains(q))
-            .toList();
+              .where(
+                (t) =>
+                    t.title.toLowerCase().contains(q) ||
+                    t.artist.toLowerCase().contains(q),
+              )
+              .toList();
 
-    return SingleChildScrollView(
+    // Виртуализированный список (CustomScrollView + ленивые Sliver-билдеры):
+    // рендерятся только видимые ряды. Иначе после «shuffle all» (догружает все
+    // лайки — у активных юзеров это сотни треков) Column/Wrap строил их разом и
+    // страница люто лагала.
+    const hPad = EdgeInsets.symmetric(horizontal: AppTheme.pagePad);
+    return CustomScrollView(
       controller: _scroll,
-      padding: const EdgeInsets.fromLTRB(AppTheme.pagePad, 16,
-          AppTheme.pagePad, AppTheme.playerHeight + 32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SectionHeader(
-            title: 'likes',
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
+      slivers: [
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(
+            AppTheme.pagePad,
+            16,
+            AppTheme.pagePad,
+            0,
+          ),
+          sliver: SliverToBoxAdapter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  '${state.tracks.length}${state.hasMore ? '+' : ''}',
-                  style: AppTheme.mono(size: 11, color: AppColors.textLow),
+                SectionHeader(
+                  title: 'likes',
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '${state.tracks.length}${state.hasMore ? '+' : ''}',
+                        style: AppTheme.mono(
+                          size: 11,
+                          color: AppColors.textLow,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      if (state.tracks.isNotEmpty) const _ShuffleAllLikes(),
+                    ],
+                  ),
                 ),
-                const SizedBox(width: 12),
-                if (state.tracks.isNotEmpty) const _ShuffleAllLikes(),
+                const SizedBox(height: AppTheme.headerGap),
               ],
             ),
           ),
-          const SizedBox(height: AppTheme.headerGap),
-          if (tracks.isEmpty)
-            _EmptyFilterHint(query: widget.query)
-          else if (mode == ViewMode.tiles)
-            Wrap(
-              spacing: 20,
-              runSpacing: 24,
-              children: [
-                for (final t in tracks) _LikeTile(track: t),
-              ],
-            )
-          else
-            Column(
+        ),
+        if (tracks.isEmpty)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: hPad,
+              child: _EmptyFilterHint(query: widget.query),
+            ),
+          )
+        else if (mode == ViewMode.tiles)
+          SliverPadding(
+            padding: hPad,
+            sliver: SliverGrid.builder(
+              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                maxCrossAxisExtent: 180,
+                mainAxisExtent: 212,
+                crossAxisSpacing: 20,
+                mainAxisSpacing: 24,
+              ),
+              itemCount: tracks.length,
+              itemBuilder: (_, i) => _LikeTile(track: tracks[i]),
+            ),
+          )
+        else
+          SliverPadding(
+            padding: hPad,
+            sliver: SliverList.builder(
+              itemCount: tracks.length,
+              itemBuilder: (_, i) =>
+                  TrackRow(track: tracks[i], queue: state.tracks),
+            ),
+          ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: hPad,
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                for (final t in tracks)
-                  TrackRow(track: t, queue: state.tracks),
+                // Подгрузка следующей страницы — три skeleton-ряда.
+                if (state.isLoadingMore) ...[
+                  const SizedBox(height: 4),
+                  const _LikesSkeletons(rows: 3),
+                ],
+                // Ошибка при подгрузке (но какие-то треки уже есть) — retry-строка.
+                if (state.error != null && state.tracks.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  _RetryRow(
+                    message: 'failed to load more — tap to retry',
+                    onRetry: () =>
+                        ref.read(meLikesPagedProvider.notifier).loadNext(),
+                  ),
+                ],
+                const SizedBox(height: AppTheme.playerHeight + 32),
               ],
             ),
-          // Подгрузка следующей страницы — три skeleton-ряда.
-          if (state.isLoadingMore) ...[
-            const SizedBox(height: 4),
-            const _LikesSkeletons(rows: 3),
-          ],
-          // Если pageProvider вернул ошибку при подгрузке (но какие-то треки
-          // уже есть) — показываем строку с retry, не убивая список.
-          if (state.error != null && state.tracks.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            _RetryRow(
-              message: 'failed to load more — tap to retry',
-              onRetry: () =>
-                  ref.read(meLikesPagedProvider.notifier).loadNext(),
-            ),
-          ],
-        ],
-      ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -437,14 +508,20 @@ class _ShuffleAllLikesState extends ConsumerState<_ShuffleAllLikes> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(_busy ? Icons.more_horiz : Icons.shuffle,
-                size: 13, color: AppColors.textHi),
+            Icon(
+              _busy ? Icons.more_horiz : Icons.shuffle,
+              size: 13,
+              color: AppColors.textHi,
+            ),
             const SizedBox(width: 6),
-            Text(_busy ? 'loading…' : 'shuffle all',
-                style: AppTheme.mono(
-                    size: 11,
-                    color: AppColors.textHi,
-                    weight: FontWeight.w600)),
+            Text(
+              _busy ? 'loading…' : 'shuffle all',
+              style: AppTheme.mono(
+                size: 11,
+                color: AppColors.textHi,
+                weight: FontWeight.w600,
+              ),
+            ),
           ],
         ),
       ),
@@ -522,8 +599,10 @@ class _RetryRow extends StatelessWidget {
           children: [
             const Icon(Icons.refresh, size: 16, color: AppColors.textMid),
             const SizedBox(width: 10),
-            Text(message,
-                style: AppTheme.mono(size: 12, color: AppColors.textMid)),
+            Text(
+              message,
+              style: AppTheme.mono(size: 12, color: AppColors.textMid),
+            ),
           ],
         ),
       ),
@@ -547,18 +626,23 @@ class _LikeTile extends StatelessWidget {
           children: [
             CoverArt(seed: track.id, imageUrl: track.coverUrl, size: 160),
             const SizedBox(height: 8),
-            Text(track.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textHi)),
+            Text(
+              track.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textHi,
+              ),
+            ),
             const SizedBox(height: 2),
-            Text(track.artist,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppTheme.mono(size: 11, color: AppColors.textMid)),
+            Text(
+              track.artist,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTheme.mono(size: 11, color: AppColors.textMid),
+            ),
           ],
         ),
       ),
@@ -598,16 +682,18 @@ class _FilterField extends StatelessWidget {
               onChanged: onChanged,
               cursorColor: AppColors.acid,
               style: const TextStyle(
-                  fontSize: 13,
-                  color: AppColors.textHi,
-                  fontWeight: FontWeight.w500),
+                fontSize: 13,
+                color: AppColors.textHi,
+                fontWeight: FontWeight.w500,
+              ),
               decoration: InputDecoration(
                 isCollapsed: true,
                 border: InputBorder.none,
                 hintText: hint,
                 hintStyle: TextStyle(
-                    fontSize: 13,
-                    color: AppColors.textLow.withValues(alpha: 0.85)),
+                  fontSize: 13,
+                  color: AppColors.textLow.withValues(alpha: 0.85),
+                ),
               ),
             ),
           ),
@@ -617,7 +703,11 @@ class _FilterField extends StatelessWidget {
                 controller.clear();
                 onChanged('');
               },
-              child: const Icon(Icons.close, size: 14, color: AppColors.textLow),
+              child: const Icon(
+                Icons.close,
+                size: 14,
+                color: AppColors.textLow,
+              ),
             ),
         ],
       ),
@@ -630,13 +720,13 @@ class _EmptyFilterHint extends StatelessWidget {
   final String query;
   @override
   Widget build(BuildContext context) {
-    final text = query.isEmpty
-        ? 'nothing here yet'
-        : 'no matches for “$query”';
+    final text = query.isEmpty ? 'nothing here yet' : 'no matches for “$query”';
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 24),
-      child: Text(text,
-          style: AppTheme.mono(size: 12, color: AppColors.textMid)),
+      child: Text(
+        text,
+        style: AppTheme.mono(size: 12, color: AppColors.textMid),
+      ),
     );
   }
 }
@@ -667,11 +757,12 @@ class _TabBar extends StatelessWidget {
       child: Row(
         children: [
           for (var i = 0; i < tabs.length; i++)
-            _Tab(label: tabs[i], active: i == current, onTap: () => onSelect(i)),
-          if (trailing != null) ...[
-            const Spacer(),
-            trailing!,
-          ],
+            _Tab(
+              label: tabs[i],
+              active: i == current,
+              onTap: () => onSelect(i),
+            ),
+          if (trailing != null) ...[const Spacer(), trailing!],
         ],
       ),
     );

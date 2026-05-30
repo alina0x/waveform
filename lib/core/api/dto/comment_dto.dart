@@ -20,11 +20,11 @@ class CommentDto {
   final int? trackId;
 
   factory CommentDto.fromJson(Map<String, dynamic> j) => CommentDto(
-        id: asInt(j['id']),
-        body: asStr(j['body']),
-        timestampMs: asInt(j['timestamp']),
-        user: UserDto.fromJson(asMap(j['user'])),
-        createdAt: j['created_at'] as String?,
-        trackId: j['track_id'] == null ? null : asInt(j['track_id']),
-      );
+    id: asInt(j['id']),
+    body: asStr(j['body']),
+    timestampMs: asInt(j['timestamp']),
+    user: UserDto.fromJson(asMap(j['user'])),
+    createdAt: j['created_at'] as String?,
+    trackId: j['track_id'] == null ? null : asInt(j['track_id']),
+  );
 }

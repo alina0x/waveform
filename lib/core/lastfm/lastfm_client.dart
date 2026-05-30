@@ -26,29 +26,23 @@ class LastfmClient {
 
   /// GET-вызов без подписи (для unauth-методов: `auth.getToken`).
   Future<Map<String, dynamic>> _get(Map<String, String> params) async {
-    final res = await _dio.get(lastfmApiRoot, queryParameters: {
-      ...params,
-      'api_key': lastfmApiKey,
-      'format': 'json',
-    });
+    final res = await _dio.get(
+      lastfmApiRoot,
+      queryParameters: {...params, 'api_key': lastfmApiKey, 'format': 'json'},
+    );
     return _asMap(res.data);
   }
 
   /// POST-вызов с подписью (для write-методов: scrobble, updateNowPlaying,
   /// getSession). Last.fm требует form-encoded тело.
   Future<Map<String, dynamic>> _post(Map<String, String> params) async {
-    final signedParams = <String, String>{
-      ...params,
-      'api_key': lastfmApiKey,
-    };
+    final signedParams = <String, String>{...params, 'api_key': lastfmApiKey};
     signedParams['api_sig'] = _sign(signedParams);
     signedParams['format'] = 'json';
     final res = await _dio.post(
       lastfmApiRoot,
       data: signedParams,
-      options: Options(
-        contentType: Headers.formUrlEncodedContentType,
-      ),
+      options: Options(contentType: Headers.formUrlEncodedContentType),
     );
     return _asMap(res.data);
   }
@@ -68,10 +62,7 @@ class LastfmClient {
   /// Возвращает (session_key, username) или null если token ещё не одобрен.
   Future<({String key, String name})?> getSession(String token) async {
     if (!lastfmConfigured) return null;
-    final res = await _post({
-      'method': 'auth.getSession',
-      'token': token,
-    });
+    final res = await _post({'method': 'auth.getSession', 'token': token});
     final session = _asMap(res['session']);
     final key = session['key'] as String?;
     final name = session['name'] as String?;
@@ -114,8 +105,7 @@ class LastfmClient {
       'track': track,
       if (album != null && album.isNotEmpty) 'album': album,
       if (duration != null) 'duration': '${duration.inSeconds}',
-      'timestamp':
-          '${startedAt.millisecondsSinceEpoch ~/ 1000}',
+      'timestamp': '${startedAt.millisecondsSinceEpoch ~/ 1000}',
       'sk': sessionKey,
     });
   }

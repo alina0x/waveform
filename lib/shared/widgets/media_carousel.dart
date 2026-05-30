@@ -35,10 +35,15 @@ class _MediaCarouselState extends State<MediaCarousel> {
 
   void _nudge(int dir) {
     if (!_ctrl.hasClients) return;
-    final target = (_ctrl.offset + dir * 480)
-        .clamp(0.0, _ctrl.position.maxScrollExtent);
-    _ctrl.animateTo(target,
-        duration: const Duration(milliseconds: 280), curve: Curves.easeOutCubic);
+    final target = (_ctrl.offset + dir * 480).clamp(
+      0.0,
+      _ctrl.position.maxScrollExtent,
+    );
+    _ctrl.animateTo(
+      target,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+    );
   }
 
   @override
@@ -51,8 +56,10 @@ class _MediaCarouselState extends State<MediaCarousel> {
           trailing: Row(
             children: [
               if (widget.seeAll) ...[
-                Text('see all',
-                    style: AppTheme.mono(size: 11, color: AppColors.textLow)),
+                Text(
+                  'see all',
+                  style: AppTheme.mono(size: 11, color: AppColors.textLow),
+                ),
                 const SizedBox(width: 14),
               ],
               _Arrow(icon: Icons.chevron_left, onTap: () => _nudge(-1)),

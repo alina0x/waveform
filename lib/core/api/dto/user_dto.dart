@@ -31,17 +31,17 @@ class UserDto {
   final String? description;
 
   factory UserDto.fromJson(Map<String, dynamic> j) => UserDto(
-        id: asInt(j['id']),
-        username: asStr(j['username']),
-        permalink: asStr(j['permalink']),
-        avatarUrl: j['avatar_url'] as String?,
-        followersCount: asInt(j['followers_count']),
-        followingsCount: asInt(j['followings_count']),
-        trackCount: asInt(j['track_count']),
-        // api-v2 называет лайки то likes_count, то public_favorites_count.
-        likesCount: asInt(j['likes_count'] ?? j['public_favorites_count']),
-        playlistCount: asInt(j['playlist_count']),
-        verified: asBool(j['verified']),
-        description: j['description'] as String?,
-      );
+    id: asInt(j['id']),
+    username: asStr(j['username']),
+    permalink: asStr(j['permalink']),
+    avatarUrl: j['avatar_url'] as String?,
+    followersCount: asInt(j['followers_count']),
+    followingsCount: asInt(j['followings_count']),
+    trackCount: asInt(j['track_count']),
+    // api-v2 называет лайки то likes_count, то public_favorites_count.
+    likesCount: asInt(j['likes_count'] ?? j['public_favorites_count']),
+    playlistCount: asInt(j['playlist_count']),
+    verified: asBool(j['verified']),
+    description: j['description'] as String?,
+  );
 }

@@ -67,8 +67,7 @@ Future<void> main() async {
   );
   handler.container = container;
 
-  runApp(UncontrolledProviderScope(
-    container: container,
-    child: const WaveformApp(),
-  ));
+  runApp(
+    UncontrolledProviderScope(container: container, child: const WaveformApp()),
+  );
 }

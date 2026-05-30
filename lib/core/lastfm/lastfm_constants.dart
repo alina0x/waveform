@@ -14,10 +14,14 @@
 /// тихо no-op'ит. Settings показывает «not configured».
 ///
 /// Регистрация на: https://www.last.fm/api/account/create.
-const String lastfmApiKey =
-    String.fromEnvironment('LASTFM_API_KEY', defaultValue: '');
-const String lastfmSharedSecret =
-    String.fromEnvironment('LASTFM_SHARED_SECRET', defaultValue: '');
+const String lastfmApiKey = String.fromEnvironment(
+  'LASTFM_API_KEY',
+  defaultValue: '',
+);
+const String lastfmSharedSecret = String.fromEnvironment(
+  'LASTFM_SHARED_SECRET',
+  defaultValue: '',
+);
 
 /// REST endpoint Last.fm.
 const String lastfmApiRoot = 'https://ws.audioscrobbler.com/2.0/';

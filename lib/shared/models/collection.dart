@@ -57,7 +57,8 @@ class Collection {
 
   /// Станции и профили рисуем круглой обложкой.
   bool get isCircular =>
-      _circular ?? (kind == CollectionKind.station || target == CollectionTarget.artist);
+      _circular ??
+      (kind == CollectionKind.station || target == CollectionTarget.artist);
 
   /// Seed для процедурной обложки.
   String get coverSeed => id;

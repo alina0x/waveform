@@ -16,8 +16,8 @@ abstract final class Fmt {
     final s = v >= 100
         ? v.toStringAsFixed(0)
         : v >= 10
-            ? v.toStringAsFixed(1)
-            : v.toStringAsFixed(2);
+        ? v.toStringAsFixed(1)
+        : v.toStringAsFixed(2);
     return s.contains('.') ? s.replaceFirst(RegExp(r'\.?0+$'), '') : s;
   }
 

@@ -9,7 +9,7 @@ import '../../../shared/models/track.dart';
 import '../../../shared/widgets/cover_art.dart';
 import '../../../shared/widgets/minted_badge.dart';
 import '../../../shared/widgets/pressable.dart';
-import '../../../shared/widgets/waveform_view.dart';
+import '../../../shared/widgets/live_waveform.dart';
 import '../../player/player_controller.dart';
 
 class TrackFeedCard extends ConsumerWidget {
@@ -45,10 +45,11 @@ class TrackFeedCard extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _Cover(
-                seed: track.id,
-                imageUrl: track.coverUrl,
-                isPlaying: isPlaying,
-                onPlay: onPlay),
+              seed: track.id,
+              imageUrl: track.coverUrl,
+              isPlaying: isPlaying,
+              onPlay: onPlay,
+            ),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
@@ -56,8 +57,9 @@ class TrackFeedCard extends ConsumerWidget {
                 children: [
                   _Header(track: track),
                   const Spacer(),
-                  WaveformView(
-                    bars: track.waveform,
+                  LiveWaveform(
+                    waveformUrl: track.waveformUrl,
+                    fallbackBars: track.waveform,
                     progress: progress,
                     onSeek: isCurrent ? controller.seekFraction : null,
                   ),
@@ -134,8 +136,9 @@ class _Header extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Pressable(
-                onTap: () =>
-                    context.go('/artist/${Uri.encodeComponent(track.artistHandle)}'),
+                onTap: () => context.go(
+                  '/artist/${Uri.encodeComponent(track.artistHandle)}',
+                ),
                 child: Text(
                   track.artist,
                   style: AppTheme.mono(size: 11, color: AppColors.textMid),

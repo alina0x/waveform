@@ -23,11 +23,7 @@ class WaveLogo extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           for (final h in _heights)
-            Container(
-              width: barWidth,
-              height: size * h,
-              color: color,
-            ),
+            Container(width: barWidth, height: size * h, color: color),
         ],
       ),
     );

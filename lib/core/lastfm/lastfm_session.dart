@@ -36,18 +36,22 @@ class LastfmSessionController extends Notifier<LastfmSession?> {
 
   void set(LastfmSession s) {
     state = s;
-    unawaited(_safe(() async {
-      await _store.writeString(_keyKey, s.key);
-      await _store.writeString(_keyName, s.name);
-    }));
+    unawaited(
+      _safe(() async {
+        await _store.writeString(_keyKey, s.key);
+        await _store.writeString(_keyName, s.name);
+      }),
+    );
   }
 
   void clear() {
     state = null;
-    unawaited(_safe(() async {
-      await _store.remove(_keyKey);
-      await _store.remove(_keyName);
-    }));
+    unawaited(
+      _safe(() async {
+        await _store.remove(_keyKey);
+        await _store.remove(_keyName);
+      }),
+    );
   }
 
   Future<void> _safe(Future<void> Function() op) async {
@@ -59,7 +63,8 @@ class LastfmSessionController extends Notifier<LastfmSession?> {
 
 final lastfmSessionProvider =
     NotifierProvider<LastfmSessionController, LastfmSession?>(
-        LastfmSessionController.new);
+      LastfmSessionController.new,
+    );
 
 /// Lazy LastfmClient переиспользует тот же Dio, что и SoundCloud-клиент.
 final lastfmClientProvider = Provider<LastfmClient>((ref) {

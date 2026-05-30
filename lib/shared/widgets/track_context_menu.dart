@@ -32,48 +32,61 @@ Future<void> showTrackContextMenu({
   final hasLink = track.permalinkUrl != null && track.permalinkUrl!.isNotEmpty;
 
   Future<T?> show<T>(List<PopupMenuEntry<T>> items) => showMenu<T>(
-        context: context,
-        position: RelativeRect.fromRect(
-          Rect.fromLTWH(globalPosition.dx, globalPosition.dy, 0, 0),
-          Offset.zero & overlay.size,
-        ),
-        color: AppColors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: AppTheme.borderRadius,
-          side: const BorderSide(
-              color: AppColors.border, width: AppTheme.borderWidth),
-        ),
-        items: items,
-      );
+    context: context,
+    position: RelativeRect.fromRect(
+      Rect.fromLTWH(globalPosition.dx, globalPosition.dy, 0, 0),
+      Offset.zero & overlay.size,
+    ),
+    color: AppColors.surface,
+    shape: RoundedRectangleBorder(
+      borderRadius: AppTheme.borderRadius,
+      side: const BorderSide(
+        color: AppColors.border,
+        width: AppTheme.borderWidth,
+      ),
+    ),
+    items: items,
+  );
 
-  PopupMenuItem<String> item(String value, IconData icon, String label,
-          {bool danger = false}) =>
-      PopupMenuItem<String>(
-        value: value,
-        height: 36,
-        child: Row(
-          children: [
-            Icon(icon,
-                size: 14,
-                color: danger ? AppColors.acid : AppColors.textMid),
-            const SizedBox(width: 10),
-            Text(label,
-                style: AppTheme.mono(
-                    size: 12,
-                    color: danger ? AppColors.acid : AppColors.textHi)),
-          ],
+  PopupMenuItem<String> item(
+    String value,
+    IconData icon,
+    String label, {
+    bool danger = false,
+  }) => PopupMenuItem<String>(
+    value: value,
+    height: 36,
+    child: Row(
+      children: [
+        Icon(
+          icon,
+          size: 14,
+          color: danger ? AppColors.acid : AppColors.textMid,
         ),
-      );
+        const SizedBox(width: 10),
+        Text(
+          label,
+          style: AppTheme.mono(
+            size: 12,
+            color: danger ? AppColors.acid : AppColors.textHi,
+          ),
+        ),
+      ],
+    ),
+  );
 
   final selected = await show<String>([
-    item(isCurrent ? 'toggle' : 'play',
-        isCurrent && player.isPlaying ? Icons.pause : Icons.play_arrow,
-        isCurrent
-            ? (player.isPlaying ? 'pause' : 'resume')
-            : 'play'),
+    item(
+      isCurrent ? 'toggle' : 'play',
+      isCurrent && player.isPlaying ? Icons.pause : Icons.play_arrow,
+      isCurrent ? (player.isPlaying ? 'pause' : 'resume') : 'play',
+    ),
     const PopupMenuDivider(),
-    item('like', liked ? Icons.favorite : Icons.favorite_border,
-        liked ? 'unlike' : 'like'),
+    item(
+      'like',
+      liked ? Icons.favorite : Icons.favorite_border,
+      liked ? 'unlike' : 'like',
+    ),
     item('repost', Icons.repeat, reposted ? 'unrepost' : 'repost'),
     if (hasLink) ...[
       const PopupMenuDivider(),
@@ -92,12 +105,14 @@ Future<void> showTrackContextMenu({
     case 'toggle':
       pc.toggle();
     case 'like':
-      final outcome =
-          await ref.read(likedTracksProvider.notifier).toggle(track.id);
+      final outcome = await ref
+          .read(likedTracksProvider.notifier)
+          .toggle(track.id);
       if (context.mounted) showWriteOutcome(context, outcome, verb: 'like');
     case 'repost':
-      final outcome =
-          await ref.read(repostedTracksProvider.notifier).toggle(track.id);
+      final outcome = await ref
+          .read(repostedTracksProvider.notifier)
+          .toggle(track.id);
       if (context.mounted) {
         showWriteOutcome(context, outcome, verb: 'repost');
       }

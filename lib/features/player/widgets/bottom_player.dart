@@ -11,7 +11,7 @@ import '../../../shared/models/track.dart';
 import '../../../shared/widgets/cover_art.dart';
 import '../../../shared/widgets/go_plus_badge.dart';
 import '../../../shared/widgets/pressable.dart';
-import '../../../shared/widgets/waveform_view.dart';
+import '../../../shared/widgets/live_waveform.dart';
 import '../player_controller.dart';
 import '../player_ui_state.dart';
 
@@ -34,8 +34,7 @@ class BottomPlayer extends ConsumerWidget {
         position: player.position,
         onPlayPause: c.toggle,
         onNext: c.next,
-        onExpand: () =>
-            ref.read(playerCollapsedProvider.notifier).expand(),
+        onExpand: () => ref.read(playerCollapsedProvider.notifier).expand(),
       );
     }
 
@@ -77,7 +76,11 @@ class BottomPlayer extends ConsumerWidget {
           if (track != null) ...[
             Pressable(
               onTap: () => context.go('/track/${track.id}'),
-              child: CoverArt(seed: track.id, imageUrl: track.coverUrl, size: 44),
+              child: CoverArt(
+                seed: track.id,
+                imageUrl: track.coverUrl,
+                size: 44,
+              ),
             ),
             const SizedBox(width: 12),
             SizedBox(
@@ -91,13 +94,16 @@ class BottomPlayer extends ConsumerWidget {
                       Flexible(
                         child: Pressable(
                           onTap: () => context.go('/track/${track.id}'),
-                          child: Text(track.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.textHi)),
+                          child: Text(
+                            track.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textHi,
+                            ),
+                          ),
                         ),
                       ),
                       if (track.goPlus) ...[
@@ -108,12 +114,15 @@ class BottomPlayer extends ConsumerWidget {
                   ),
                   const SizedBox(height: 2),
                   Pressable(
-                    onTap: () => context
-                        .go('/artist/${Uri.encodeComponent(track.artistHandle)}'),
-                    child: Text(track.artist,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTheme.mono(size: 11, color: AppColors.textMid)),
+                    onTap: () => context.go(
+                      '/artist/${Uri.encodeComponent(track.artistHandle)}',
+                    ),
+                    child: Text(
+                      track.artist,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTheme.mono(size: 11, color: AppColors.textMid),
+                    ),
                   ),
                 ],
               ),
@@ -122,8 +131,9 @@ class BottomPlayer extends ConsumerWidget {
             Text(Fmt.time(player.position), style: AppTheme.mono(size: 11)),
             const SizedBox(width: 12),
             Expanded(
-              child: WaveformView(
-                bars: track.waveform,
+              child: LiveWaveform(
+                waveformUrl: track.waveformUrl,
+                fallbackBars: track.waveform,
                 progress: player.progress,
                 buffered: player.bufferedFraction,
                 onSeek: c.seekFraction,
@@ -154,8 +164,10 @@ class BottomPlayer extends ConsumerWidget {
             ),
           ] else
             Expanded(
-              child: Text('select a track',
-                  style: AppTheme.mono(size: 12, color: AppColors.textLow)),
+              child: Text(
+                'select a track',
+                style: AppTheme.mono(size: 12, color: AppColors.textLow),
+              ),
             ),
         ],
       ),
@@ -181,8 +193,8 @@ class _IconBtn extends StatelessWidget {
     final color = !enabled
         ? AppColors.textLow
         : active
-            ? AppColors.acid
-            : AppColors.textMid;
+        ? AppColors.acid
+        : AppColors.textMid;
     return MouseRegion(
       cursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
       child: GestureDetector(
@@ -207,8 +219,8 @@ class _Volume extends StatelessWidget {
     final icon = volume == 0
         ? Icons.volume_off
         : volume < 0.5
-            ? Icons.volume_down
-            : Icons.volume_up;
+        ? Icons.volume_down
+        : Icons.volume_up;
     return Listener(
       onPointerSignal: (e) {
         // Scroll-wheel / trackpad-жест по громкости — нативно для macOS.
@@ -319,42 +331,49 @@ class _CollapsedBar extends ConsumerWidget {
             Pressable(
               onTap: () => context.go('/track/${track!.id}'),
               child: CoverArt(
-                  seed: track!.id, imageUrl: track!.coverUrl, size: 28),
+                seed: track!.id,
+                imageUrl: track!.coverUrl,
+                size: 28,
+              ),
             ),
             const SizedBox(width: 10),
             Expanded(
               child: Pressable(
                 onTap: () => context.go('/track/${track!.id}'),
-                child: Row(children: [
-                  Flexible(
-                    child: Text(
-                      '${track!.artist} — ${track!.title}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTheme.mono(
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        '${track!.artist} — ${track!.title}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTheme.mono(
                           size: 11,
                           color: AppColors.textHi,
-                          weight: FontWeight.w500),
+                          weight: FontWeight.w500,
+                        ),
+                      ),
                     ),
-                  ),
-                ]),
+                  ],
+                ),
               ),
             ),
             Text(Fmt.time(position), style: AppTheme.mono(size: 11)),
           ] else
             Expanded(
-              child: Text('select a track',
-                  style: AppTheme.mono(size: 11, color: AppColors.textLow)),
+              child: Text(
+                'select a track',
+                style: AppTheme.mono(size: 11, color: AppColors.textLow),
+              ),
             ),
           const SizedBox(width: 8),
           _IconBtn(
-              icon: isPlaying ? Icons.pause : Icons.play_arrow,
-              enabled: enabled,
-              onTap: onPlayPause),
-          _IconBtn(
-              icon: Icons.skip_next, enabled: enabled, onTap: onNext),
-          _IconBtn(
-              icon: Icons.expand_less, enabled: true, onTap: onExpand),
+            icon: isPlaying ? Icons.pause : Icons.play_arrow,
+            enabled: enabled,
+            onTap: onPlayPause,
+          ),
+          _IconBtn(icon: Icons.skip_next, enabled: enabled, onTap: onNext),
+          _IconBtn(icon: Icons.expand_less, enabled: true, onTap: onExpand),
         ],
       ),
     );

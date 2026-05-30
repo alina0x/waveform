@@ -19,8 +19,9 @@ class OmniboxQueryController extends Notifier<String> {
   }
 }
 
-final omniboxQueryProvider =
-    NotifierProvider<OmniboxQueryController, String>(OmniboxQueryController.new);
+final omniboxQueryProvider = NotifierProvider<OmniboxQueryController, String>(
+  OmniboxQueryController.new,
+);
 
 /// Открыта ли центральная палитра. Источник правды для AppShell — рендерит
 /// blur-фон + модалку только когда true. Toggle/open/close из shortcut'ов,
@@ -35,6 +36,7 @@ class OmniboxOpenController extends Notifier<bool> {
     FocusManager.instance.primaryFocus?.unfocus();
     state = true;
   }
+
   void close() => state = false;
   void toggle() {
     if (!state) {
@@ -44,5 +46,6 @@ class OmniboxOpenController extends Notifier<bool> {
   }
 }
 
-final omniboxOpenProvider =
-    NotifierProvider<OmniboxOpenController, bool>(OmniboxOpenController.new);
+final omniboxOpenProvider = NotifierProvider<OmniboxOpenController, bool>(
+  OmniboxOpenController.new,
+);

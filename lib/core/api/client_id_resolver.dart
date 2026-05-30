@@ -26,14 +26,18 @@ class ClientIdResolver {
       'https://soundcloud.com/',
       options: Options(responseType: _plain),
     );
-    final scripts =
-        _scriptSrc.allMatches(home.data ?? '').map((m) => m.group(1)!).toList();
+    final scripts = _scriptSrc
+        .allMatches(home.data ?? '')
+        .map((m) => m.group(1)!)
+        .toList();
 
     for (final src in scripts.reversed) {
       if (!src.startsWith('http')) continue;
       try {
-        final js = await _dio.get<String>(src,
-            options: Options(responseType: _plain));
+        final js = await _dio.get<String>(
+          src,
+          options: Options(responseType: _plain),
+        );
         final m = _clientId.firstMatch(js.data ?? '');
         if (m != null) return m.group(1)!;
       } catch (_) {

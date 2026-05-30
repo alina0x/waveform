@@ -1,8 +1,8 @@
-
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:window_manager/window_manager.dart';
 
 import '../../app/theme/app_theme.dart';
 import '../../app/theme/colors.dart';
@@ -19,10 +19,7 @@ import 'wave_logo.dart';
 /// Верхняя панель оболочки: лого, навигация Home/Feed/Library, поиск,
 /// аккаунт (логин/логаут). Активный пункт — по маршруту.
 class TopBar extends ConsumerWidget {
-  const TopBar({
-    super.key,
-    required this.location,
-  });
+  const TopBar({super.key, required this.location});
 
   final String location;
 
@@ -34,76 +31,93 @@ class TopBar extends ConsumerWidget {
     // сверху на эту зону через `padding`, влево контент идёт от 16px.
     const leftPad = 16.0;
     const topPad = 28.0;
-    return Container(
-      height: AppTheme.topBarHeight,
-      padding: const EdgeInsets.fromLTRB(leftPad, topPad, 16, 0),
-      decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.72),
-        border: const Border(bottom: AppTheme.borderSideStatic),
-      ),
-      child: Row(
-        children: [
-          const WaveLogo(),
-          const SizedBox(width: 10),
-          Text(
-            'waveform',
-            style: AppTheme.mono(
-              size: 15,
-              color: AppColors.textHi,
-              weight: FontWeight.w600,
-              letterSpacing: 0.5,
-            ),
-          ),
-          const SizedBox(width: 32),
-          _NavLink('home', '/', location),
-          _NavLink('feed', '/feed', location),
-          _NavLink('library', '/library', location),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 240),
-                child: const _SearchField(),
+    // DragToMoveArea: тащим окно за пустые зоны топ-бара. На Windows/Linux это
+    // единственный способ двигать окно (titleBarStyle: hidden, нет нативного
+    // заголовка). Интерактивные дети (навигация, поиск, иконки) выигрывают
+    // hit-test на тап, так что драг стартует только с пустых участков. На macOS
+    // дублирует isMovableByWindowBackground — безвредно.
+    return DragToMoveArea(
+      child: Container(
+        height: AppTheme.topBarHeight,
+        padding: const EdgeInsets.fromLTRB(leftPad, topPad, 16, 0),
+        decoration: BoxDecoration(
+          color: AppColors.surface.withValues(alpha: 0.72),
+          border: const Border(bottom: AppTheme.borderSideStatic),
+        ),
+        child: Row(
+          children: [
+            const WaveLogo(),
+            const SizedBox(width: 10),
+            Text(
+              'waveform',
+              style: AppTheme.mono(
+                size: 15,
+                color: AppColors.textHi,
+                weight: FontWeight.w600,
+                letterSpacing: 0.5,
               ),
             ),
-          ),
-          const SizedBox(width: 16),
-          if (kDebugMode) ...[
+            const SizedBox(width: 32),
+            _NavLink('home', '/', location),
+            _NavLink('feed', '/feed', location),
+            _NavLink('library', '/library', location),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 240),
+                  child: const _SearchField(),
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            if (kDebugMode) ...[
+              Pressable(
+                onTap: () => context.push('/logs'),
+                child: Tooltip(
+                  message: 'logs',
+                  child: Icon(
+                    Icons.terminal,
+                    size: 16,
+                    color: AppColors.textLow,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
+            ],
+            Consumer(
+              builder: (context, ref, _) {
+                final on = ref.watch(queueVisibleProvider);
+                return Pressable(
+                  onTap: () => ref.read(queueVisibleProvider.notifier).toggle(),
+                  child: Tooltip(
+                    message: 'queue',
+                    child: Icon(
+                      Icons.queue_music,
+                      size: 16,
+                      color: on ? AppColors.acid : AppColors.textLow,
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(width: 14),
             Pressable(
-              onTap: () => context.push('/logs'),
-              child: Tooltip(
-                message: 'logs',
-                child: Icon(Icons.terminal,
-                    size: 16, color: AppColors.textLow),
+              onTap: () => context.push('/settings'),
+              child: const Tooltip(
+                message: 'settings',
+                child: Icon(
+                  Icons.settings_outlined,
+                  size: 16,
+                  color: AppColors.textLow,
+                ),
               ),
             ),
             const SizedBox(width: 14),
+            const _Account(),
           ],
-          Consumer(builder: (context, ref, _) {
-            final on = ref.watch(queueVisibleProvider);
-            return Pressable(
-              onTap: () => ref.read(queueVisibleProvider.notifier).toggle(),
-              child: Tooltip(
-                message: 'queue',
-                child: Icon(Icons.queue_music,
-                    size: 16,
-                    color: on ? AppColors.acid : AppColors.textLow),
-              ),
-            );
-          }),
-          const SizedBox(width: 14),
-          Pressable(
-            onTap: () => context.push('/settings'),
-            child: const Tooltip(
-              message: 'settings',
-              child: Icon(Icons.settings_outlined,
-                  size: 16, color: AppColors.textLow),
-            ),
-          ),
-          const SizedBox(width: 14),
-          const _Account(),
-        ],
+        ),
       ),
     );
   }
@@ -128,9 +142,14 @@ class _Account extends ConsumerWidget {
             color: AppColors.acid,
             borderRadius: AppTheme.borderRadius,
           ),
-          child: Text('log in',
-              style: AppTheme.mono(
-                  size: 12, color: AppColors.bg, weight: FontWeight.w600)),
+          child: Text(
+            'log in',
+            style: AppTheme.mono(
+              size: 12,
+              color: AppColors.bg,
+              weight: FontWeight.w600,
+            ),
+          ),
         ),
       );
     }
@@ -147,12 +166,18 @@ class _Account extends ConsumerWidget {
       itemBuilder: (_) => [
         PopupMenuItem(
           value: 'logout',
-          child: Text('log out',
-              style: AppTheme.mono(size: 12, color: AppColors.textHi)),
+          child: Text(
+            'log out',
+            style: AppTheme.mono(size: 12, color: AppColors.textHi),
+          ),
         ),
       ],
       child: CoverArt(
-          seed: 'me', imageUrl: me?.avatarUrl, size: 30, circular: true),
+        seed: 'me',
+        imageUrl: me?.avatarUrl,
+        size: 30,
+        circular: true,
+      ),
     );
   }
 }
@@ -164,8 +189,7 @@ class _NavLink extends StatelessWidget {
   final String path;
   final String location;
 
-  bool get _active =>
-      path == '/' ? location == '/' : location.startsWith(path);
+  bool get _active => path == '/' ? location == '/' : location.startsWith(path);
 
   @override
   Widget build(BuildContext context) {
@@ -204,8 +228,8 @@ class _SearchField extends ConsumerWidget {
     final display = controller.text.isNotEmpty
         ? controller.text
         : (track != null
-            ? 'playing: ${track.artist} — ${track.title}'
-            : 'search tracks, artists, playlists…');
+              ? 'playing: ${track.artist} — ${track.title}'
+              : 'search tracks, artists, playlists…');
     final isPlaceholder = controller.text.isEmpty;
 
     return GestureDetector(
@@ -232,25 +256,26 @@ class _SearchField extends ConsumerWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 12,
-                    color:
-                        isPlaceholder ? AppColors.textLow : AppColors.textHi,
+                    color: isPlaceholder ? AppColors.textLow : AppColors.textHi,
                   ),
                 ),
               ),
               const SizedBox(width: 8),
               // Кейбординг-хинт.
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(2),
                   border: AppTheme.border(),
                 ),
-                child: Text('⌘K',
-                    style: AppTheme.mono(
-                        size: 9,
-                        color: AppColors.textLow,
-                        weight: FontWeight.w600)),
+                child: Text(
+                  '⌘K',
+                  style: AppTheme.mono(
+                    size: 9,
+                    color: AppColors.textLow,
+                    weight: FontWeight.w600,
+                  ),
+                ),
               ),
             ],
           ),
@@ -259,4 +284,3 @@ class _SearchField extends ConsumerWidget {
     );
   }
 }
-

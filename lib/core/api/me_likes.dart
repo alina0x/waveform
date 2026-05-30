@@ -34,14 +34,13 @@ class LikesPageState {
     bool clearNextHref = false,
     Object? error,
     bool clearError = false,
-  }) =>
-      LikesPageState(
-        tracks: tracks ?? this.tracks,
-        isInitial: isInitial ?? this.isInitial,
-        isLoadingMore: isLoadingMore ?? this.isLoadingMore,
-        nextHref: clearNextHref ? null : (nextHref ?? this.nextHref),
-        error: clearError ? null : (error ?? this.error),
-      );
+  }) => LikesPageState(
+    tracks: tracks ?? this.tracks,
+    isInitial: isInitial ?? this.isInitial,
+    isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+    nextHref: clearNextHref ? null : (nextHref ?? this.nextHref),
+    error: clearError ? null : (error ?? this.error),
+  );
 }
 
 class MeLikesPageController extends Notifier<LikesPageState> {
@@ -64,7 +63,10 @@ class MeLikesPageController extends Notifier<LikesPageState> {
       );
       // Дедуп на случай пересечений между страницами (или повторов от SC).
       final seen = {for (final t in state.tracks) t.id};
-      final fresh = [for (final t in result.tracks) if (!seen.contains(t.id)) t];
+      final fresh = [
+        for (final t in result.tracks)
+          if (!seen.contains(t.id)) t,
+      ];
       state = state.copyWith(
         tracks: [...state.tracks, ...fresh],
         isInitial: false,
@@ -73,11 +75,7 @@ class MeLikesPageController extends Notifier<LikesPageState> {
         clearNextHref: result.nextHref == null,
       );
     } catch (e) {
-      state = state.copyWith(
-        isInitial: false,
-        isLoadingMore: false,
-        error: e,
-      );
+      state = state.copyWith(isInitial: false, isLoadingMore: false, error: e);
     }
   }
 
@@ -90,4 +88,5 @@ class MeLikesPageController extends Notifier<LikesPageState> {
 
 final meLikesPagedProvider =
     NotifierProvider<MeLikesPageController, LikesPageState>(
-        MeLikesPageController.new);
+      MeLikesPageController.new,
+    );

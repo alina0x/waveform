@@ -9,8 +9,7 @@ int asInt(Object? v, [int fallback = 0]) {
 String asStr(Object? v, [String fallback = '']) =>
     v is String ? v : (v?.toString() ?? fallback);
 
-bool asBool(Object? v, [bool fallback = false]) =>
-    v is bool ? v : fallback;
+bool asBool(Object? v, [bool fallback = false]) => v is bool ? v : fallback;
 
 Map<String, dynamic> asMap(Object? v) =>
     v is Map ? Map<String, dynamic>.from(v) : <String, dynamic>{};

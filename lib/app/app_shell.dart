@@ -8,6 +8,9 @@ import 'package:go_router/go_router.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../core/api/feeds.dart';
+import '../core/api/providers.dart';
+import '../core/deeplinks/clipboard_watcher.dart';
+import '../core/deeplinks/deep_links.dart';
 import '../core/lastfm/scrobbler.dart';
 import '../core/log/talker.dart';
 import '../features/omnibox/omnibox_dropdown.dart';
@@ -19,6 +22,7 @@ import '../features/queue/queue_visibility.dart';
 import '../shared/intents.dart';
 import '../shared/models/track.dart';
 import '../shared/widgets/frosted.dart';
+import '../shared/widgets/toast.dart';
 import '../shared/widgets/top_bar.dart';
 import 'theme/app_theme.dart';
 import 'theme/colors.dart';
@@ -53,6 +57,16 @@ class _AppShellState extends ConsumerState<AppShell> {
     // Lazy-bootstrap скробблера: provider создаст Notifier, который подпишется
     // на playerController.
     ref.watch(lastfmScrobblerProvider);
+    // Lazy-bootstrap deep-link сервиса (waveform:// + soundcloud.com ссылки).
+    ref.watch(deepLinkServiceProvider);
+    // Lazy-bootstrap слежения за буфером (ссылки soundcloud.com → тост «открыть»).
+    ref.watch(clipboardWatcherProvider);
+
+    // Пока ⌘K-палитра открыта — глобальные шорткаты ВЫКЛючены, чтобы поле
+    // ввода получало все клавиши (иначе bare `Space` матчился в PlayPause и
+    // съедал пробел до текстового ввода — «вместо пробела пауза»). Сам модал
+    // обрабатывает Esc/↑/↓/Enter внутри.
+    final omniOpen = ref.watch(omniboxOpenProvider);
 
     // Когда модалка закрывается — возвращаем focus AppShell'у, иначе
     // primaryFocus остаётся null и Shortcuts перестают слышать клавиши.
@@ -63,8 +77,10 @@ class _AppShellState extends ConsumerState<AppShell> {
     });
 
     // Динамический title окна — отражает текущий трек на desktop.
-    ref.listen<Track?>(playerControllerProvider.select((s) => s.track),
-        (prev, next) async {
+    ref.listen<Track?>(playerControllerProvider.select((s) => s.track), (
+      prev,
+      next,
+    ) async {
       if (!(Platform.isMacOS || Platform.isWindows || Platform.isLinux)) {
         return;
       }
@@ -79,21 +95,42 @@ class _AppShellState extends ConsumerState<AppShell> {
       }
     });
 
-    ref.listen(playerControllerProvider.select((s) => s.unplayable),
-        (prev, next) {
+    ref.listen(playerControllerProvider.select((s) => s.unplayable), (
+      prev,
+      next,
+    ) {
       if (next == null || next.seq == prev?.seq) return;
       final msg = next.goPlus
           ? '“${next.title}” is GO+ only — can’t play without a subscription'
           : '“${next.title}” is unavailable — skipped';
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: AppColors.surface2,
-          duration: const Duration(seconds: 3),
-          content: Text(msg,
-              style: AppTheme.mono(size: 12, color: AppColors.textHi)),
-        ));
+      showToast(context, msg, duration: const Duration(seconds: 3));
+    });
+
+    // Скопировал ссылку soundcloud.com → предлагаем открыть её в Waveform
+    // (обход того, что ОС не отдаёт https://soundcloud.com клики в наш app).
+    ref.listen<ClipboardLink?>(clipboardLinkProvider, (prev, next) {
+      if (next == null || next.seq == prev?.seq) return;
+      final url = next.url;
+      showToast(
+        context,
+        'SoundCloud link copied',
+        duration: const Duration(seconds: 6),
+        action: (
+          label: 'open in Waveform',
+          onTap: () async {
+            ref.read(clipboardWatcherProvider).markSeen(url);
+            final route = await ref.read(soundcloudApiProvider).resolveUrl(url);
+            if (!context.mounted) return;
+            if (route != null) {
+              context.go(route);
+            } else {
+              ref
+                  .read(talkerProvider)
+                  .warning('clipboard link not resolved: $url');
+            }
+          },
+        ),
+      );
     });
 
     final player = ref.read(playerControllerProvider.notifier);
@@ -113,7 +150,9 @@ class _AppShellState extends ConsumerState<AppShell> {
           return KeyEventResult.handled;
         },
         child: Shortcuts(
-          shortcuts: _shortcuts(),
+          shortcuts: omniOpen
+              ? const <ShortcutActivator, Intent>{}
+              : _shortcuts(),
           child: Actions(
             actions: <Type, Action<Intent>>{
               PlayPauseIntent: CallbackAction<PlayPauseIntent>(
@@ -182,44 +221,43 @@ class _AppShellState extends ConsumerState<AppShell> {
             child: Focus(
               focusNode: _shellFocus,
               autofocus: true,
-              child: Consumer(builder: (context, ref, _) {
-                final omniOpen = ref.watch(omniboxOpenProvider);
-                final queueOpen = ref.watch(queueVisibleProvider);
-                return Stack(
-                  children: [
-                    Positioned.fill(child: widget.child),
-                    // Queue-панель справа.
-                    if (queueOpen)
-                      const Positioned(
-                        top: AppTheme.topBarHeight,
-                        bottom: AppTheme.playerHeight,
+              child: Consumer(
+                builder: (context, ref, _) {
+                  final omniOpen = ref.watch(omniboxOpenProvider);
+                  final queueOpen = ref.watch(queueVisibleProvider);
+                  return Stack(
+                    children: [
+                      Positioned.fill(child: widget.child),
+                      // Queue-панель справа.
+                      if (queueOpen)
+                        const Positioned(
+                          top: AppTheme.topBarHeight,
+                          bottom: AppTheme.playerHeight,
+                          right: 0,
+                          width: 320,
+                          child: QueuePanel(),
+                        ),
+                      Positioned(
+                        top: 0,
+                        left: 0,
                         right: 0,
-                        width: 320,
-                        child: QueuePanel(),
+                        child: FrostedBar(
+                          child: TopBar(location: widget.location),
+                        ),
                       ),
-                    Positioned(
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      child: FrostedBar(
-                        child: TopBar(location: widget.location),
+                      const Positioned(
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        child: FrostedBar(child: BottomPlayer()),
                       ),
-                    ),
-                    const Positioned(
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      child: FrostedBar(child: BottomPlayer()),
-                    ),
-                    // ⌘K-палитра: полноэкранный blur-фон + центрированная
-                    // модалка. Клик мимо — закрывает. Поверх TopBar/BottomPlayer.
-                    if (omniOpen)
-                      Positioned.fill(
-                        child: _OmniboxOverlay(),
-                      ),
-                  ],
-                );
-              }),
+                      // ⌘K-палитра: полноэкранный blur-фон + центрированная
+                      // модалка. Клик мимо — закрывает. Поверх TopBar/BottomPlayer.
+                      if (omniOpen) Positioned.fill(child: _OmniboxOverlay()),
+                    ],
+                  );
+                },
+              ),
             ),
           ),
         ),
@@ -240,8 +278,7 @@ class _AppShellState extends ConsumerState<AppShell> {
           const PrevTrackIntent(),
       const SingleActivator(LogicalKeyboardKey.arrowRight):
           const NextTrackIntent(),
-      const SingleActivator(LogicalKeyboardKey.arrowUp):
-          const VolumeUpIntent(),
+      const SingleActivator(LogicalKeyboardKey.arrowUp): const VolumeUpIntent(),
       const SingleActivator(LogicalKeyboardKey.arrowDown):
           const VolumeDownIntent(),
       cmd(LogicalKeyboardKey.keyK): const FocusOmniboxIntent(),
@@ -295,9 +332,7 @@ class _OmniboxOverlay extends ConsumerWidget {
             onTap: close,
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-              child: Container(
-                color: AppColors.bg.withValues(alpha: 0.45),
-              ),
+              child: Container(color: AppColors.bg.withValues(alpha: 0.45)),
             ),
           ),
         ),

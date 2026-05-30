@@ -25,8 +25,9 @@ class SkeletonBox extends StatefulWidget {
 class _SkeletonBoxState extends State<SkeletonBox>
     with SingleTickerProviderStateMixin {
   late final _ctrl = AnimationController(
-      duration: const Duration(milliseconds: 1200), vsync: this)
-    ..repeat(reverse: true);
+    duration: const Duration(milliseconds: 1200),
+    vsync: this,
+  )..repeat(reverse: true);
 
   @override
   void dispose() {

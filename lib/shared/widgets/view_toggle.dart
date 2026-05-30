@@ -64,9 +64,11 @@ class _Btn extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
           color: active ? AppColors.surface2 : Colors.transparent,
-          child: Icon(icon,
-              size: 15,
-              color: active ? AppColors.textHi : AppColors.textLow),
+          child: Icon(
+            icon,
+            size: 15,
+            color: active ? AppColors.textHi : AppColors.textLow,
+          ),
         ),
       ),
     );

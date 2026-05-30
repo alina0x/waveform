@@ -45,39 +45,43 @@ class _Body extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.fromLTRB(
-          AppTheme.pagePad, AppTheme.topBarHeight + 24, AppTheme.pagePad,
-          AppTheme.playerHeight + 32),
+        AppTheme.pagePad,
+        AppTheme.topBarHeight + 24,
+        AppTheme.pagePad,
+        AppTheme.playerHeight + 32,
+      ),
       children: [
         const _Back(),
         const SizedBox(height: 12),
-        const Text('listening stats',
-            style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textHi)),
+        const Text(
+          'listening stats',
+          style: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textHi,
+          ),
+        ),
         const SizedBox(height: 6),
         Text(
-            'aggregated from your soundcloud play-history (up to last ~400 plays)',
-            style: AppTheme.mono(size: 11, color: AppColors.textLow)),
+          'aggregated from your soundcloud play-history (up to last ~400 plays)',
+          style: AppTheme.mono(size: 11, color: AppColors.textLow),
+        ),
         const SizedBox(height: 26),
         Row(
           children: [
             Expanded(
-              child: _Tile(
-                  big: '${stats.totalPlays}',
-                  small: 'plays'),
+              child: _Tile(big: '${stats.totalPlays}', small: 'plays'),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _Tile(big: '${stats.uniqueArtists}', small: 'artists'),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: _Tile(
-                  big: '${stats.uniqueArtists}',
-                  small: 'artists'),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _Tile(
-                  big: _formatHours(stats.totalListened),
-                  small: 'hours'),
+                big: _formatHours(stats.totalListened),
+                small: 'hours',
+              ),
             ),
           ],
         ),
@@ -86,10 +90,11 @@ class _Body extends StatelessWidget {
         const SizedBox(height: AppTheme.headerGap),
         for (var i = 0; i < stats.topArtists.length; i++)
           _ArtistRow(
-              rank: i + 1,
-              name: stats.topArtists[i].name,
-              count: stats.topArtists[i].count,
-              maxCount: stats.topArtists.first.count),
+            rank: i + 1,
+            name: stats.topArtists[i].name,
+            count: stats.topArtists[i].count,
+            maxCount: stats.topArtists.first.count,
+          ),
         const SizedBox(height: 28),
         if (stats.topGenres.isNotEmpty) ...[
           const SectionHeader(title: 'top genres'),
@@ -100,8 +105,10 @@ class _Body extends StatelessWidget {
             children: [
               for (final g in stats.topGenres)
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.surface,
                     borderRadius: AppTheme.borderRadius,
@@ -109,8 +116,7 @@ class _Body extends StatelessWidget {
                   ),
                   child: Text(
                     '${g.genre} · ${g.count}',
-                    style: AppTheme.mono(
-                        size: 11, color: AppColors.textHi),
+                    style: AppTheme.mono(size: 11, color: AppColors.textHi),
                   ),
                 ),
             ],
@@ -135,10 +141,16 @@ class _Back extends StatelessWidget {
       alignment: Alignment.centerLeft,
       child: Pressable(
         onTap: () => context.canPop() ? context.pop() : context.go('/'),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.chevron_left, size: 18, color: AppColors.textMid),
-          Text('back', style: AppTheme.mono(size: 12, color: AppColors.textMid)),
-        ]),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.chevron_left, size: 18, color: AppColors.textMid),
+            Text(
+              'back',
+              style: AppTheme.mono(size: 12, color: AppColors.textMid),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -160,18 +172,24 @@ class _Tile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(big,
-              style: AppTheme.mono(
-                  size: 30,
-                  color: AppColors.textHi,
-                  weight: FontWeight.w700)),
+          Text(
+            big,
+            style: AppTheme.mono(
+              size: 30,
+              color: AppColors.textHi,
+              weight: FontWeight.w700,
+            ),
+          ),
           const SizedBox(height: 6),
-          Text(small.toUpperCase(),
-              style: AppTheme.mono(
-                  size: 10,
-                  color: AppColors.textLow,
-                  weight: FontWeight.w600,
-                  letterSpacing: 1.4)),
+          Text(
+            small.toUpperCase(),
+            style: AppTheme.mono(
+              size: 10,
+              color: AppColors.textLow,
+              weight: FontWeight.w600,
+              letterSpacing: 1.4,
+            ),
+          ),
         ],
       ),
     );
@@ -207,23 +225,31 @@ class _ArtistRow extends StatelessWidget {
             children: [
               SizedBox(
                 width: 28,
-                child: Text('$rank.',
-                    style: AppTheme.mono(
-                        size: 11,
-                        color: AppColors.textLow,
-                        weight: FontWeight.w600)),
+                child: Text(
+                  '$rank.',
+                  style: AppTheme.mono(
+                    size: 11,
+                    color: AppColors.textLow,
+                    weight: FontWeight.w600,
+                  ),
+                ),
               ),
               Expanded(
-                child: Text(name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textHi)),
+                child: Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textHi,
+                  ),
+                ),
               ),
-              Text('${Fmt.count(count)} plays',
-                  style: AppTheme.mono(size: 11, color: AppColors.textMid)),
+              Text(
+                '${Fmt.count(count)} plays',
+                style: AppTheme.mono(size: 11, color: AppColors.textMid),
+              ),
             ],
           ),
           const SizedBox(height: 6),
@@ -233,8 +259,7 @@ class _ArtistRow extends StatelessWidget {
               value: fraction,
               minHeight: 3,
               backgroundColor: AppColors.border,
-              valueColor:
-                  const AlwaysStoppedAnimation<Color>(AppColors.acid),
+              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.acid),
             ),
           ),
         ],

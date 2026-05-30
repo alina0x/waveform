@@ -34,22 +34,26 @@ class EmptyState extends StatelessWidget {
     final body = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon,
-            size: compact ? 24 : 30, color: AppColors.textLow),
+        Icon(icon, size: compact ? 24 : 30, color: AppColors.textLow),
         SizedBox(height: compact ? 10 : 16),
-        Text(title,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-                fontSize: compact ? 14 : 18,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textHi)),
+        Text(
+          title,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: compact ? 14 : 18,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textHi,
+          ),
+        ),
         if (subtitle != null) ...[
           const SizedBox(height: 6),
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 360),
-            child: Text(subtitle!,
-                textAlign: TextAlign.center,
-                style: AppTheme.mono(size: 12, color: AppColors.textMid)),
+            child: Text(
+              subtitle!,
+              textAlign: TextAlign.center,
+              style: AppTheme.mono(size: 12, color: AppColors.textMid),
+            ),
           ),
         ],
         if (onAction != null && actionLabel != null) ...[
@@ -57,17 +61,19 @@ class EmptyState extends StatelessWidget {
           Pressable(
             onTap: onAction!,
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
               decoration: BoxDecoration(
                 color: AppColors.acid,
                 borderRadius: AppTheme.borderRadius,
               ),
-              child: Text(actionLabel!,
-                  style: AppTheme.mono(
-                      size: 12,
-                      color: AppColors.bg,
-                      weight: FontWeight.w600)),
+              child: Text(
+                actionLabel!,
+                style: AppTheme.mono(
+                  size: 12,
+                  color: AppColors.bg,
+                  weight: FontWeight.w600,
+                ),
+              ),
             ),
           ),
         ],

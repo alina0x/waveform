@@ -41,8 +41,12 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 980),
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(AppTheme.pagePad,
-                AppTheme.topBarHeight + 20, AppTheme.pagePad, AppTheme.playerHeight + 32),
+            padding: const EdgeInsets.fromLTRB(
+              AppTheme.pagePad,
+              AppTheme.topBarHeight + 20,
+              AppTheme.pagePad,
+              AppTheme.playerHeight + 32,
+            ),
             children: [
               const _BackButton(),
               const SizedBox(height: 16),
@@ -129,7 +133,10 @@ class _BackButton extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Icon(Icons.chevron_left, size: 18, color: AppColors.textMid),
-            Text('back', style: AppTheme.mono(size: 12, color: AppColors.textMid)),
+            Text(
+              'back',
+              style: AppTheme.mono(size: 12, color: AppColors.textMid),
+            ),
           ],
         ),
       ),
@@ -156,10 +163,11 @@ class _Header extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         CoverArt(
-            seed: 'artist-${artist.handle}',
-            imageUrl: artist.avatarUrl,
-            size: 104,
-            circular: true),
+          seed: 'artist-${artist.handle}',
+          imageUrl: artist.avatarUrl,
+          size: 104,
+          circular: true,
+        ),
         const SizedBox(width: 24),
         Expanded(
           child: Column(
@@ -168,13 +176,16 @@ class _Header extends StatelessWidget {
               Row(
                 children: [
                   Flexible(
-                    child: Text(artist.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            fontSize: 30,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textHi)),
+                    child: Text(
+                      artist.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 30,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textHi,
+                      ),
+                    ),
                   ),
                   if (artist.verified) ...[
                     const SizedBox(width: 8),
@@ -214,9 +225,14 @@ class _Stat extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.baseline,
       textBaseline: TextBaseline.alphabetic,
       children: [
-        Text(value,
-            style: AppTheme.mono(
-                size: 15, color: AppColors.textHi, weight: FontWeight.w600)),
+        Text(
+          value,
+          style: AppTheme.mono(
+            size: 15,
+            color: AppColors.textHi,
+            weight: FontWeight.w600,
+          ),
+        ),
         const SizedBox(width: 5),
         Text(label, style: AppTheme.mono(size: 11, color: AppColors.textLow)),
       ],
@@ -238,7 +254,9 @@ class _FollowButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: following ? Colors.transparent : AppColors.acid,
           borderRadius: AppTheme.borderRadius,
-          border: AppTheme.border(following ? AppColors.border : AppColors.acid),
+          border: AppTheme.border(
+            following ? AppColors.border : AppColors.acid,
+          ),
         ),
         child: Text(
           following ? 'following' : 'follow',
@@ -290,7 +308,9 @@ class _TabBar extends StatelessWidget {
                   tabs[i],
                   style: TextStyle(
                     fontSize: 14,
-                    fontWeight: i == current ? FontWeight.w600 : FontWeight.w400,
+                    fontWeight: i == current
+                        ? FontWeight.w600
+                        : FontWeight.w400,
                     color: i == current ? AppColors.textHi : AppColors.textMid,
                   ),
                 ),

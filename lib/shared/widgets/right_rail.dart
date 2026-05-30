@@ -36,7 +36,11 @@ class RightRail extends ConsumerWidget {
         onRetry: () => ref.invalidate(railProvider),
         data: (d) => ListView(
           padding: const EdgeInsets.fromLTRB(
-              22, AppTheme.topBarHeight + 22, 22, AppTheme.playerHeight + 22),
+            22,
+            AppTheme.topBarHeight + 22,
+            22,
+            AppTheme.playerHeight + 22,
+          ),
           children: [
             _Header(me: d.me, authed: authed),
             // Личные секции — только залогиненным.
@@ -48,26 +52,35 @@ class RightRail extends ConsumerWidget {
                 onTap: () => context.go('/stats'),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 10),
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.bg,
                     borderRadius: AppTheme.borderRadius,
                     border: AppTheme.border(),
                   ),
-                  child: Row(children: [
-                    const Icon(Icons.bar_chart,
-                        size: 14, color: AppColors.textMid),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text('view listening stats',
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.bar_chart,
+                        size: 14,
+                        color: AppColors.textMid,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'view listening stats',
                           style: AppTheme.mono(
-                              size: 11,
-                              color: AppColors.textHi,
-                              weight: FontWeight.w500)),
-                    ),
-                    const Text('→',
-                        style: TextStyle(color: AppColors.acid)),
-                  ]),
+                            size: 11,
+                            color: AppColors.textHi,
+                            weight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      const Text('→', style: TextStyle(color: AppColors.acid)),
+                    ],
+                  ),
                 ),
               ),
               if (d.likes.isNotEmpty) ...[
@@ -117,9 +130,14 @@ class _SectionHead extends StatelessWidget {
         if (onSeeAll != null)
           Pressable(
             onTap: onSeeAll!,
-            child: Text('see all →',
-                style: AppTheme.mono(
-                    size: 10, color: AppColors.acid, weight: FontWeight.w600)),
+            child: Text(
+              'see all →',
+              style: AppTheme.mono(
+                size: 10,
+                color: AppColors.acid,
+                weight: FontWeight.w600,
+              ),
+            ),
           ),
       ],
     );
@@ -141,12 +159,19 @@ class _Header extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('browsing anonymously',
-                style: AppTheme.mono(size: 12, color: AppColors.textMid)),
+            Text(
+              'browsing anonymously',
+              style: AppTheme.mono(size: 12, color: AppColors.textMid),
+            ),
             const SizedBox(height: 6),
-            Text('log in for your stream →',
-                style: AppTheme.mono(
-                    size: 12, color: AppColors.acid, weight: FontWeight.w600)),
+            Text(
+              'log in for your stream →',
+              style: AppTheme.mono(
+                size: 12,
+                color: AppColors.acid,
+                weight: FontWeight.w600,
+              ),
+            ),
           ],
         ),
       );
@@ -160,10 +185,11 @@ class _Header extends StatelessWidget {
       child: Row(
         children: [
           CoverArt(
-              seed: 'artist-${me?.handle ?? 'me'}',
-              imageUrl: me?.avatarUrl,
-              size: 46,
-              circular: true),
+            seed: 'artist-${me?.handle ?? 'me'}',
+            imageUrl: me?.avatarUrl,
+            size: 46,
+            circular: true,
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -172,30 +198,42 @@ class _Header extends StatelessWidget {
                 Row(
                   children: [
                     Flexible(
-                      child: Text(me?.name ?? 'you',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textHi)),
+                      child: Text(
+                        me?.name ?? 'you',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textHi,
+                        ),
+                      ),
                     ),
                     if (me?.verified ?? false) ...[
                       const SizedBox(width: 5),
-                      const Icon(Icons.verified, size: 13, color: AppColors.acid),
+                      const Icon(
+                        Icons.verified,
+                        size: 13,
+                        color: AppColors.acid,
+                      ),
                     ],
                   ],
                 ),
                 const SizedBox(height: 3),
-                Text('@${me?.handle ?? 'me'}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTheme.mono(size: 11, color: AppColors.textMid)),
+                Text(
+                  '@${me?.handle ?? 'me'}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTheme.mono(size: 11, color: AppColors.textMid),
+                ),
               ],
             ),
           ),
           const SizedBox(width: 8),
-          const Text('◆', style: TextStyle(color: AppColors.lime, fontSize: 11)),
+          const Text(
+            '◆',
+            style: TextStyle(color: AppColors.lime, fontSize: 11),
+          ),
         ],
       ),
     );
@@ -212,27 +250,33 @@ class _StatTiles extends StatelessWidget {
     return Row(
       children: [
         _StatTile(
-            value: me?.likesCount ?? 0,
-            label: 'likes',
-            onTap: () => context.go('/library?tab=likes')),
+          value: me?.likesCount ?? 0,
+          label: 'likes',
+          onTap: () => context.go('/library?tab=likes'),
+        ),
         const SizedBox(width: 8),
         _StatTile(
-            value: me?.playlistCount ?? 0,
-            label: 'playlists',
-            onTap: () => context.go('/library?tab=playlists')),
+          value: me?.playlistCount ?? 0,
+          label: 'playlists',
+          onTap: () => context.go('/library?tab=playlists'),
+        ),
         const SizedBox(width: 8),
         _StatTile(
-            value: me?.followingsCount ?? 0,
-            label: 'following',
-            onTap: () => context.go('/library?tab=following')),
+          value: me?.followingsCount ?? 0,
+          label: 'following',
+          onTap: () => context.go('/library?tab=following'),
+        ),
       ],
     );
   }
 }
 
 class _StatTile extends StatelessWidget {
-  const _StatTile(
-      {required this.value, required this.label, required this.onTap});
+  const _StatTile({
+    required this.value,
+    required this.label,
+    required this.onTap,
+  });
   final int value;
   final String label;
   final VoidCallback onTap;
@@ -251,17 +295,23 @@ class _StatTile extends StatelessWidget {
           ),
           child: Column(
             children: [
-              Text(Fmt.count(value),
-                  style: AppTheme.mono(
-                      size: 18,
-                      color: AppColors.textHi,
-                      weight: FontWeight.w600)),
+              Text(
+                Fmt.count(value),
+                style: AppTheme.mono(
+                  size: 18,
+                  color: AppColors.textHi,
+                  weight: FontWeight.w600,
+                ),
+              ),
               const SizedBox(height: 4),
-              Text(label.toUpperCase(),
-                  style: AppTheme.mono(
-                      size: 9,
-                      color: AppColors.textLow,
-                      letterSpacing: 1.0)),
+              Text(
+                label.toUpperCase(),
+                style: AppTheme.mono(
+                  size: 9,
+                  color: AppColors.textLow,
+                  letterSpacing: 1.0,
+                ),
+              ),
             ],
           ),
         ),
@@ -290,18 +340,23 @@ class _TrackRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(track.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.textHi)),
+                  Text(
+                    track.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textHi,
+                    ),
+                  ),
                   const SizedBox(height: 2),
-                  Text(track.artist,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTheme.mono(size: 10, color: AppColors.textLow)),
+                  Text(
+                    track.artist,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTheme.mono(size: 10, color: AppColors.textLow),
+                  ),
                 ],
               ),
             ),

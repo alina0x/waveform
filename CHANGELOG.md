@@ -4,6 +4,65 @@ All notable changes to Waveform are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] — 2026-05-31
+
+Stability pass after a week of daily-driving. The audio engine, shuffle and
+likes got the most attention — several bugs that made the core loop feel broken
+are fixed — plus a few new conveniences.
+
+### Fixed — playback
+- **Volume / progress / play-pause going dead together.** Root cause was an
+  `_active`-pointer desync in the dual-player engine: during a crossfade ramp
+  (up to 6 s) the pointer could land on a paused player while another produced
+  sound, so the volume slider, the progress bar and Space all targeted the
+  wrong player. Swap now keeps `_active` on the current track from the start and
+  a generation counter lets a new action cleanly interrupt an in-flight ramp.
+- **Pause not stopping the sound** during a crossfade — pause now cancels the
+  ramp and silences both players.
+- **Playback stalling at the end of a track** (~1 in 10) — the completion gate
+  now uses the max observed position instead of the lagging last sample.
+- **Next track starting from the middle / near the end** — explicit seek-to-zero
+  on load/swap plus a guard that drops stale position events after a track change.
+
+### Fixed — shuffle, likes, omnibox
+- **True-shuffle** rebuilt around a real play-history stack: next / previous
+  now retrace the actual path in both directions, no repeats within a cycle, and
+  the upcoming queue stays stable across navigation and queue edits.
+- **Likes not lighting up.** The highlight set only fetched the first 200 likes;
+  it now loads the full set progressively (recent likes light up instantly, the
+  rest fill in in the background).
+- **Spacebar in the ⌘K omnibox** typed nothing — the global Space → play/pause
+  shortcut ate it. Global shortcuts are now disabled while the palette is open.
+- **Waveforms in lists / player** no longer differ from the track page — the
+  real waveform is fetched lazily (shared cache) everywhere, with the procedural
+  shape as an instant fallback.
+
+### Added
+- **Open SoundCloud links from the clipboard.** Copy a `soundcloud.com/…` link
+  and Waveform offers a toast to open it in-app (toggle in Settings → links).
+  Also: paste a link into ⌘K to jump to it, and a `waveform://` scheme on macOS.
+- **Top-right toasts** that dismiss on click (replacing bottom SnackBars).
+- **Drag the window** by the top bar on Windows / Linux (`DragToMoveArea`).
+- **Sign-in help**: an "open soundcloud.com" button and a step-by-step guide to
+  grab your `oauth_token` — the reliable path on Windows where the embedded
+  webview lags.
+
+### Changed
+- **Perceptual volume taper** (cubic): the usable low-volume range is now spread
+  across the slider instead of being crammed into the bottom few percent.
+- **Wide-screen layout**: home / feed / search / library content is centered and
+  width-capped on large displays; the right rail stays pinned to the window edge.
+- **Likes list virtualized** — no lag with hundreds of likes or after "shuffle
+  all" (only visible rows render).
+- **Comments** on the track page are capped with a "show all" expander so
+  related tracks stay reachable on heavily-commented tracks.
+
+### Removed
+- Non-functional **play-history writing** and **comment likes** — verified that
+  SoundCloud's api-v2 doesn't expose these to a token client (the write
+  endpoints 404), so the dead calls and UI were removed rather than left to fail
+  silently.
+
 ## [0.1.0] — 2026-05-28
 
 First demo release for friends. Far from a polished v1.0, but the daily-driver

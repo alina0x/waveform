@@ -50,4 +50,5 @@ class PlaybackPrefsController extends Notifier<PlaybackPrefs> {
 
 final playbackPrefsProvider =
     NotifierProvider<PlaybackPrefsController, PlaybackPrefs>(
-        PlaybackPrefsController.new);
+      PlaybackPrefsController.new,
+    );

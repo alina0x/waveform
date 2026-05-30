@@ -74,26 +74,37 @@ class PlayerState {
     double? volume,
     Unplayable? unplayable,
     int? queueVersion,
-  }) =>
-      PlayerState(
-        track: track ?? this.track,
-        isPlaying: isPlaying ?? this.isPlaying,
-        position: position ?? this.position,
-        buffered: buffered ?? this.buffered,
-        shuffle: shuffle ?? this.shuffle,
-        repeat: repeat ?? this.repeat,
-        liked: liked ?? this.liked,
-        volume: volume ?? this.volume,
-        unplayable: unplayable ?? this.unplayable,
-        queueVersion: queueVersion ?? this.queueVersion,
-      );
+  }) => PlayerState(
+    track: track ?? this.track,
+    isPlaying: isPlaying ?? this.isPlaying,
+    position: position ?? this.position,
+    buffered: buffered ?? this.buffered,
+    shuffle: shuffle ?? this.shuffle,
+    repeat: repeat ?? this.repeat,
+    liked: liked ?? this.liked,
+    volume: volume ?? this.volume,
+    unplayable: unplayable ?? this.unplayable,
+    queueVersion: queueVersion ?? this.queueVersion,
+  );
 }
 
 class PlayerController extends Notifier<PlayerState> {
   AudioEngine get _engine => ref.read(audioEngineProvider);
 
   /// Очередь, из которой пришёл текущий трек (для next/previous).
-  List<Track> _queue = const [];
+  /// Growable — мутируется queue-панелью (add/remove/reorder).
+  List<Track> _queue = [];
+
+  /// Реальная история воспроизведения (порядок, в котором треки звучали).
+  /// Источник правды для next/previous: назад/вперёд ретрейсят этот список,
+  /// а не пере-тасовку. На фронтире (хвосте истории) next генерит новый трек.
+  List<Track> _history = [];
+  int _histIdx = -1;
+
+  /// Закешированный «следующий новый» трек на фронтире — вычисляется один раз
+  /// при активации фронтир-трека, чтобы preload и фактический переход выбрали
+  /// ОДИН и тот же трек (иначе на границе цикла шафл мог разойтись).
+  Track? _frontierNext;
   final List<StreamSubscription<dynamic>> _subs = [];
 
   /// Токен последней загрузки — отбрасываем резолв устаревшего трека,
@@ -104,6 +115,10 @@ class PlayerController extends Notifier<PlayerState> {
   /// «мгновенного completed» (битый HLS), который иначе устраивал skip-storm.
   DateTime? _startedAt;
 
+  /// Максимальная виденная позиция текущего трека (мс). Сбрасывается на смене
+  /// трека. Используется completion-гейтом — см. completedStream listener.
+  int _maxPosMs = 0;
+
   /// Подряд идущих непроигрываемых треков (нет DRM-free источника). Ограничивает
   /// авто-переход на следующий, чтобы цепочка мёртвых треков не пролистала всё.
   int _deadStreak = 0;
@@ -113,38 +128,59 @@ class PlayerController extends Notifier<PlayerState> {
   PlayerState build() {
     final engine = ref.watch(audioEngineProvider);
 
-    _subs.add(engine.positionStream.listen((p) {
-      if (state.track != null) state = state.copyWith(position: p);
-    }));
-    _subs.add(engine.bufferedPositionStream.listen((b) {
-      if (state.track != null) state = state.copyWith(buffered: b);
-    }));
-    _subs.add(engine.playingStream.listen((playing) {
-      if (state.track != null && state.isPlaying != playing) {
-        state = state.copyWith(isPlaying: playing);
-      }
-    }));
-    _subs.add(engine.completedStream.listen((_) {
-      // Ложный «completed» сразу после загрузки (битый HLS) НЕ должен
-      // перескакивать дальше — иначе очередь пролистывается за секунды.
-      // Реальный конец трека = играли заметное время И дошли почти до конца.
-      final since = _startedAt == null
-          ? Duration.zero
-          : DateTime.now().difference(_startedAt!);
-      final dur = state.track?.durationMs ?? 0;
-      final played = state.position.inMilliseconds;
-      final reachedEnd = dur > 0 ? played >= dur * 0.85 : played > 3000;
-      if (since.inSeconds < 5 || !reachedEnd) return;
-      if (state.repeat) {
-        _engine.seek(Duration.zero);
-        _engine.resume();
-      } else if (_engine.hasPreload) {
-        // Preload ready → бесшовный swap (gapless или crossfade per prefs).
-        _advanceViaSwap();
-      } else {
-        next();
-      }
-    }));
+    _subs.add(
+      engine.positionStream.listen((p) {
+        if (state.track == null) return;
+        // Защита от «протухшего» события позиции, доставленного из broadcast-
+        // пайпа старого плеера сразу после смены трека: позиция длиннее нового
+        // трека к нему относиться не может — игнорим (иначе прогресс «прилипал»
+        // в конце / трек стартовал с середины).
+        final dur = state.track!.durationMs;
+        if (dur > 0 && p.inMilliseconds > dur + 2000) return;
+        if (p.inMilliseconds > _maxPosMs) _maxPosMs = p.inMilliseconds;
+        state = state.copyWith(position: p);
+      }),
+    );
+    _subs.add(
+      engine.bufferedPositionStream.listen((b) {
+        if (state.track != null) state = state.copyWith(buffered: b);
+      }),
+    );
+    _subs.add(
+      engine.playingStream.listen((playing) {
+        if (state.track != null && state.isPlaying != playing) {
+          state = state.copyWith(isPlaying: playing);
+        }
+      }),
+    );
+    _subs.add(
+      engine.completedStream.listen((_) {
+        // Ложный «completed» сразу после загрузки (битый HLS) НЕ должен
+        // перескакивать дальше — иначе очередь пролистывается за секунды.
+        // Реальный конец трека = играли заметное время И дошли почти до конца.
+        final since = _startedAt == null
+            ? Duration.zero
+            : DateTime.now().difference(_startedAt!);
+        final dur = state.track?.durationMs ?? 0;
+        // Используем МАКСИМАЛЬНУЮ виденную позицию, а не последнюю: positionStream
+        // у just_audio перед `completed` нередко отстаёт (последний emit < конца),
+        // и порог 0.85 отбрасывал реальный конец → плеер замирал «раз в 10 треков»,
+        // пока не подёргаешь. Порог снижен до 0.7 + берём max-seen.
+        final reachedEnd = dur > 0
+            ? _maxPosMs >= dur * 0.7
+            : since.inSeconds > 5;
+        if (since.inSeconds < 5 || !reachedEnd) return;
+        if (state.repeat) {
+          _engine.seek(Duration.zero);
+          _engine.resume();
+        } else if (_engine.hasPreload) {
+          // Preload ready → бесшовный swap (gapless или crossfade per prefs).
+          _advanceViaSwap();
+        } else {
+          next();
+        }
+      }),
+    );
 
     // Подсветка «liked» в плеере держится в синхроне с реальным множеством
     // лайков (могло догрузиться после play или измениться из списка).
@@ -161,7 +197,9 @@ class PlayerController extends Notifier<PlayerState> {
     listenSelf((_, next) {
       try {
         ref.read(audioHandlerProvider).sync(next);
-      } catch (_) {/* singleton не инициализирован в тестах — игнорим */}
+      } catch (_) {
+        /* singleton не инициализирован в тестах — игнорим */
+      }
     });
 
     ref.onDispose(() {
@@ -174,14 +212,29 @@ class PlayerController extends Notifier<PlayerState> {
   }
 
   /// Запустить трек. [queue] — список-контекст для next/previous;
-  /// без него очередью становится сам трек.
+  /// без него очередью становится сам трек. Это ПУБЛИЧНЫЙ вход (пользователь
+  /// выбрал трек/очередь в UI) — он сбрасывает контекст: новую очередь, свежий
+  /// shuffle-порядок и историю из одного трека. Навигация next/previous НЕ
+  /// проходит сюда (иначе сбрасывала бы шафл на каждый шаг — старый баг).
   void play(Track track, {List<Track>? queue}) {
-    _queue = (queue != null && queue.isNotEmpty) ? queue : [track];
-    _orderSource = null; // queue сменилась → пересоберём шафл при необходимости
+    _queue = (queue != null && queue.isNotEmpty) ? List.of(queue) : [track];
+    _orderSource = null; // новый контекст → _order пересоберётся в _ensureOrder
+    _order = [];
+    _history = [track];
+    _histIdx = 0;
+    _recomputeFrontierNext();
+    _activate(track);
+  }
+
+  /// Загрузить трек как текущий БЕЗ изменения очереди/истории (история и
+  /// shuffle-порядок ведутся вызывающим). Общий путь для play/next/previous.
+  void _activate(Track track) {
+    _maxPosMs = 0;
     state = state.copyWith(
       track: track,
       isPlaying: true,
       position: Duration.zero,
+      buffered: Duration.zero,
       // Подсветка лайка — из реального множества лайков (а не сброс в false).
       liked: ref.read(likedTracksProvider).contains(track.id),
       queueVersion: state.queueVersion + 1,
@@ -193,9 +246,7 @@ class PlayerController extends Notifier<PlayerState> {
   /// Текущий список «дальше будет» — без проигрываемого. В shuffle —
   /// из тасованного `_order`, иначе линейный хвост `_queue` от current'а.
   List<Track> get upcomingTracks {
-    if (state.shuffle &&
-        _order.isNotEmpty &&
-        identical(_orderSource, _queue)) {
+    if (state.shuffle && _order.isNotEmpty && identical(_orderSource, _queue)) {
       final i = _order.indexWhere((t) => t.id == state.track?.id);
       if (i == -1) return List.unmodifiable(_order);
       return List.unmodifiable(_order.skip(i + 1));
@@ -209,21 +260,30 @@ class PlayerController extends Notifier<PlayerState> {
   int get currentQueueIndex =>
       _queue.indexWhere((t) => t.id == state.track?.id);
 
+  /// Активная последовательность «дальше будет»: в shuffle — тасованный
+  /// `_order`, иначе линейная `_queue`. Мутации очереди правят именно её
+  /// (на месте), не сбрасывая весь shuffle-цикл.
+  List<Track> get _activeSeq =>
+      (state.shuffle && _order.isNotEmpty && identical(_orderSource, _queue))
+      ? _order
+      : _queue;
+
   /// Переставить трек в upcoming-секции. Индексы — в координатах списка
-  /// `upcomingTracks` (0 = первый после current), внутри транслируется в
-  /// абсолютные индексы `_queue`.
+  /// `upcomingTracks` (0 = первый после current), транслируется в абсолютные
+  /// индексы активной последовательности.
   void reorderUpcoming(int upcomingOld, int upcomingNew) {
-    final cur = currentQueueIndex;
+    final seq = _activeSeq;
+    final cur = seq.indexWhere((t) => t.id == state.track?.id);
     if (cur < 0) return;
     final base = cur + 1;
     final oldAbs = base + upcomingOld;
     var newAbs = base + upcomingNew;
-    if (oldAbs < base || oldAbs >= _queue.length) return;
-    if (newAbs > _queue.length) newAbs = _queue.length;
+    if (oldAbs < base || oldAbs >= seq.length) return;
+    if (newAbs > seq.length) newAbs = seq.length;
     if (newAbs > oldAbs) newAbs -= 1; // ReorderableListView соглашение
-    final item = _queue.removeAt(oldAbs);
-    _queue.insert(newAbs, item);
-    _orderSource = null;
+    final item = seq.removeAt(oldAbs);
+    seq.insert(newAbs, item);
+    _recomputeFrontierNext();
     state = state.copyWith(queueVersion: state.queueVersion + 1);
   }
 
@@ -232,8 +292,9 @@ class PlayerController extends Notifier<PlayerState> {
     if (trackId == state.track?.id) return;
     final n = _queue.length;
     _queue.removeWhere((t) => t.id == trackId);
+    if (_order.isNotEmpty) _order.removeWhere((t) => t.id == trackId);
     if (_queue.length == n) return;
-    _orderSource = null;
+    _recomputeFrontierNext();
     state = state.copyWith(queueVersion: state.queueVersion + 1);
   }
 
@@ -244,7 +305,8 @@ class PlayerController extends Notifier<PlayerState> {
       return;
     }
     _queue.add(t);
-    _orderSource = null;
+    if (_order.isNotEmpty) _order.add(t);
+    _recomputeFrontierNext();
     state = state.copyWith(queueVersion: state.queueVersion + 1);
   }
 
@@ -258,7 +320,9 @@ class PlayerController extends Notifier<PlayerState> {
     // streamable — тихо (UI оптимистичен, реальный «играет» придёт из движка).
     if (candidates.isEmpty) {
       if (track.goPlus) {
-        ref.read(talkerProvider).warning('GO+ only (subscription): ${track.title}');
+        ref
+            .read(talkerProvider)
+            .warning('GO+ only (subscription): ${track.title}');
         _markUnplayable(token, track);
       }
       return;
@@ -277,17 +341,22 @@ class PlayerController extends Notifier<PlayerState> {
         unawaited(_preloadAfter(track));
         return; // успех
       } catch (e, st) {
-        ref.read(talkerProvider).warning(
-            'stream candidate failed: ${track.title}', e, st);
+        ref
+            .read(talkerProvider)
+            .warning('stream candidate failed: ${track.title}', e, st);
         if (token != _loadToken) return;
         // пробуем следующий источник
       }
     }
     // Все кандидаты исчерпаны. GO+ → свободный поток лишь сниппет/протух, полный
     // зашифрован; иначе трек удалён/недоступен.
-    ref.read(talkerProvider).warning(track.goPlus
-        ? 'GO+ only (subscription): ${track.title}'
-        : 'no playable stream: ${track.title}');
+    ref
+        .read(talkerProvider)
+        .warning(
+          track.goPlus
+              ? 'GO+ only (subscription): ${track.title}'
+              : 'no playable stream: ${track.title}',
+        );
     _markUnplayable(token, track);
   }
 
@@ -298,7 +367,11 @@ class PlayerController extends Notifier<PlayerState> {
     if (token != _loadToken || state.track?.id != track.id) return;
     state = state.copyWith(
       isPlaying: false,
-      unplayable: (seq: ++_unplayableSeq, title: track.title, goPlus: track.goPlus),
+      unplayable: (
+        seq: ++_unplayableSeq,
+        title: track.title,
+        goPlus: track.goPlus,
+      ),
     );
     if (_queue.length > 1 && ++_deadStreak < _maxDeadSkips) {
       next();
@@ -310,21 +383,14 @@ class PlayerController extends Notifier<PlayerState> {
   /// Токен текущей preload-операции — отбрасываем устаревшие резолвы.
   int _preloadToken = 0;
 
-  /// Готовит следующий после [current] трек в теневом движке: резолвит первый
+  /// Готовит следующий трек ([_upNext]) в теневом движке: резолвит первый
   /// candidate, кидает engine.preloadNext. Тихо отказывается на GO+/пустых.
+  /// [current] оставлен для совместимости вызова — целевой трек берётся из
+  /// [_upNext], чтобы preload и фактический переход выбрали один и тот же трек.
   Future<void> _preloadAfter(Track current) async {
     final token = ++_preloadToken;
-    final list = state.shuffle && identical(_orderSource, _queue)
-        ? _order
-        : _queue;
-    if (list.isEmpty) return;
-    final idx = list.indexWhere((t) => t.id == current.id);
-    if (idx < 0 || idx + 1 >= list.length) {
-      await _engine.preloadNext(null);
-      return;
-    }
-    final n = list[idx + 1];
-    if (n.streamCandidates.isEmpty || n.goPlus) {
+    final n = _upNext;
+    if (n == null || n.streamCandidates.isEmpty || n.goPlus) {
       await _engine.preloadNext(null);
       return;
     }
@@ -345,17 +411,16 @@ class PlayerController extends Notifier<PlayerState> {
 
   /// Бесшовный переход на preload'ный трек: swap движков + state.track update
   /// БЕЗ полного `_load` (он бы порвал стрим). Затем preload'им следующий.
+  /// Ведёт ту же историю, что и ручной [next] — иначе авто-переход и кнопка
+  /// расходились бы.
   Future<void> _advanceViaSwap() async {
-    final list = state.shuffle && identical(_orderSource, _queue)
-        ? _order
-        : _queue;
-    if (list.isEmpty) return;
-    final idx = list.indexWhere((t) => t.id == state.track?.id);
-    if (idx < 0 || idx + 1 >= list.length) return;
-    final n = list[idx + 1];
+    final n = _upNext;
+    if (n == null) return;
     final crossfade = _crossfade;
     // Бамп _loadToken — старые in-flight кандидаты-резолвы устаревают.
     _loadToken++;
+    _stepHistoryForward(n);
+    _maxPosMs = 0;
     // ВАЖНО: state.track обновляем СРАЗУ, до await на swap. При crossfade
     // swap блокируется на длительность рампы (до 6с) — иначе UI всё это
     // время рисует старый трек, хотя звук уже от нового. На gapless (0с)
@@ -366,6 +431,7 @@ class PlayerController extends Notifier<PlayerState> {
       buffered: Duration.zero,
       isPlaying: true,
       liked: ref.read(likedTracksProvider).contains(n.id),
+      queueVersion: state.queueVersion + 1,
     );
     _startedAt = DateTime.now();
     _deadStreak = 0;
@@ -378,14 +444,30 @@ class PlayerController extends Notifier<PlayerState> {
 
   void setVolume(double volume) {
     final v = volume.clamp(0.0, 1.0);
+    // state.volume = позиция ползунка (линейная, для UI/тултипа), а в движок
+    // отдаём перцептивную кривую: слух логарифмичен, а just_audio.setVolume —
+    // линейная амплитуда. Без кривой вся полезная тихая зона сжата в нижние
+    // ~5% ползунка. Кубическая «audio taper» растягивает её по всему ходу.
     state = state.copyWith(volume: v);
-    _engine.setVolume(v);
+    _engine.setVolume(v * v * v);
   }
 
-  void toggleShuffle() => state = state.copyWith(shuffle: !state.shuffle);
-  void setShuffle(bool on) {
-    if (state.shuffle != on) state = state.copyWith(shuffle: on);
+  void toggleShuffle() {
+    state = state.copyWith(shuffle: !state.shuffle);
+    // Сменился режим выбора «следующего» — пересчитать кеш и перепреload'ить.
+    _recomputeFrontierNext();
+    final t = state.track;
+    if (t != null) unawaited(_preloadAfter(t));
   }
+
+  void setShuffle(bool on) {
+    if (state.shuffle == on) return;
+    state = state.copyWith(shuffle: on);
+    _recomputeFrontierNext();
+    final t = state.track;
+    if (t != null) unawaited(_preloadAfter(t));
+  }
+
   void toggleRepeat() => state = state.copyWith(repeat: !state.repeat);
 
   /// Лайк текущего трека: оптимистично в UI + запись в API через общий контроллер
@@ -398,60 +480,101 @@ class PlayerController extends Notifier<PlayerState> {
     return ref.read(likedTracksProvider.notifier).toggle(track.id);
   }
 
-  /// Следующий трек в очереди (с учётом shuffle).
+  /// Следующий трек. Если мы зашли назад в историю — идём вперёд по реальной
+  /// истории (симметрично previous). На фронтире — берём закешированный
+  /// [_frontierNext] (новый трек) и дописываем его в историю.
   void next() {
-    final track = _adjacent(1);
-    if (track != null) play(track, queue: _queue);
+    final track = _upNext;
+    if (track == null) return;
+    _stepHistoryForward(track);
+    _activate(track);
   }
 
-  /// Предыдущий трек (или начало текущего, если прошло >3с).
+  /// Предыдущий трек (или начало текущего, если прошло >3с). Ретрейс назад по
+  /// реальной истории — никакой пере-тасовки.
   void previous() {
     if (state.position.inSeconds > 3) {
       _engine.seek(Duration.zero);
       state = state.copyWith(position: Duration.zero);
       return;
     }
-    final track = _adjacent(-1);
-    if (track != null) play(track, queue: _queue);
+    if (_histIdx > 0) {
+      _histIdx--;
+      _activate(_history[_histIdx]);
+    }
   }
 
   final Random _rng = Random();
 
   /// Перетасованный порядок очереди для true-shuffle (полный охват без
   /// повторов внутри цикла), и очередь, на которой он построен.
-  List<Track> _order = const [];
+  List<Track> _order = [];
   List<Track>? _orderSource;
 
-  Track? _adjacent(int dir) {
-    if (_queue.isEmpty) return null;
-    if (state.shuffle) return _shuffledAdjacent(dir);
-    final idx = _queue.indexWhere((t) => t.id == state.track?.id);
-    if (idx == -1) return _queue.first;
-    return _queue[(idx + dir) % _queue.length];
+  /// Что заиграет при движении вперёд: если мы зашли назад в историю — её
+  /// следующий элемент; на фронтире — закешированный новый трек.
+  Track? get _upNext {
+    if (_histIdx >= 0 && _histIdx < _history.length - 1) {
+      return _history[_histIdx + 1];
+    }
+    return _frontierNext;
   }
 
-  /// Следующий/предыдущий в перетасованном порядке. Каждый трек звучит один
-  /// раз за цикл; в конце цикла — новая перетасовка (текущий не идёт первым).
-  Track? _shuffledAdjacent(int dir) {
-    if (_queue.length <= 1) return _queue.isEmpty ? null : _queue.first;
+  /// Перевести историю на шаг вперёд к [track]: внутри истории — сдвиг индекса;
+  /// на фронтире — дописать новый трек и пересчитать следующий за ним.
+  void _stepHistoryForward(Track track) {
+    if (_histIdx >= 0 &&
+        _histIdx < _history.length - 1 &&
+        _history[_histIdx + 1].id == track.id) {
+      _histIdx++;
+    } else {
+      _history.add(track);
+      // Мягкий потолок на длинной сессии — обрезаем самые старые записи.
+      const cap = 300;
+      if (_history.length > cap) {
+        _history.removeRange(0, _history.length - cap);
+      }
+      _histIdx = _history.length - 1;
+    }
+    _recomputeFrontierNext();
+  }
+
+  /// Гарантирует, что `_order` построен на текущей `_queue` (для shuffle).
+  void _ensureOrder() {
     if (!identical(_orderSource, _queue) || _order.length != _queue.length) {
       _order = List.of(_queue)..shuffle(_rng);
       _orderSource = _queue;
     }
-    var pos = _order.indexWhere((t) => t.id == state.track?.id);
-    if (pos == -1) pos = 0;
-    var nextPos = pos + dir;
-    if (nextPos >= _order.length) {
+  }
+
+  /// Пересчитать закешированный «следующий новый» трек на фронтире. Вызывать
+  /// после любого изменения текущего фронтир-трека / очереди / режима shuffle.
+  void _recomputeFrontierNext() {
+    _frontierNext = _generateAfter(_history.isEmpty ? null : _history.last);
+  }
+
+  /// Вычислить трек, который должен прозвучать ПОСЛЕ [cur] на фронтире.
+  /// Shuffle: следующий в стабильном `_order`; на конце цикла — новая
+  /// перетасовка (текущий не идёт первым). Линейно: (idx+1) по кругу.
+  /// Может реорганизовать `_order` ровно один раз на границе цикла.
+  Track? _generateAfter(Track? cur) {
+    if (_queue.length <= 1 || cur == null) return null;
+    if (state.shuffle) {
+      _ensureOrder();
+      var pos = _order.indexWhere((t) => t.id == cur.id);
+      if (pos == -1) pos = 0;
+      if (pos + 1 < _order.length) return _order[pos + 1];
+      // Конец цикла → новая перетасовка для следующего круга.
       _order = List.of(_queue)..shuffle(_rng);
       _orderSource = _queue;
-      if (_order.length > 1 && _order.first.id == state.track?.id) {
+      if (_order.length > 1 && _order.first.id == cur.id) {
         _order.add(_order.removeAt(0)); // не повторять текущий сразу
       }
-      nextPos = 0;
-    } else if (nextPos < 0) {
-      nextPos = _order.length - 1;
+      return _order.first;
     }
-    return _order[nextPos];
+    final idx = _queue.indexWhere((t) => t.id == cur.id);
+    if (idx == -1) return _queue.isEmpty ? null : _queue.first;
+    return _queue[(idx + 1) % _queue.length];
   }
 
   void toggle() {
@@ -469,7 +592,9 @@ class PlayerController extends Notifier<PlayerState> {
   void seekFraction(double fraction) {
     final total = state.track?.durationMs ?? 0;
     if (total == 0) return;
-    final pos = Duration(milliseconds: (fraction.clamp(0.0, 1.0) * total).round());
+    final pos = Duration(
+      milliseconds: (fraction.clamp(0.0, 1.0) * total).round(),
+    );
     _engine.seek(pos);
     state = state.copyWith(position: pos);
   }
