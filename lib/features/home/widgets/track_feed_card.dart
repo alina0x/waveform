@@ -136,7 +136,7 @@ class _Header extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Pressable(
-                onTap: () => context.go(
+                onTap: () => context.push(
                   '/artist/${Uri.encodeComponent(track.artistHandle)}',
                 ),
                 child: Text(
