@@ -153,7 +153,7 @@ class BottomPlayer extends ConsumerWidget {
               },
             ),
             const SizedBox(width: 4),
-            _Volume(volume: player.volume, onChanged: c.setVolume),
+            _Volume(volume: player.volume, muted: player.muted, onChanged: c.setVolume, onToggleMute: c.toggleMute),
             const SizedBox(width: 4),
             // Collapse → 44px-bar с минимальными контролами.
             _IconBtn(
@@ -209,14 +209,22 @@ class _IconBtn extends StatelessWidget {
 }
 
 class _Volume extends StatelessWidget {
-  const _Volume({required this.volume, required this.onChanged});
+  const _Volume({
+    required this.volume,
+    required this.muted,
+    required this.onChanged,
+    required this.onToggleMute,
+  });
 
   final double volume;
+  final bool muted;
   final ValueChanged<double> onChanged;
+  final VoidCallback onToggleMute;
 
   @override
   Widget build(BuildContext context) {
-    final icon = volume == 0
+    final isMuted = muted || volume == 0;
+    final icon = isMuted
         ? Icons.volume_off
         : volume < 0.5
         ? Icons.volume_down
@@ -233,11 +241,11 @@ class _Volume extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Tooltip(
-            message: volume == 0 ? 'muted' : '${(volume * 100).round()}%',
+            message: isMuted ? 'muted' : '${(volume * 100).round()}%',
             child: _IconBtn(
               icon: icon,
               enabled: true,
-              onTap: () => onChanged(volume == 0 ? 1.0 : 0.0),
+              onTap: onToggleMute,
             ),
           ),
           SizedBox(

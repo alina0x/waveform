@@ -9,6 +9,7 @@ import 'package:window_manager/window_manager.dart';
 
 import '../core/api/feeds.dart';
 import '../core/api/providers.dart';
+import '../core/api/reposted_tracks.dart';
 import '../core/deeplinks/clipboard_watcher.dart';
 import '../core/deeplinks/deep_links.dart';
 import '../core/lastfm/scrobbler.dart';
@@ -19,11 +20,14 @@ import '../features/player/player_controller.dart';
 import '../features/player/widgets/bottom_player.dart';
 import '../features/queue/queue_panel.dart';
 import '../features/queue/queue_visibility.dart';
+import '../features/shortcuts/shortcuts_overlay.dart';
+import '../shared/chord_controller.dart';
 import '../shared/intents.dart';
 import '../shared/models/track.dart';
 import '../shared/widgets/frosted.dart';
 import '../shared/widgets/toast.dart';
 import '../shared/widgets/top_bar.dart';
+import 'shortcut_bindings.dart';
 import 'theme/app_theme.dart';
 import 'theme/colors.dart';
 
@@ -46,8 +50,11 @@ class _AppShellState extends ConsumerState<AppShell> {
   // возвращаем focus сюда вручную.
   late final FocusNode _shellFocus = FocusNode(debugLabel: 'app-shell');
 
+  final ChordController _chord = ChordController();
+
   @override
   void dispose() {
+    _chord.dispose();
     _shellFocus.dispose();
     super.dispose();
   }
@@ -217,10 +224,93 @@ class _AppShellState extends ConsumerState<AppShell> {
                   return null;
                 },
               ),
+              SeekForwardIntent: CallbackAction<SeekForwardIntent>(
+                onInvoke: (_) {
+                  player.seekBy(const Duration(seconds: 5));
+                  return null;
+                },
+              ),
+              SeekBackwardIntent: CallbackAction<SeekBackwardIntent>(
+                onInvoke: (_) {
+                  player.seekBy(const Duration(seconds: -5));
+                  return null;
+                },
+              ),
+              SeekToPercentIntent: CallbackAction<SeekToPercentIntent>(
+                onInvoke: (i) {
+                  player.seekFraction(i.tenth / 10.0);
+                  return null;
+                },
+              ),
+              MuteToggleIntent: CallbackAction<MuteToggleIntent>(
+                onInvoke: (_) {
+                  player.toggleMute();
+                  return null;
+                },
+              ),
+              RepeatToggleIntent: CallbackAction<RepeatToggleIntent>(
+                onInvoke: (_) {
+                  player.toggleRepeat();
+                  return null;
+                },
+              ),
+              ShuffleToggleIntent: CallbackAction<ShuffleToggleIntent>(
+                onInvoke: (_) {
+                  player.toggleShuffle();
+                  return null;
+                },
+              ),
+              LikePlayingIntent: CallbackAction<LikePlayingIntent>(
+                onInvoke: (_) {
+                  player.toggleLike();
+                  return null;
+                },
+              ),
+              RepostPlayingIntent: CallbackAction<RepostPlayingIntent>(
+                onInvoke: (_) {
+                  final id = ref.read(playerControllerProvider).track?.id;
+                  if (id != null) {
+                    ref.read(repostedTracksProvider.notifier).toggle(id);
+                  }
+                  return null;
+                },
+              ),
+              NavigateToPlayingIntent: CallbackAction<NavigateToPlayingIntent>(
+                onInvoke: (_) {
+                  final id = ref.read(playerControllerProvider).track?.id;
+                  if (id != null) context.go('/track/$id');
+                  return null;
+                },
+              ),
+              OpenSearchIntent: CallbackAction<OpenSearchIntent>(
+                onInvoke: (_) {
+                  ref.read(omniboxOpenProvider.notifier).open();
+                  return null;
+                },
+              ),
+              ToggleQueueIntent: CallbackAction<ToggleQueueIntent>(
+                onInvoke: (_) {
+                  ref.read(queueVisibleProvider.notifier).toggle();
+                  return null;
+                },
+              ),
+              ShowShortcutsIntent: CallbackAction<ShowShortcutsIntent>(
+                onInvoke: (_) {
+                  ref.read(shortcutsOverlayOpenProvider.notifier).open();
+                  return null;
+                },
+              ),
+              CopyLinkIntent: CallbackAction<CopyLinkIntent>(
+                onInvoke: (_) {
+                  _copyContextLink();
+                  return null;
+                },
+              ),
             },
             child: Focus(
               focusNode: _shellFocus,
               autofocus: true,
+              onKeyEvent: (node, event) => _handleChordKey(event),
               child: Consumer(
                 builder: (context, ref, _) {
                   final omniOpen = ref.watch(omniboxOpenProvider);
@@ -265,37 +355,53 @@ class _AppShellState extends ConsumerState<AppShell> {
     );
   }
 
-  /// Кросс-платформенные шорткаты: на macOS — Cmd, на остальных — Ctrl.
-  /// Space / ← / → / ↑ / ↓ без модификаторов — TextField их сам перехватит
-  /// когда в фокусе (стрелки для каретки, space для пробела и т.д.).
-  Map<ShortcutActivator, Intent> _shortcuts() {
-    final mac = Platform.isMacOS;
-    SingleActivator cmd(LogicalKeyboardKey key, {bool shift = false}) =>
-        SingleActivator(key, meta: mac, control: !mac, shift: shift);
-    final base = <ShortcutActivator, Intent>{
-      const SingleActivator(LogicalKeyboardKey.space): const PlayPauseIntent(),
-      const SingleActivator(LogicalKeyboardKey.arrowLeft):
-          const PrevTrackIntent(),
-      const SingleActivator(LogicalKeyboardKey.arrowRight):
-          const NextTrackIntent(),
-      const SingleActivator(LogicalKeyboardKey.arrowUp): const VolumeUpIntent(),
-      const SingleActivator(LogicalKeyboardKey.arrowDown):
-          const VolumeDownIntent(),
-      cmd(LogicalKeyboardKey.keyK): const FocusOmniboxIntent(),
-      cmd(LogicalKeyboardKey.keyF): const FocusOmniboxIntent(),
-      cmd(LogicalKeyboardKey.keyL): const JumpLikesIntent(),
-      cmd(LogicalKeyboardKey.comma): const JumpSettingsIntent(),
-      cmd(LogicalKeyboardKey.keyL, shift: true): const JumpLogsIntent(),
-    };
-    // Enter на /track/:id — играть/возобновить трек страницы. Только когда
-    // route совпадает: иначе Enter ломал бы фокус на других экранах.
-    if (widget.location.startsWith('/track/')) {
-      base[const SingleActivator(LogicalKeyboardKey.enter)] =
-          const PlayPageTrackIntent();
-      base[const SingleActivator(LogicalKeyboardKey.numpadEnter)] =
-          const PlayPageTrackIntent();
+  /// Кросс-платформенные шорткаты: делегирует чистому билдеру [buildShortcuts].
+  Map<ShortcutActivator, Intent> _shortcuts() =>
+      buildShortcuts(isMac: Platform.isMacOS, location: widget.location);
+
+  /// `G`-then-key аккорд. Текстовые поля съедают символы раньше (focus-bubbling),
+  /// так что G/буквы здесь видны только когда НЕ печатаем.
+  KeyEventResult _handleChordKey(KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    final kb = HardwareKeyboard.instance;
+    if (kb.isMetaPressed || kb.isControlPressed || kb.isAltPressed) {
+      return KeyEventResult.ignored;
     }
-    return base;
+    if (_chord.armed) {
+      final target = _chord.resolve(event.logicalKey);
+      if (target != null) {
+        _goChord(target);
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.keyG) {
+      _chord.arm();
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  void _goChord(ChordTarget t) {
+    switch (t) {
+      case ChordTarget.likes:
+        context.go('/library?tab=likes');
+      case ChordTarget.feed:
+        context.go('/feed');
+      case ChordTarget.library:
+        context.go('/library');
+      case ChordTarget.history:
+        context.go('/library?tab=history');
+      case ChordTarget.profile:
+        final handle = ref.read(railProvider).asData?.value.me?.handle;
+        if (handle != null) {
+          context.go('/artist/${Uri.encodeComponent(handle)}');
+        }
+    }
+  }
+
+  void _copyContextLink() {
+    // Реализуется в Task 9 (⌘⇧C copy-link).
   }
 
   /// Реакция на Enter на /track/:id. Если уже играет именно этот трек —
