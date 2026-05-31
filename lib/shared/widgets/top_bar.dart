@@ -31,93 +31,95 @@ class TopBar extends ConsumerWidget {
     // сверху на эту зону через `padding`, влево контент идёт от 16px.
     const leftPad = 16.0;
     const topPad = 28.0;
-    // DragToMoveArea: тащим окно за пустые зоны топ-бара. На Windows/Linux это
-    // единственный способ двигать окно (titleBarStyle: hidden, нет нативного
-    // заголовка). Интерактивные дети (навигация, поиск, иконки) выигрывают
-    // hit-test на тап, так что драг стартует только с пустых участков. На macOS
-    // дублирует isMovableByWindowBackground — безвредно.
-    return DragToMoveArea(
-      child: Container(
-        height: AppTheme.topBarHeight,
-        padding: const EdgeInsets.fromLTRB(leftPad, topPad, 16, 0),
-        decoration: BoxDecoration(
-          color: AppColors.surface.withValues(alpha: 0.72),
-          border: const Border(bottom: AppTheme.borderSideStatic),
-        ),
-        child: Row(
-          children: [
-            const WaveLogo(),
-            const SizedBox(width: 10),
-            Text(
-              'waveform',
-              style: AppTheme.mono(
-                size: 15,
-                color: AppColors.textHi,
-                weight: FontWeight.w600,
-                letterSpacing: 0.5,
-              ),
-            ),
-            const SizedBox(width: 32),
-            _NavLink('home', '/', location),
-            _NavLink('feed', '/feed', location),
-            _NavLink('library', '/library', location),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 240),
-                  child: const _SearchField(),
-                ),
-              ),
-            ),
-            const SizedBox(width: 16),
-            if (kDebugMode) ...[
-              Pressable(
-                onTap: () => context.push('/logs'),
-                child: Tooltip(
-                  message: 'logs',
-                  child: Icon(
-                    Icons.terminal,
-                    size: 16,
-                    color: AppColors.textLow,
+    // Перетаскивание окна — ТОЛЬКО за лого/заголовок и центральную пустую зону.
+    // Интерактивные кнопки (поиск, очередь, настройки, аккаунт) вынесены из
+    // DragToMoveArea: раньше весь бар был draggable, и двойной клик по кнопкам
+    // на macOS разворачивал окно (zoom), а сама draggable-зона была слишком
+    // большой. На Windows/Linux это единственный способ двигать окно
+    // (titleBarStyle: hidden).
+    return Container(
+      height: AppTheme.topBarHeight,
+      padding: const EdgeInsets.fromLTRB(leftPad, topPad, 16, 0),
+      decoration: BoxDecoration(
+        color: AppColors.surface.withValues(alpha: 0.72),
+        border: const Border(bottom: AppTheme.borderSideStatic),
+      ),
+      child: Row(
+        children: [
+          DragToMoveArea(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const WaveLogo(),
+                const SizedBox(width: 10),
+                Text(
+                  'waveform',
+                  style: AppTheme.mono(
+                    size: 15,
+                    color: AppColors.textHi,
+                    weight: FontWeight.w600,
+                    letterSpacing: 0.5,
                   ),
                 ),
-              ),
-              const SizedBox(width: 14),
-            ],
-            Consumer(
-              builder: (context, ref, _) {
-                final on = ref.watch(queueVisibleProvider);
-                return Pressable(
-                  onTap: () => ref.read(queueVisibleProvider.notifier).toggle(),
-                  child: Tooltip(
-                    message: 'queue',
-                    child: Icon(
-                      Icons.queue_music,
-                      size: 16,
-                      color: on ? AppColors.acid : AppColors.textLow,
-                    ),
-                  ),
-                );
-              },
+              ],
             ),
-            const SizedBox(width: 14),
+          ),
+          const SizedBox(width: 32),
+          _NavLink('home', '/', location),
+          _NavLink('feed', '/feed', location),
+          _NavLink('library', '/library', location),
+          // Гибкая пустая зона — тоже draggable (но НЕ кнопки справа).
+          Expanded(child: DragToMoveArea(child: const SizedBox.expand())),
+          const SizedBox(width: 16),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 240),
+            child: const _SearchField(),
+          ),
+          const SizedBox(width: 16),
+          if (kDebugMode) ...[
             Pressable(
-              onTap: () => context.push('/settings'),
-              child: const Tooltip(
-                message: 'settings',
-                child: Icon(
-                  Icons.settings_outlined,
-                  size: 16,
-                  color: AppColors.textLow,
-                ),
+              onTap: () => context.push('/logs'),
+              child: Tooltip(
+                message: 'logs',
+                child: Icon(Icons.terminal, size: 16, color: AppColors.textLow),
               ),
             ),
             const SizedBox(width: 14),
-            const _Account(),
           ],
-        ),
+          Consumer(
+            builder: (context, ref, _) {
+              final on = ref.watch(queueVisibleProvider);
+              return Pressable(
+                onTap: () => ref.read(queueVisibleProvider.notifier).toggle(),
+                child: Tooltip(
+                  message: 'queue',
+                  child: Icon(
+                    Icons.queue_music,
+                    size: 16,
+                    color: on ? AppColors.acid : AppColors.textLow,
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(width: 14),
+          Pressable(
+            // Гард от наслоения окон настроек: не пушим /settings, если уже на нём.
+            onTap: () {
+              if (location != '/settings') context.push('/settings');
+            },
+            child: const Tooltip(
+              message: 'settings',
+              child: Icon(
+                Icons.settings_outlined,
+                size: 16,
+                color: AppColors.textLow,
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          const _Account(),
+        ],
       ),
     );
   }

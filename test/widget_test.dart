@@ -100,9 +100,13 @@ void main() {
     expect(find.text('mixed for you'), findsOneWidget);
   });
 
-  testWidgets('Tapping a track card starts playback', (tester) async {
-    // Залогинен → видно «from your stream» с играбельными карточками треков.
+  testWidgets('Playing a track from its page starts playback', (tester) async {
     await pumpApp(tester, loggedIn: true);
+
+    // Home больше не играет по тапу карточки (карусели ведут на /track).
+    // Открываем трек и играем с его страницы.
+    await tester.tap(find.text(mockTracks.first.title).first);
+    await load(tester);
 
     await tester.tap(find.byIcon(Icons.play_arrow).first);
     await tester.pump();
@@ -111,11 +115,18 @@ void main() {
     expect(find.byIcon(Icons.pause), findsWidgets);
   });
 
-  testWidgets('Personal "from your stream" shows when logged in',
+  testWidgets('Home hides "from your stream" even when logged in',
       (tester) async {
     await pumpApp(tester, loggedIn: true);
-    expect(find.text('from your stream'), findsOneWidget);
-    expect(find.text(mockTracks.first.title), findsWidgets);
+    // Секция убрана из Home (дублировала Feed) — её больше нет на главной.
+    expect(find.text('from your stream'), findsNothing);
+    // Карусели на месте.
+    await tester.scrollUntilVisible(
+      find.text('mixed for you'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('mixed for you'), findsOneWidget);
   });
 
   testWidgets('Tapping a track title opens the track screen', (tester) async {
@@ -136,6 +147,10 @@ void main() {
 
   testWidgets('Tapping an artist opens the artist screen', (tester) async {
     await pumpApp(tester, loggedIn: true);
+
+    // Артист-линк живёт на странице трека — открываем трек, затем тапаем артиста.
+    await tester.tap(find.text(mockTracks.first.title).first);
+    await load(tester);
 
     await tester.tap(find.text(mockTracks.first.artist).first);
     await load(tester);

@@ -62,6 +62,25 @@ class _AppShellState extends ConsumerState<AppShell> {
   }
 
   @override
+  void didUpdateWidget(covariant AppShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Навигация (push/pop/go) могла оставить primaryFocus = null → глобальные
+    // шорткаты молчат и macOS звенит NSBeep на каждую клавишу. Возвращаем фокус
+    // шеллу после смены маршрута, если не печатаем и не открыта модалка.
+    if (oldWidget.location != widget.location) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (_isEditing ||
+            ref.read(omniboxOpenProvider) ||
+            ref.read(shortcutsOverlayOpenProvider)) {
+          return;
+        }
+        _shellFocus.requestFocus();
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     // Lazy-bootstrap скробблера: provider создаст Notifier, который подпишется
     // на playerController.
@@ -384,16 +403,26 @@ class _AppShellState extends ConsumerState<AppShell> {
   /// так что G/буквы здесь видны только когда НЕ печатаем.
   KeyEventResult _handleChordKey(KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    final kb = HardwareKeyboard.instance;
+    final hasMod =
+        kb.isMetaPressed || kb.isControlPressed || kb.isAltPressed;
+    // Help-оверлей (клавиша H) открыт: H или Esc его закрывают. Его собственный
+    // autofocus-Focus проигрывает уже сфокусированному _shellFocus и не получает
+    // событие, поэтому закрываем здесь — гарантированно. Остальные клавиши
+    // глотаем (оверлей модальный).
+    if (ref.read(shortcutsOverlayOpenProvider)) {
+      if (!hasMod &&
+          (event.logicalKey == LogicalKeyboardKey.keyH ||
+              event.logicalKey == LogicalKeyboardKey.escape)) {
+        ref.read(shortcutsOverlayOpenProvider.notifier).close();
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    }
     // Не заряжаем/не срабатываем аккорд, пока активен ⌘K-омнибокс или любое
     // текстовое поле: на macOS символьные клавиши всё равно доходят сюда
     // (EditableText их не «съедает»), иначе ввод запроса "g…l" увёл бы экран.
-    if (ref.read(omniboxOpenProvider) ||
-        ref.read(shortcutsOverlayOpenProvider) ||
-        _isEditing) {
-      return KeyEventResult.ignored;
-    }
-    final kb = HardwareKeyboard.instance;
-    if (kb.isMetaPressed || kb.isControlPressed || kb.isAltPressed) {
+    if (hasMod || ref.read(omniboxOpenProvider) || _isEditing) {
       return KeyEventResult.ignored;
     }
     if (_chord.armed) {
