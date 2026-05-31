@@ -45,3 +45,57 @@ class VolumeDownIntent extends Intent {
 class PlayPageTrackIntent extends Intent {
   const PlayPageTrackIntent();
 }
+
+class SeekForwardIntent extends Intent {
+  const SeekForwardIntent();
+}
+
+class SeekBackwardIntent extends Intent {
+  const SeekBackwardIntent();
+}
+
+class LikePlayingIntent extends Intent {
+  const LikePlayingIntent();
+}
+
+class RepeatToggleIntent extends Intent {
+  const RepeatToggleIntent();
+}
+
+class RepostPlayingIntent extends Intent {
+  const RepostPlayingIntent();
+}
+
+class MuteToggleIntent extends Intent {
+  const MuteToggleIntent();
+}
+
+class ShuffleToggleIntent extends Intent {
+  const ShuffleToggleIntent();
+}
+
+class NavigateToPlayingIntent extends Intent {
+  const NavigateToPlayingIntent();
+}
+
+class OpenSearchIntent extends Intent {
+  const OpenSearchIntent();
+}
+
+class ToggleQueueIntent extends Intent {
+  const ToggleQueueIntent();
+}
+
+class ShowShortcutsIntent extends Intent {
+  const ShowShortcutsIntent();
+}
+
+class CopyLinkIntent extends Intent {
+  const CopyLinkIntent();
+}
+
+/// Seek к проценту позиции (0 = начало … 9 = 90%).
+class SeekToPercentIntent extends Intent {
+  const SeekToPercentIntent(this.tenth);
+  final int tenth; // 0..9
+}
