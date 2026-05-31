@@ -35,6 +35,9 @@ const kShortcutRows = <(String, String)>[
   ('H', 'this help'),
   ('G then L / S / C / P / H', 'go to likes / feed / library / profile / history'),
   ('⌘K', 'command palette'),
+  ('⌘L', 'go to likes'),
+  ('⌘,', 'settings'),
+  ('⌘⇧L', 'logs'),
   ('⌘⇧C', 'copy link'),
 ];
 

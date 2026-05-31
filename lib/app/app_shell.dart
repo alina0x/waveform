@@ -84,6 +84,14 @@ class _AppShellState extends ConsumerState<AppShell> {
       }
     });
 
+    // После закрытия help-оверлея возвращаем фокус шеллу — иначе primaryFocus
+    // остаётся null и глобальные шорткаты молчат (как и с омнибоксом).
+    ref.listen<bool>(shortcutsOverlayOpenProvider, (prev, next) {
+      if (prev == true && next == false) {
+        _shellFocus.requestFocus();
+      }
+    });
+
     // Динамический title окна — отражает текущий трек на desktop.
     ref.listen<Track?>(playerControllerProvider.select((s) => s.track), (
       prev,
@@ -370,7 +378,9 @@ class _AppShellState extends ConsumerState<AppShell> {
     // Не заряжаем/не срабатываем аккорд, пока активен ⌘K-омнибокс или любое
     // текстовое поле: на macOS символьные клавиши всё равно доходят сюда
     // (EditableText их не «съедает»), иначе ввод запроса "g…l" увёл бы экран.
-    if (ref.read(omniboxOpenProvider) || _isEditing) {
+    if (ref.read(omniboxOpenProvider) ||
+        ref.read(shortcutsOverlayOpenProvider) ||
+        _isEditing) {
       return KeyEventResult.ignored;
     }
     final kb = HardwareKeyboard.instance;
