@@ -34,7 +34,9 @@ extension TrackDtoMapper on TrackDto {
   Track toDomain() => Track(
     id: '$id',
     title: title,
-    artist: user.username,
+    artist: (publisherArtist != null && publisherArtist!.trim().isNotEmpty)
+        ? publisherArtist!.trim()
+        : user.username,
     artistPermalink: user.permalink,
     durationMs: durationMs,
     likes: likesCount,
