@@ -74,6 +74,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     // съедал пробел до текстового ввода — «вместо пробела пауза»). Сам модал
     // обрабатывает Esc/↑/↓/Enter внутри.
     final omniOpen = ref.watch(omniboxOpenProvider);
+    final shortcutsOpen = ref.watch(shortcutsOverlayOpenProvider);
 
     // Когда модалка закрывается — возвращаем focus AppShell'у, иначе
     // primaryFocus остаётся null и Shortcuts перестают слышать клавиши.
@@ -157,7 +158,7 @@ class _AppShellState extends ConsumerState<AppShell> {
           return KeyEventResult.handled;
         },
         child: Shortcuts(
-          shortcuts: omniOpen
+          shortcuts: (omniOpen || shortcutsOpen)
               ? const <ShortcutActivator, Intent>{}
               : _shortcuts(),
           child: Actions(
@@ -344,6 +345,9 @@ class _AppShellState extends ConsumerState<AppShell> {
                       // ⌘K-палитра: полноэкранный blur-фон + центрированная
                       // модалка. Клик мимо — закрывает. Поверх TopBar/BottomPlayer.
                       if (omniOpen) Positioned.fill(child: _OmniboxOverlay()),
+                      // H — keyboard-shortcuts help overlay.
+                      if (ref.watch(shortcutsOverlayOpenProvider))
+                        const Positioned.fill(child: ShortcutsOverlay()),
                     ],
                   );
                 },
