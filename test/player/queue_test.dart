@@ -39,4 +39,24 @@ void main() {
       expect(pc.upcomingTracks.map((x) => x.id), ['2', '3']);
     },
   );
+
+  test('playNext inserts right after current (linear)', () {
+    final engine = FakeAudioEngine();
+    final c = harness(engine);
+    addTearDown(c.dispose);
+    final pc = c.read(playerControllerProvider.notifier);
+    pc.play(t('1'), queue: [t('1'), t('2'), t('3')]);
+    pc.playNext(t('9'));
+    expect(pc.upcomingTracks.map((x) => x.id), ['9', '2', '3']);
+  });
+
+  test('playNext de-dupes by moving an existing track to next', () {
+    final engine = FakeAudioEngine();
+    final c = harness(engine);
+    addTearDown(c.dispose);
+    final pc = c.read(playerControllerProvider.notifier);
+    pc.play(t('1'), queue: [t('1'), t('2'), t('3')]);
+    pc.playNext(t('3'));
+    expect(pc.upcomingTracks.map((x) => x.id), ['3', '2']);
+  });
 }

@@ -81,6 +81,7 @@ Future<void> showTrackContextMenu({
       isCurrent && player.isPlaying ? Icons.pause : Icons.play_arrow,
       isCurrent ? (player.isPlaying ? 'pause' : 'resume') : 'play',
     ),
+    item('playnext', Icons.playlist_play, 'play next'),
     const PopupMenuDivider(),
     item(
       'like',
@@ -104,6 +105,8 @@ Future<void> showTrackContextMenu({
       pc.play(track, queue: queue);
     case 'toggle':
       pc.toggle();
+    case 'playnext':
+      pc.playNext(track);
     case 'like':
       final outcome = await ref
           .read(likedTracksProvider.notifier)

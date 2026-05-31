@@ -369,13 +369,13 @@ Future<void> _share(BuildContext context, Track track) async {
   await copyToClipboard(context, url);
 }
 
-/// Меню «more»: copy link + open on SoundCloud. Disabled, если permalink null.
-class _MoreAction extends StatelessWidget {
+/// Меню «more»: play next + copy link + open on SoundCloud. Disabled, если permalink null.
+class _MoreAction extends ConsumerWidget {
   const _MoreAction({required this.track});
   final Track track;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final url = track.permalinkUrl;
     final enabled = url != null && url.isNotEmpty;
     return PopupMenuButton<String>(
@@ -392,6 +392,13 @@ class _MoreAction extends StatelessWidget {
       ),
       itemBuilder: (_) => [
         PopupMenuItem(
+          value: 'playnext',
+          child: Text(
+            'play next',
+            style: AppTheme.mono(size: 12, color: AppColors.textHi),
+          ),
+        ),
+        PopupMenuItem(
           value: 'copy',
           child: Text(
             'copy link',
@@ -407,6 +414,10 @@ class _MoreAction extends StatelessWidget {
         ),
       ],
       onSelected: (v) async {
+        if (v == 'playnext') {
+          ref.read(playerControllerProvider.notifier).playNext(track);
+          return;
+        }
         if (url == null) return;
         if (v == 'copy') {
           if (context.mounted) await copyToClipboard(context, url);

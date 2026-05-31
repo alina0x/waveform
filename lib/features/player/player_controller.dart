@@ -310,6 +310,30 @@ class PlayerController extends Notifier<PlayerState> {
     state = state.copyWith(queueVersion: state.queueVersion + 1);
   }
 
+  /// Вставить трек СЛЕДУЮЩИМ после текущего (vs. addToQueue — в конец).
+  /// Дубликат не плодим — переносим на позицию «следующий». Учитывает shuffle:
+  /// в shuffle-режиме правим `_order` (что реально слышно), сохраняя членство в
+  /// `_queue` (источник правды для remove/индекса).
+  void playNext(Track t) {
+    final curId = state.track?.id;
+    if (identical(_activeSeq, _queue)) {
+      _queue.removeWhere((x) => x.id == t.id);
+      if (_order.isNotEmpty) _order.removeWhere((x) => x.id == t.id);
+      final cur = curId == null ? -1 : _queue.indexWhere((x) => x.id == curId);
+      _queue.insert(cur < 0 ? 0 : cur + 1, t);
+      if (_order.isNotEmpty) _order.add(t);
+    } else {
+      // shuffle активен: _activeSeq == _order
+      _queue.removeWhere((x) => x.id == t.id);
+      _order.removeWhere((x) => x.id == t.id);
+      _queue.add(t); // членство
+      final cur = curId == null ? -1 : _order.indexWhere((x) => x.id == curId);
+      _order.insert(cur < 0 ? 0 : cur + 1, t);
+    }
+    _recomputeFrontierNext();
+    state = state.copyWith(queueVersion: state.queueVersion + 1);
+  }
+
   /// Резолв стрима (transcoding → m3u8/mp3) и передача в движок.
   /// Перебирает кандидатов (HLS → progressive): часть HLS-ссылок протухает и
   /// отдаёт 404 — тогда играем следующий источник. Мок/не streamable — тихо.
