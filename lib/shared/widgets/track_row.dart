@@ -128,7 +128,7 @@ class TrackRow extends ConsumerWidget {
                   ),
                   const SizedBox(height: 2),
                   Pressable(
-                    onTap: () => context.go(
+                    onTap: () => context.push(
                       '/artist/${Uri.encodeComponent(track.artistHandle)}',
                     ),
                     child: Text(

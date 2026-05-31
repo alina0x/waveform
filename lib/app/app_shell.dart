@@ -527,17 +527,11 @@ class _OmniboxOverlay extends ConsumerWidget {
   }
 }
 
-/// Свайп вправо от левого края → назад. На macOS трекпад-свайп приходит как
-/// pan-события (onPointerPanZoom*), мышь — как horizontal drag. Оба пути ведут
-/// к shouldPopOnSwipe; срабатывает только от левого края, чтобы не конфликтовать
-/// с горизонтальными каруселями.
-///
-/// NOTE: для trackpad pan-события localPosition.dx — это позиция в виджете, где
-/// пальцы НЕ обязательно находятся у левого края экрана. Поэтому для pan-пути
-/// edge-gating ОТКЛЮЧЁН (startDx трактуется как 0): только направление + порог.
-/// Для мышиного drag — edge-gating работает как обычно (только от левого края).
-/// Это сделано намеренно: trackpad-свайп без edge-гейтинга лучше, чем тот, что
-/// никогда не срабатывает.
+/// Свайп вправо от левого края → назад. Трекпад-свайп (macOS) приходит как
+/// pan-события (onPointerPanZoom*), мышь — как horizontal drag. Оба пути
+/// edge-gated по позиции КУРСОРА (localPosition.dx): срабатывает только когда
+/// жест начат у левого края — чтобы не конфликтовать с горизонтальными
+/// каруселями в центре экрана.
 class _BackSwipe extends StatefulWidget {
   const _BackSwipe({required this.child, required this.onBack});
   final Widget child;
@@ -570,6 +564,7 @@ class _BackSwipeState extends State<_BackSwipe> {
     }
     _startDx = 0;
     _totalDx = 0;
+    _panActive = false;
   }
 
   @override
@@ -578,9 +573,7 @@ class _BackSwipeState extends State<_BackSwipe> {
       behavior: HitTestBehavior.translucent,
       onPointerPanZoomStart: (e) {
         _panActive = true;
-        // Для trackpad pan edge-gating отключён: передаём 0 как startDx,
-        // чтобы shouldPopOnSwipe не отсеял свайп из-за позиции пальцев.
-        _begin(0);
+        _begin(e.localPosition.dx);
       },
       onPointerPanZoomUpdate: (e) {
         if (_panActive) _accumulate(e.panDelta.dx);

@@ -181,7 +181,7 @@ class _Header extends StatelessWidget {
     return Pressable(
       onTap: handle == null
           ? null
-          : () => context.push('/artist/${Uri.encodeComponent(handle)}'),
+          : () => context.go('/artist/${Uri.encodeComponent(handle)}'),
       child: Row(
         children: [
           CoverArt(
