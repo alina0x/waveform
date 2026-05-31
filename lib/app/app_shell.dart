@@ -363,6 +363,12 @@ class _AppShellState extends ConsumerState<AppShell> {
   /// так что G/буквы здесь видны только когда НЕ печатаем.
   KeyEventResult _handleChordKey(KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    // Не заряжаем/не срабатываем аккорд, пока активен ⌘K-омнибокс или любое
+    // текстовое поле: на macOS символьные клавиши всё равно доходят сюда
+    // (EditableText их не «съедает»), иначе ввод запроса "g…l" увёл бы экран.
+    if (ref.read(omniboxOpenProvider) || _isEditing) {
+      return KeyEventResult.ignored;
+    }
     final kb = HardwareKeyboard.instance;
     if (kb.isMetaPressed || kb.isControlPressed || kb.isAltPressed) {
       return KeyEventResult.ignored;
@@ -373,13 +379,20 @@ class _AppShellState extends ConsumerState<AppShell> {
         _goChord(target);
         return KeyEventResult.handled;
       }
-      return KeyEventResult.ignored;
+      return KeyEventResult.handled; // отменённый аккорд глотает клавишу (как web SC)
     }
     if (event.logicalKey == LogicalKeyboardKey.keyG) {
       _chord.arm();
       return KeyEventResult.handled;
     }
     return KeyEventResult.ignored;
+  }
+
+  /// Сейчас в фокусе редактируемое текстовое поле?
+  bool get _isEditing {
+    final ctx = FocusManager.instance.primaryFocus?.context;
+    return ctx != null &&
+        ctx.findAncestorStateOfType<EditableTextState>() != null;
   }
 
   void _goChord(ChordTarget t) {
