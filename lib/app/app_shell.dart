@@ -24,6 +24,7 @@ import '../features/shortcuts/shortcuts_overlay.dart';
 import '../shared/chord_controller.dart';
 import '../shared/intents.dart';
 import '../shared/models/track.dart';
+import '../shared/url_share.dart';
 import '../shared/widgets/frosted.dart';
 import '../shared/widgets/toast.dart';
 import '../shared/widgets/top_bar.dart';
@@ -427,8 +428,25 @@ class _AppShellState extends ConsumerState<AppShell> {
     }
   }
 
+  /// ⌘⇧C — копирует ссылку текущего контекста: трек страницы /track/:id →
+  /// его permalink; артист /artist/:handle → профиль; иначе — играющий трек.
+  /// markSeen внутри copyToClipboard (через ref) гасит «open in Waveform?» тост.
   void _copyContextLink() {
-    // Реализуется в Task 9 (⌘⇧C copy-link).
+    String? url;
+    final segs = Uri.parse(widget.location).pathSegments;
+    if (segs.length >= 2 && segs[0] == 'track') {
+      final id = segs[1];
+      url = ref.read(trackDetailProvider(id)).asData?.value.track.permalinkUrl;
+    } else if (segs.length >= 2 && segs[0] == 'artist') {
+      final handle = Uri.decodeComponent(segs[1]);
+      if (handle.isNotEmpty) url = 'https://soundcloud.com/$handle';
+    }
+    url ??= ref.read(playerControllerProvider).track?.permalinkUrl;
+    if (url == null || url.isEmpty) {
+      showToast(context, 'nothing to copy', duration: const Duration(seconds: 2));
+      return;
+    }
+    copyToClipboard(context, url, message: 'link copied', ref: ref);
   }
 
   /// Реакция на Enter на /track/:id. Если уже играет именно этот трек —
