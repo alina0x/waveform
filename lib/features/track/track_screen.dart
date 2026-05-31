@@ -228,7 +228,7 @@ class _Hero extends StatelessWidget {
                         Row(
                           children: [
                             Pressable(
-                              onTap: () => context.go(
+                              onTap: () => context.push(
                                 '/artist/${Uri.encodeComponent(track.artistHandle)}',
                               ),
                               child: Text(

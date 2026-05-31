@@ -618,7 +618,7 @@ class _LikeTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Pressable(
-      onTap: () => context.go('/track/${track.id}'),
+      onTap: () => context.push('/track/${track.id}'),
       child: SizedBox(
         width: 160,
         child: Column(

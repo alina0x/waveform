@@ -75,7 +75,7 @@ class BottomPlayer extends ConsumerWidget {
 
           if (track != null) ...[
             Pressable(
-              onTap: () => context.go('/track/${track.id}'),
+              onTap: () => context.push('/track/${track.id}'),
               child: CoverArt(
                 seed: track.id,
                 imageUrl: track.coverUrl,
@@ -93,7 +93,7 @@ class BottomPlayer extends ConsumerWidget {
                     children: [
                       Flexible(
                         child: Pressable(
-                          onTap: () => context.go('/track/${track.id}'),
+                          onTap: () => context.push('/track/${track.id}'),
                           child: Text(
                             track.title,
                             maxLines: 1,
@@ -337,7 +337,7 @@ class _CollapsedBar extends ConsumerWidget {
         children: [
           if (track != null) ...[
             Pressable(
-              onTap: () => context.go('/track/${track!.id}'),
+              onTap: () => context.push('/track/${track!.id}'),
               child: CoverArt(
                 seed: track!.id,
                 imageUrl: track!.coverUrl,
@@ -347,7 +347,7 @@ class _CollapsedBar extends ConsumerWidget {
             const SizedBox(width: 10),
             Expanded(
               child: Pressable(
-                onTap: () => context.go('/track/${track!.id}'),
+                onTap: () => context.push('/track/${track!.id}'),
                 child: Row(
                   children: [
                     Flexible(

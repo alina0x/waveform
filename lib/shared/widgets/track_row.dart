@@ -86,7 +86,7 @@ class TrackRow extends ConsumerWidget {
             ),
             const SizedBox(width: 12),
             Pressable(
-              onTap: () => context.go('/track/${track.id}'),
+              onTap: () => context.push('/track/${track.id}'),
               child: Hero(
                 tag: 'cover-track-${track.id}',
                 child: CoverArt(
@@ -107,7 +107,7 @@ class TrackRow extends ConsumerWidget {
                     children: [
                       Flexible(
                         child: Pressable(
-                          onTap: () => context.go('/track/${track.id}'),
+                          onTap: () => context.push('/track/${track.id}'),
                           child: Text(
                             track.title,
                             maxLines: 1,

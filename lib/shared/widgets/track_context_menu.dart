@@ -125,9 +125,9 @@ Future<void> showTrackContextMenu({
       await openExternalUrl(track.permalinkUrl!);
     case 'artist':
       if (context.mounted) {
-        context.go('/artist/${Uri.encodeComponent(track.artistHandle)}');
+        context.push('/artist/${Uri.encodeComponent(track.artistHandle)}');
       }
     case 'track':
-      if (context.mounted) context.go('/track/${track.id}');
+      if (context.mounted) context.push('/track/${track.id}');
   }
 }

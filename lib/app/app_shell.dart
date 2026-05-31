@@ -21,6 +21,7 @@ import '../features/player/widgets/bottom_player.dart';
 import '../features/queue/queue_panel.dart';
 import '../features/queue/queue_visibility.dart';
 import '../features/shortcuts/shortcuts_overlay.dart';
+import '../shared/back_nav.dart';
 import '../shared/chord_controller.dart';
 import '../shared/intents.dart';
 import '../shared/models/track.dart';
@@ -288,7 +289,7 @@ class _AppShellState extends ConsumerState<AppShell> {
               NavigateToPlayingIntent: CallbackAction<NavigateToPlayingIntent>(
                 onInvoke: (_) {
                   final id = ref.read(playerControllerProvider).track?.id;
-                  if (id != null) context.go('/track/$id');
+                  if (id != null) context.push('/track/$id');
                   return null;
                 },
               ),
@@ -327,7 +328,14 @@ class _AppShellState extends ConsumerState<AppShell> {
                   final queueOpen = ref.watch(queueVisibleProvider);
                   return Stack(
                     children: [
-                      Positioned.fill(child: widget.child),
+                      Positioned.fill(
+                        child: _BackSwipe(
+                          onBack: () {
+                            if (context.canPop()) context.pop();
+                          },
+                          child: widget.child,
+                        ),
+                      ),
                       // Queue-панель справа.
                       if (queueOpen)
                         const Positioned(
@@ -515,6 +523,81 @@ class _OmniboxOverlay extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Свайп вправо от левого края → назад. На macOS трекпад-свайп приходит как
+/// pan-события (onPointerPanZoom*), мышь — как horizontal drag. Оба пути ведут
+/// к shouldPopOnSwipe; срабатывает только от левого края, чтобы не конфликтовать
+/// с горизонтальными каруселями.
+///
+/// NOTE: для trackpad pan-события localPosition.dx — это позиция в виджете, где
+/// пальцы НЕ обязательно находятся у левого края экрана. Поэтому для pan-пути
+/// edge-gating ОТКЛЮЧЁН (startDx трактуется как 0): только направление + порог.
+/// Для мышиного drag — edge-gating работает как обычно (только от левого края).
+/// Это сделано намеренно: trackpad-свайп без edge-гейтинга лучше, чем тот, что
+/// никогда не срабатывает.
+class _BackSwipe extends StatefulWidget {
+  const _BackSwipe({required this.child, required this.onBack});
+  final Widget child;
+  final VoidCallback onBack;
+  @override
+  State<_BackSwipe> createState() => _BackSwipeState();
+}
+
+class _BackSwipeState extends State<_BackSwipe> {
+  double _startDx = 0;
+  double _totalDx = 0;
+  bool _panActive = false;
+
+  bool get _canPop => GoRouter.of(context).canPop();
+
+  void _begin(double localDx) {
+    _startDx = localDx;
+    _totalDx = 0;
+  }
+
+  void _accumulate(double dx) => _totalDx += dx;
+
+  void _end() {
+    if (shouldPopOnSwipe(
+      canPop: _canPop,
+      startDx: _startDx,
+      totalDx: _totalDx,
+    )) {
+      widget.onBack();
+    }
+    _startDx = 0;
+    _totalDx = 0;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerPanZoomStart: (e) {
+        _panActive = true;
+        // Для trackpad pan edge-gating отключён: передаём 0 как startDx,
+        // чтобы shouldPopOnSwipe не отсеял свайп из-за позиции пальцев.
+        _begin(0);
+      },
+      onPointerPanZoomUpdate: (e) {
+        if (_panActive) _accumulate(e.panDelta.dx);
+      },
+      onPointerPanZoomEnd: (e) {
+        if (_panActive) {
+          _panActive = false;
+          _end();
+        }
+      },
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onHorizontalDragStart: (d) => _begin(d.localPosition.dx),
+        onHorizontalDragUpdate: (d) => _accumulate(d.delta.dx),
+        onHorizontalDragEnd: (_) => _end(),
+        child: widget.child,
+      ),
     );
   }
 }

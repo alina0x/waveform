@@ -146,7 +146,7 @@ class _Header extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Pressable(
-                onTap: () => context.go('/track/${track.id}'),
+                onTap: () => context.push('/track/${track.id}'),
                 child: Text(
                   track.title,
                   maxLines: 1,
