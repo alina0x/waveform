@@ -344,7 +344,7 @@ class _ActionBarState extends ConsumerState<_ActionBar> {
         ),
         _Action(
           icon: Icons.share_outlined,
-          onTap: () => _share(context, track),
+          onTap: () => _share(context, track, ref),
         ),
         _MoreAction(track: track),
         const Spacer(),
@@ -360,13 +360,13 @@ class _ActionBarState extends ConsumerState<_ActionBar> {
 }
 
 /// Копирует permalink трека в системный clipboard; уведомляет тостом.
-Future<void> _share(BuildContext context, Track track) async {
+Future<void> _share(BuildContext context, Track track, WidgetRef ref) async {
   final url = track.permalinkUrl;
   if (url == null || url.isEmpty) {
     showToast(context, 'no shareable link for this track');
     return;
   }
-  await copyToClipboard(context, url);
+  await copyToClipboard(context, url, ref: ref);
 }
 
 /// Меню «more»: play next + copy link + open on SoundCloud. Disabled, если permalink null.
@@ -420,7 +420,7 @@ class _MoreAction extends ConsumerWidget {
         }
         if (url == null) return;
         if (v == 'copy') {
-          if (context.mounted) await copyToClipboard(context, url);
+          if (context.mounted) await copyToClipboard(context, url, ref: ref);
         } else if (v == 'open') {
           await openExternalUrl(url);
         }

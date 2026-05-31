@@ -2,7 +2,9 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/deeplinks/clipboard_watcher.dart';
 import 'widgets/toast.dart';
 
 /// Открывает URL в системном браузере без `url_launcher` (нативные shell-команды
@@ -23,12 +25,20 @@ Future<void> openExternalUrl(String url) async {
 
 /// Копирует строку в системный clipboard и показывает короткий toast.
 /// Если [context] больше не mounted — silent.
+///
+/// Когда [ref] передан, вызывает [ClipboardWatcher.markSeen] — это
+/// предотвращает re-prompt «open in Waveform?» на ссылки, скопированные
+/// самим приложением (самокопирование).
 Future<void> copyToClipboard(
   BuildContext context,
   String text, {
   String message = 'link copied to clipboard',
+  WidgetRef? ref,
 }) async {
   await Clipboard.setData(ClipboardData(text: text));
+  // Самокопирование: помечаем ссылку «уже видели», чтобы clipboard-watcher не
+  // показал свой тост «open in Waveform?» на наш же копипаст.
+  ref?.read(clipboardWatcherProvider).markSeen(text);
   if (!context.mounted) return;
   showToast(context, message);
 }
