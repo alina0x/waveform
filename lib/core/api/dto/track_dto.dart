@@ -114,7 +114,10 @@ class TrackDto {
       streamable: asBool(j['streamable'], true),
       policy: j['policy'] as String?,
       monetizationModel: j['monetization_model'] as String?,
-      publisherArtist: asMap(j['publisher_metadata'])['artist'] as String?,
+      publisherArtist: () {
+        final v = asMap(j['publisher_metadata'])['artist'];
+        return v is String && v.trim().isNotEmpty ? v : null;
+      }(),
       transcodings: asMapList(
         media['transcodings'],
       ).map(TranscodingDto.fromJson).toList(),

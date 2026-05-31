@@ -210,6 +210,16 @@ void main() {
       final track = TrackDto.fromJson(json).toDomain();
       expect(track.artist, 'soloacct');
     });
+
+    test('no publisher_metadata at all falls back to username', () {
+      final json = jsonDecode('''
+  {
+    "id": 3, "title": "T3", "duration": 1000,
+    "user": {"id": 9, "username": "plainacct", "permalink": "plainacct"}
+  }''') as Map<String, dynamic>;
+      final track = TrackDto.fromJson(json).toDomain();
+      expect(track.artist, 'plainacct');
+    });
   });
 
   group('Stream page', () {
