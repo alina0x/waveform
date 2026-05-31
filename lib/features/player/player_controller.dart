@@ -312,23 +312,28 @@ class PlayerController extends Notifier<PlayerState> {
 
   /// Вставить трек СЛЕДУЮЩИМ после текущего (vs. addToQueue — в конец).
   /// Дубликат не плодим — переносим на позицию «следующий». Учитывает shuffle:
-  /// в shuffle-режиме правим `_order` (что реально слышно), сохраняя членство в
-  /// `_queue` (источник правды для remove/индекса).
+  /// вставляем после текущего в АКТИВНОЙ последовательности (что реально
+  /// слышно), сохраняя членство/позицию во второй. Когда ничего не играет
+  /// (cur < 0) — вставляем в начало (станет первым «следующим»).
   void playNext(Track t) {
     final curId = state.track?.id;
-    if (identical(_activeSeq, _queue)) {
-      _queue.removeWhere((x) => x.id == t.id);
-      if (_order.isNotEmpty) _order.removeWhere((x) => x.id == t.id);
-      final cur = curId == null ? -1 : _queue.indexWhere((x) => x.id == curId);
-      _queue.insert(cur < 0 ? 0 : cur + 1, t);
-      if (_order.isNotEmpty) _order.add(t);
+    _queue.removeWhere((x) => x.id == t.id);
+    _order.removeWhere((x) => x.id == t.id);
+
+    final seq = _activeSeq; // _order в shuffle, иначе _queue
+    final curInSeq = curId == null ? -1 : seq.indexWhere((x) => x.id == curId);
+    seq.insert(curInSeq < 0 ? 0 : curInSeq + 1, t);
+
+    if (identical(seq, _queue)) {
+      // Линейный режим активен: _order (если непуст) держим в синхроне — тоже
+      // после текущего, а не в хвосте, иначе re-shuffle сыграл бы трек последним.
+      if (_order.isNotEmpty) {
+        final co = curId == null ? -1 : _order.indexWhere((x) => x.id == curId);
+        _order.insert(co < 0 ? _order.length : co + 1, t);
+      }
     } else {
-      // shuffle активен: _activeSeq == _order
-      _queue.removeWhere((x) => x.id == t.id);
-      _order.removeWhere((x) => x.id == t.id);
-      _queue.add(t); // членство
-      final cur = curId == null ? -1 : _order.indexWhere((x) => x.id == curId);
-      _order.insert(cur < 0 ? 0 : cur + 1, t);
+      // Shuffle активен (seq == _order): _queue — источник правды членства.
+      if (!_queue.any((x) => x.id == t.id)) _queue.add(t);
     }
     _recomputeFrontierNext();
     state = state.copyWith(queueVersion: state.queueVersion + 1);

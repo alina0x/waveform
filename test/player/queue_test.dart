@@ -59,4 +59,29 @@ void main() {
     pc.playNext(t('3'));
     expect(pc.upcomingTracks.map((x) => x.id), ['3', '2']);
   });
+
+  test('playNext on idle (no current track) puts it first', () {
+    final engine = FakeAudioEngine();
+    final c = harness(engine);
+    addTearDown(c.dispose);
+    final pc = c.read(playerControllerProvider.notifier);
+    // no play() called → state.track is null
+    pc.playNext(t('5'));
+    expect(pc.upcomingTracks.map((x) => x.id), contains('5'));
+  });
+
+  test('playNext in shuffle mode puts track first in upcoming (heard next)', () {
+    final engine = FakeAudioEngine();
+    final c = harness(engine);
+    addTearDown(c.dispose);
+    final pc = c.read(playerControllerProvider.notifier);
+    // play with a queue large enough that _generateAfter builds _order
+    pc.play(t('1'), queue: [t('1'), t('2'), t('3'), t('4')]);
+    // toggleShuffle calls _recomputeFrontierNext → _ensureOrder → _order built
+    pc.toggleShuffle();
+    // Now _activeSeq == _order (shuffle on, _order non-empty, same source)
+    pc.playNext(t('9'));
+    // Regardless of shuffle permutation, track '9' must be the very next heard
+    expect(pc.upcomingTracks.first.id, '9');
+  });
 }
