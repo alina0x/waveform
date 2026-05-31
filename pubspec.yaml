@@ -42,7 +42,23 @@ dependencies:
   dio: ^5.9.2
   path_provider: ^2.1.5
   just_audio: ^0.10.5
+  # Windows/Linux backend for just_audio (libmpv via media_kit). just_audio
+  # itself only ships android/ios/macos plugins — without this every setUrl()
+  # on Windows throws MissingPluginException, every track silently fails
+  # to load and the PlayerController auto-skips. media_kit_libs_audio
+  # bundles only the audio codecs (no video) to keep binary size sane.
+  just_audio_media_kit: ^2.1.0
+  media_kit_libs_audio: ^1.0.7
   audio_service: ^0.18.18
+  # Explicit dep — we use it directly (audio_engine.dart, main.dart) to bridge
+  # libmpv / media_kit logs into Talker. Pulled transitively by
+  # just_audio_media_kit, declared here so we don't break if the indirect
+  # dependency disappears.
+  logging: ^1.2.0
+  # Explicit dep — we touch `MPVLogLevel` directly in main.dart to bump the
+  # mpv log level. Pulled transitively by just_audio_media_kit; declared
+  # here so `depend_on_referenced_packages` is clean.
+  media_kit: ^1.2.6
   desktop_webview_window: ^0.3.0
   talker_flutter: ^5.1.16
   talker_riverpod_logger: ^5.1.16
@@ -50,6 +66,15 @@ dependencies:
   crypto: ^3.0.7
   window_manager: ^0.5.1
   app_links: ^6.3.2
+  # Auto-grab oauth_token from Chromium browsers (Brave/Chrome/Edge).
+  # Pure-Dart AES-GCM for Chromium v10 cookie decryption; bundled libsqlite3
+  # to read the locked Cookies DB after copying it to a temp file; win32+ffi
+  # bridge for CryptUnprotectData (DPAPI master key unwrap).
+  cryptography: ^2.7.0
+  sqlite3: ^2.4.0
+  sqlite3_flutter_libs: ^0.5.27
+  ffi: ^2.1.0
+  win32: ^6.0.0
 
 dev_dependencies:
   flutter_test:
@@ -86,6 +111,14 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  # Bundled Chromium extension used as Tier 3 fallback in the login dialog.
+  # See lib/core/auth/extension_bridge.dart — files are extracted to
+  # <appSupport>/waveform-bridge/ and loaded unpacked from chrome://extensions.
+  assets:
+    - assets/extension/manifest.json
+    - assets/extension/background.js
+    - assets/extension/icon-128.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:

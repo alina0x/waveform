@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,6 +17,7 @@ import '../../features/queue/queue_visibility.dart';
 import 'cover_art.dart';
 import 'pressable.dart';
 import 'wave_logo.dart';
+import 'window_controls.dart';
 
 /// Верхняя панель оболочки: лого, навигация Home/Feed/Library, поиск,
 /// аккаунт (логин/логаут). Активный пункт — по маршруту.
@@ -60,6 +63,9 @@ class TopBar extends ConsumerWidget {
             const SizedBox(width: 32),
             _NavLink('home', '/', location),
             _NavLink('feed', '/feed', location),
+            _NavLink('daily drops', '/daily', location),
+            _NavLink('likes', '/likes', location),
+            _NavLink('history', '/history', location),
             _NavLink('library', '/library', location),
             const SizedBox(width: 16),
             Expanded(
@@ -116,6 +122,10 @@ class TopBar extends ConsumerWidget {
             ),
             const SizedBox(width: 14),
             const _Account(),
+            if (Platform.isWindows || Platform.isLinux) ...[
+              const SizedBox(width: 8),
+              const WindowControls(),
+            ],
           ],
         ),
       ),

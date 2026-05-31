@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../shared/models/feed_post.dart';
+import '../../shared/models/track.dart';
 import 'providers.dart';
 import 'soundcloud_api.dart';
 
@@ -17,6 +18,12 @@ final libraryProvider = FutureProvider<LibraryData>(
 
 final feedProvider = FutureProvider<List<FeedPost>>(
   (ref) => ref.watch(soundcloudApiProvider).feed(),
+);
+
+/// Daily drops — personalized "new for you" playlist. Rebuilds on auth
+/// change because `soundcloudApiProvider` rebuilds on auth change.
+final dailyDropsProvider = FutureProvider<List<Track>>(
+  (ref) => ref.watch(soundcloudApiProvider).dailyDrops(),
 );
 
 final trackDetailProvider = FutureProvider.family<TrackDetail, String>(

@@ -101,6 +101,10 @@ class MockSoundcloudApi implements SoundcloudApi {
   @override
   Future<List<Track>> allPlaylistTracks(String id) async => Mock.tracks;
 
+  /// Мок daily drops — стабильная выборка для offline-разработки и тестов.
+  @override
+  Future<List<Track>> dailyDrops() async => Mock.tracks.take(8).toList();
+
   /// Мок-треки не проигрываемы — реального аудио нет.
   @override
   Future<String?> resolveStreamUrl(String transcodingUrl) async => null;

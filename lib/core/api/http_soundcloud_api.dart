@@ -192,14 +192,23 @@ class HttpSoundcloudApi implements SoundcloudApi {
 
   // Личные коллекции в api-v2 — по /users/{id}/…, а НЕ /me/… (последние 404).
   // Исключения, которые реально работают как /me/…: /me и /me/play-history.
-  Future<String?>? _meIdFuture;
-  Future<String?> _meId() => _meIdFuture ??= _fetchMeId();
-  Future<String?> _fetchMeId() async {
+  //
+  // Cache shape carries both `id` (stringified for path interp) and
+  // `permalink` (the user-facing slug) — `dailyDrops()` needs the permalink
+  // to build the `discover/sets/new-for-you::<slug>` URL, every other
+  // personal endpoint only needs the id.
+  Future<({String id, String permalink})?>? _meFuture;
+  Future<({String id, String permalink})?> _me() =>
+      _meFuture ??= _fetchMe();
+  Future<String?> _meId() async => (await _me())?.id;
+  Future<({String id, String permalink})?> _fetchMe() async {
     try {
-      final id = asMap(await _get('/me', null, true))['id'];
-      return id == null ? null : '$id';
+      final m = asMap(await _get('/me', null, true));
+      final rawId = m['id'];
+      if (rawId == null) return null;
+      return (id: '$rawId', permalink: asStr(m['permalink']));
     } catch (e, st) {
-      _log.warning('failed to resolve /me id', e, st);
+      _log.warning('failed to resolve /me', e, st);
       return null;
     }
   }
@@ -295,8 +304,19 @@ class HttpSoundcloudApi implements SoundcloudApi {
 
   Future<Artist?> _meProfile() async {
     try {
-      return UserDto.fromJson(asMap(await _get('/me', null, true))).toDomain();
-    } catch (_) {
+      final data = asMap(await _get('/me', null, true));
+      final artist = UserDto.fromJson(data).toDomain();
+      // Avatar comes back as `…-large.jpg` from /me; hiResArtwork swaps it
+      // for `-t500x500.jpg`. Log the resolved URL so a 404/silent fallback
+      // is immediately visible in the in-app log (Talker → /logs).
+      _log.info(
+        'me: id=${artist.id} handle=${artist.handle} '
+        'avatar=${artist.avatarUrl ?? "<none>"}',
+      );
+      return artist;
+    } catch (e, st) {
+      // Previously swallowed silently → avatar/handle silently missing.
+      _log.warning('me: /me lookup failed', e, st);
       return null;
     }
   }
@@ -539,13 +559,51 @@ class HttpSoundcloudApi implements SoundcloudApi {
   @override
   Future<List<Track>> allPlaylistTracks(String id) async {
     final raw = asMap(await _get('/playlists/$id'));
-    final tracksJson = asMapList(raw['tracks']);
-    // Восстановим порядок плейлиста через map trackId → index.
+    return _hydrateOrderedTracks(asMapList(raw['tracks']));
+  }
+
+  /// Daily drops — personalized "new for you" playlist. SoundCloud builds it
+  /// per user once per ~24h; anonymous calls and unbuilt profiles 404 so we
+  /// swallow into an empty list (UI surfaces an empty state, never an error).
+  @override
+  Future<List<Track>> dailyDrops() async {
+    if (!_authed) return const [];
+    final me = await _me();
+    if (me == null || me.permalink.isEmpty) return const [];
+    try {
+      // The discover-set URL is the user-facing landing page; /resolve
+      // translates it into a `system-playlist` payload with track stubs
+      // (most arrive as `{id: <int>}` and need batched hydration).
+      //
+      // **Auth is mandatory here**: anonymous /resolve on a per-user URL
+      // (`new-for-you::<permalink>`) returns 404 — SoundCloud only serves
+      // the personalized set to the owning OAuth session. Without `authed:
+      // true` this whole feature silently returns `const []`.
+      final url =
+          'https://soundcloud.com/discover/sets/new-for-you::${me.permalink}';
+      final data = asMap(await _get('/resolve', {'url': url}, true));
+      final stubs = asMapList(data['tracks']);
+      final tracks = await _hydrateOrderedTracks(stubs);
+      _log.info('dailyDrops resolved ${tracks.length} tracks');
+      return tracks;
+    } catch (e, st) {
+      _log.warning('dailyDrops failed (new account / regional)', e, st);
+      return const [];
+    }
+  }
+
+  /// Shared batch-hydrator: takes track stubs (mix of full + `{id}` only),
+  /// resolves the missing ones via `/tracks?ids=<csv>`, and returns them
+  /// re-sorted into the stubs' original index order.
+  Future<List<Track>> _hydrateOrderedTracks(
+    List<Map<String, dynamic>> stubs,
+  ) async {
+    // Восстановим порядок через map trackId → index.
     final order = <int, int>{};
     final hydrated = <Track>[];
     final missing = <int>[];
-    for (var i = 0; i < tracksJson.length; i++) {
-      final m = tracksJson[i];
+    for (var i = 0; i < stubs.length; i++) {
+      final m = stubs[i];
       final tid = asInt(m['id']);
       order[tid] = i;
       if (m.containsKey('title')) {
