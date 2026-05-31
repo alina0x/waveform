@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/artist/artist_screen.dart';
+import '../features/daily_drops/daily_drops_screen.dart';
 import '../features/debug/logs_screen.dart';
 import '../features/feed/feed_screen.dart';
 import '../features/home/home_screen.dart';
@@ -50,6 +51,23 @@ final appRouter = GoRouter(
         GoRoute(
           path: '/feed',
           pageBuilder: (c, s) => _page(const FeedScreen()),
+        ),
+        GoRoute(
+          path: '/daily',
+          pageBuilder: (c, s) => _page(const DailyDropsScreen()),
+        ),
+        GoRoute(
+          // `/likes` and `/history` are first-class top-bar destinations
+          // that drop the user directly into the matching Library tab —
+          // saves a click vs `/library?tab=…` and gives each tab a stable
+          // URL the nav bar can highlight unambiguously.
+          path: '/likes',
+          pageBuilder: (c, s) => _page(const LibraryScreen(initialTab: 'likes')),
+        ),
+        GoRoute(
+          path: '/history',
+          pageBuilder: (c, s) =>
+              _page(const LibraryScreen(initialTab: 'history')),
         ),
         GoRoute(
           path: '/library',

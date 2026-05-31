@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "Waveform Bridge",
+  "short_name": "Waveform",
+  "version": "1.0.0",
+  "description": "Posts the SoundCloud oauth_token cookie to the Waveform desktop app over a loopback socket so you don't have to copy/paste it.",
+  "permissions": ["cookies", "storage"],
+  "host_permissions": [
+    "https://*.soundcloud.com/*",
+    "http://127.0.0.1/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "128": "icon-128.png"
+  }
+}

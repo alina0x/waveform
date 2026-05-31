@@ -70,6 +70,12 @@ abstract interface class SoundcloudApi {
   /// Тяжелее [playlist]; зовём только когда реально нужен весь сет (shuffle-all).
   Future<List<Track>> allPlaylistTracks(String id);
 
+  /// Tracks from the user's personalized "new for you" daily playlist
+  /// (`https://soundcloud.com/discover/sets/new-for-you::<permalink>`).
+  /// Empty list when anonymous or SoundCloud hasn't built one for this
+  /// account (new accounts / regional rollout / cleared profile).
+  Future<List<Track>> dailyDrops();
+
   Future<RailData> rail();
 
   /// Загружает реальную waveform-форму трека по `waveform_url` (JSON `samples`,

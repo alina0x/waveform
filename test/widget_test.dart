@@ -23,6 +23,8 @@ class _FakeAudioEngine implements AudioEngine {
   @override
   Stream<void> get completedStream => const Stream.empty();
   @override
+  Stream<EngineError> get errorStream => const Stream.empty();
+  @override
   Future<void> load(String url) async {}
   @override
   Future<void> pause() async {}
@@ -47,7 +49,11 @@ class _FakeAudioEngine implements AudioEngine {
 void main() {
   // Десктопный вьюпорт — приложение рассчитано на широкое окно.
   void useDesktopViewport(WidgetTester tester) {
-    tester.view.physicalSize = const Size(1280, 820);
+    // 1440 — accommodates the full nav cluster (home/feed/daily drops/
+    // likes/history/library) plus the 138px Windows title-bar controls
+    // that mount when tests run on the Windows host. Below ~1340 the
+    // search field's Expanded gets squeezed and the inner Row overflows.
+    tester.view.physicalSize = const Size(1440, 820);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -161,6 +167,33 @@ void main() {
     await load(tester);
 
     expect(find.text('your library'), findsOneWidget);
+  });
+
+  testWidgets('Daily drops tab is gated behind login when anon',
+      (tester) async {
+    await pumpApp(tester);
+
+    await tester.tap(find.text('daily drops'));
+    await load(tester);
+
+    // Logged-out path renders LoggedOutView, not the play-all CTA.
+    expect(find.text('daily drops'), findsWidgets); // nav + screen title
+    expect(find.text('play all'), findsNothing);
+  });
+
+  testWidgets('Daily drops tab lists mock tracks when logged in',
+      (tester) async {
+    await pumpApp(tester, loggedIn: true);
+
+    // Nav link is present on the top bar — sanity check before tap.
+    expect(find.text('daily drops'), findsOneWidget);
+    await tester.tap(find.text('daily drops'));
+    await load(tester);
+
+    // Mock returns Mock.tracks.take(8): first mock track must be visible.
+    expect(find.text(mockTracks.first.title), findsWidgets);
+    // Play-all CTA only renders when the data path resolved with tracks.
+    expect(find.text('play all'), findsOneWidget);
   });
 
   testWidgets('Login/logout toggles the account UI', (tester) async {

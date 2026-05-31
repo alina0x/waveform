@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import '../../shared/models/artist.dart';
 import '../../shared/models/collection.dart';
 import '../../shared/models/comment.dart';
@@ -30,6 +32,24 @@ String relativeTime(String? iso) {
   return '${d.inDays ~/ 365} years ago';
 }
 
+/// Platform-dependent ordering of stream candidates: progressive first on
+/// desktop libmpv (more stable), HLS first on mobile/macOS (adaptive
+/// bitrate). Each list filters the source `transcodings` by
+/// `isHls/!isEncrypted`, so the preferred protocol leads and the other
+/// is the fallback if the first resolve fails.
+List<String> _orderedCandidates(List<TranscodingDto> ts) {
+  final progressiveFirst = Platform.isWindows || Platform.isLinux;
+  final hls = [
+    for (final t in ts)
+      if (t.isHls && !t.isEncrypted) t.url,
+  ];
+  final prog = [
+    for (final t in ts)
+      if (!t.isHls && !t.isEncrypted) t.url,
+  ];
+  return progressiveFirst ? [...prog, ...hls] : [...hls, ...prog];
+}
+
 extension TrackDtoMapper on TrackDto {
   Track toDomain() => Track(
     id: '$id',
@@ -40,20 +60,21 @@ extension TrackDtoMapper on TrackDto {
     likes: likesCount,
     reposts: repostsCount,
     plays: playbackCount,
-    // Процедурная заглушка по id — мгновенный плейсхолдер; реальная форма
-    // лениво подгружается из [waveformUrl] виджетом LiveWaveform.
+    // Procedural placeholder by id — instant filler; the real shape is
+    // lazily fetched from [waveformUrl] by the LiveWaveform widget.
     waveform: Track.generateWaveform(id),
     waveformUrl: waveformUrl,
     coverUrl: hiResArtwork(artworkUrl),
     permalinkUrl: permalinkUrl,
-    // HLS-кандидаты сначала, progressive — как фолбэк (часть HLS-ссылок 404).
-    // Зашифрованные (DRM) транскодинги исключаем — just_audio их не играет.
-    streamCandidates: [
-      for (final t in transcodings)
-        if (t.isHls && !t.isEncrypted) t.url,
-      for (final t in transcodings)
-        if (!t.isHls && !t.isEncrypted) t.url,
-    ],
+    // Candidate order depends on the platform:
+    //  - Mobile/macOS: HLS first (adaptive bitrate, saves bandwidth);
+    //    progressive as a fallback (some HLS links 404).
+    //  - Windows/Linux (libmpv via just_audio_media_kit): progressive
+    //    first. mpv's HLS demuxer is shaky on SoundCloud playlists
+    //    (the plugin README marks HLS "untested") and often hangs
+    //    silently; bare MP3 plays reliably. Encrypted (DRM)
+    //    transcodings are excluded — neither backend can play them.
+    streamCandidates: _orderedCandidates(transcodings),
     goPlus: isGoPlus,
     genre: (genre == null || genre!.isEmpty) ? 'electronic' : genre!,
     postedAt: relativeTime(createdAt),

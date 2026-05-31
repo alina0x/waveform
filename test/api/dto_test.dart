@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -106,12 +108,18 @@ void main() {
       expect(dto.transcodings.any((t) => t.isHls), true);
     });
 
-    test('stream candidates order HLS before progressive', () {
+    test('stream candidates ordered by platform preference', () {
       final t = dto.toDomain();
-      // Несмотря на progressive-first в JSON, HLS должен идти первым кандидатом.
       expect(t.streamCandidates.length, 2);
-      expect(t.streamCandidates.first.endsWith('/stream/hls'), true);
-      expect(t.streamCandidates.last.endsWith('/stream/progressive'), true);
+      // Desktop libmpv: progressive first (HLS demuxer is shaky).
+      // Mobile/macOS: HLS first (adaptive bitrate, saves bandwidth).
+      if (Platform.isWindows || Platform.isLinux) {
+        expect(t.streamCandidates.first.endsWith('/stream/progressive'), true);
+        expect(t.streamCandidates.last.endsWith('/stream/hls'), true);
+      } else {
+        expect(t.streamCandidates.first.endsWith('/stream/hls'), true);
+        expect(t.streamCandidates.last.endsWith('/stream/progressive'), true);
+      }
       expect(t.streamUrl, t.streamCandidates.first);
     });
 
@@ -130,8 +138,17 @@ void main() {
   ]}
 }''';
       final t = TrackDto.fromJson(jsonDecode(json)).toDomain();
-      expect(t.streamCandidates,
-          ['https://x/stream/hls', 'https://x/stream/progressive']);
+      final firstPref =
+          (Platform.isWindows || Platform.isLinux) ? 'progressive' : 'hls';
+      expect(t.streamCandidates.length, 2);
+      expect(t.streamCandidates.first.endsWith('/stream/$firstPref'), true);
+      expect(
+        t.streamCandidates,
+        containsAll([
+          'https://x/stream/hls',
+          'https://x/stream/progressive',
+        ]),
+      );
       // Наличие зашифрованного транскодинга само по себе → GO+ (даже без
       // policy/monetization, которых нет в выдаче search/stream).
       expect(t.goPlus, true);
