@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -57,6 +58,8 @@ class SettingsScreen extends ConsumerWidget {
             _LinksSection(),
             SizedBox(height: 28),
             _PlaybackSection(),
+            SizedBox(height: 28),
+            _PlaybackDiagnosticsSection(),
             SizedBox(height: 28),
             _ShortcutsSection(),
             SizedBox(height: 28),
@@ -506,6 +509,128 @@ class _PlaybackSection extends ConsumerWidget {
               onChanged: (v) => c.setCrossfadeMs(v.round()),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Audio-engine self-test. Plays a short public MP3 on its OWN throwaway
+/// `AudioPlayer` (without disturbing the main engine), and reports pass/
+/// fail with the last backend error. Useful when "I hit play and nothing
+/// happens" — a green result means libmpv/AVPlayer works and the problem
+/// is in SoundCloud's candidates (HLS/CDN), not in the engine itself.
+class _PlaybackDiagnosticsSection extends ConsumerStatefulWidget {
+  const _PlaybackDiagnosticsSection();
+
+  @override
+  ConsumerState<_PlaybackDiagnosticsSection> createState() =>
+      _PlaybackDiagnosticsSectionState();
+}
+
+class _PlaybackDiagnosticsSectionState
+    extends ConsumerState<_PlaybackDiagnosticsSection> {
+  // A well-known public MP3 sample (3 s, ~25 KB). Hosted on samplelib.com.
+  // If the CDN is down, this test fails cleanly with a network error —
+  // which is itself useful information.
+  static const _testUrl = 'https://download.samplelib.com/mp3/sample-3s.mp3';
+
+  bool _busy = false;
+  String? _result;
+
+  Future<void> _run() async {
+    if (_busy) return;
+    setState(() {
+      _busy = true;
+      _result = null;
+    });
+    final talker = ref.read(talkerProvider);
+    final player = AudioPlayer();
+    String? bgError;
+    final errSub = player.errorStream.listen((e) {
+      bgError = '(${e.code}) ${e.message ?? "unknown"}';
+    });
+    try {
+      talker.info('playback diagnostics: loading $_testUrl');
+      await player.setUrl(_testUrl);
+      await player.play();
+      final passed = await _waitForPlayback(player, const Duration(seconds: 3));
+      final outcome = passed
+          ? 'pass'
+          : 'fail: no playback in 3 s${bgError == null ? "" : " — $bgError"}';
+      if (mounted) setState(() => _result = outcome);
+      talker.info('playback diagnostics: $outcome');
+    } catch (e, st) {
+      final outcome = 'fail: $e${bgError == null ? "" : " ($bgError)"}';
+      talker.warning('playback diagnostics failed', e, st);
+      if (mounted) setState(() => _result = outcome);
+    } finally {
+      await errSub.cancel();
+      try {
+        await player.stop();
+      } catch (_) {}
+      await player.dispose();
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// Poll `processingState`/`position` every 100 ms — `ready` plus a
+  /// non-zero position = actually playing. Without the position check
+  /// `ready` can be a false positive on desktop mpv right after
+  /// `setUrl` (the player is "open" but no audio has started yet).
+  Future<bool> _waitForPlayback(AudioPlayer p, Duration window) async {
+    final deadline = DateTime.now().add(window);
+    while (DateTime.now().isBefore(deadline)) {
+      if (p.processingState == ProcessingState.ready &&
+          p.position > Duration.zero) {
+        return true;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    }
+    return false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final result = _result;
+    final passed = result == 'pass';
+    return _Section(
+      title: 'playback diagnostics',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'play a known-good 3 s MP3',
+                      style: AppTheme.mono(size: 12, color: AppColors.textMid),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'tells you whether the audio engine works at all',
+                      style: AppTheme.mono(size: 10, color: AppColors.textLow),
+                    ),
+                  ],
+                ),
+              ),
+              _Button(label: _busy ? 'running…' : 'test', onTap: _run),
+            ],
+          ),
+          if (result != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              result,
+              style: AppTheme.mono(
+                size: 11,
+                color: passed ? AppColors.acid : AppColors.textHi,
+                weight: FontWeight.w600,
+              ),
+            ),
+          ],
         ],
       ),
     );

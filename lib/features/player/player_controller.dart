@@ -12,9 +12,24 @@ import '../../core/audio/waveform_audio_handler.dart';
 import '../../core/log/talker.dart';
 import '../../shared/models/track.dart';
 
+/// Why a track failed to play — UI uses this to pick the toast copy.
+enum UnplayableReason {
+  /// GO+ (subscription) track — full stream is encrypted; we only
+  /// receive a snippet that doesn't qualify as "playing".
+  goPlus,
+
+  /// Track has no DRM-free candidate (deleted/unavailable/protected),
+  /// or every candidate returned 404 during resolve.
+  noStream,
+
+  /// All candidates resolved, but the engine (libmpv/AVPlayer/ExoPlayer)
+  /// refused to play — codec, protocol, or network. See /logs for details.
+  engineError,
+}
+
 /// Событие «трек не проигрался» — для всплывающего уведомления в UI.
 /// [seq] растёт с каждым событием, чтобы listener срабатывал и на повтор.
-typedef Unplayable = ({int seq, String title, bool goPlus});
+typedef Unplayable = ({int seq, String title, UnplayableReason reason});
 
 /// Состояние плеера. Прогресс/признак «играет» приходят из [AudioEngine]
 /// (just_audio); очередь next/previous — реальный список с экрана.
@@ -182,6 +197,25 @@ class PlayerController extends Notifier<PlayerState> {
       }),
     );
 
+    // Any engine error → Talker. On fatal, raise a UI toast via
+    // _markUnplayable(engineError) so the user isn't staring at a black
+    // screen when libmpv quietly dies on HLS or a codec. We log
+    // warning (not error) here because the engine already emits
+    // `severe` for the same incident.
+    _subs.add(
+      engine.errorStream.listen((err) {
+        ref
+            .read(talkerProvider)
+            .warning(
+              'engine ${err.stage}${err.fatal ? " [fatal]" : ""}: ${err.message}',
+            );
+        if (!err.fatal) return;
+        final track = state.track;
+        if (track == null) return;
+        _markUnplayable(_loadToken, track, UnplayableReason.engineError);
+      }),
+    );
+
     // Подсветка «liked» в плеере держится в синхроне с реальным множеством
     // лайков (могло догрузиться после play или измениться из списка).
     ref.listen(likedTracksProvider, (_, liked) {
@@ -310,67 +344,108 @@ class PlayerController extends Notifier<PlayerState> {
     state = state.copyWith(queueVersion: state.queueVersion + 1);
   }
 
-  /// Резолв стрима (transcoding → m3u8/mp3) и передача в движок.
-  /// Перебирает кандидатов (HLS → progressive): часть HLS-ссылок протухает и
-  /// отдаёт 404 — тогда играем следующий источник. Мок/не streamable — тихо.
+  /// Resolve a stream (transcoding → m3u8/mp3) and hand it to the engine.
+  /// Walks candidates in platform-dependent order (see mappers.dart): some
+  /// HLS links expire and 404, in which case we try the next source. Mock
+  /// or non-streamable → silent (UI is optimistic; the real "playing"
+  /// signal arrives from the engine).
   Future<void> _load(Track track) async {
     final token = ++_loadToken;
     final candidates = track.streamCandidates;
-    // Нет незашифрованных источников: GO+ → сообщаем причину; иначе мок/не
-    // streamable — тихо (UI оптимистичен, реальный «играет» придёт из движка).
+    final talker = ref.read(talkerProvider);
+    // No DRM-free sources at all: GO+ → surface the reason; otherwise
+    // it's mock/non-streamable, which is silent (UI is optimistic; the
+    // actual "playing" signal comes from the engine).
     if (candidates.isEmpty) {
       if (track.goPlus) {
-        ref
-            .read(talkerProvider)
-            .warning('GO+ only (subscription): ${track.title}');
-        _markUnplayable(token, track);
+        talker.warning('GO+ only (subscription): ${track.title}');
+        _markUnplayable(token, track, UnplayableReason.goPlus);
       }
       return;
     }
     final api = ref.read(soundcloudApiProvider);
-    for (final candidate in candidates) {
+    for (var i = 0; i < candidates.length; i++) {
+      final candidate = candidates[i];
+      final desc = _candidateDescription(candidate, i, candidates.length);
       try {
         final url = await api.resolveStreamUrl(candidate);
-        if (token != _loadToken) return; // пользователь уже переключил трек
-        if (url == null) continue; // транскодинг протух — следующий кандидат
+        if (token != _loadToken) return; // user already switched track
+        if (url == null) {
+          // Transcoding expired — try the next candidate.
+          talker.debug('stream candidate empty resolve ($desc)');
+          continue;
+        }
         await _engine.load(url);
         if (token != _loadToken) return;
         _startedAt = DateTime.now();
-        _deadStreak = 0; // успешная загрузка сбрасывает счётчик мёртвых
-        // Фоном prepare'им next — для gapless/crossfade swap'а.
+        _deadStreak = 0; // a successful load resets the dead-streak counter
+        talker.info(
+          'engine.load OK ($desc) for ${track.artist} — ${track.title}',
+        );
+        // Prepare the next track in the background — for gapless/crossfade swap.
         unawaited(_preloadAfter(track));
-        return; // успех
+        return; // success
       } catch (e, st) {
-        ref
-            .read(talkerProvider)
-            .warning('stream candidate failed: ${track.title}', e, st);
+        talker.warning(
+          'stream candidate failed ($desc) for ${track.title}',
+          e,
+          st,
+        );
         if (token != _loadToken) return;
-        // пробуем следующий источник
+        // try the next source
       }
     }
-    // Все кандидаты исчерпаны. GO+ → свободный поток лишь сниппет/протух, полный
-    // зашифрован; иначе трек удалён/недоступен.
-    ref
-        .read(talkerProvider)
-        .warning(
-          track.goPlus
-              ? 'GO+ only (subscription): ${track.title}'
-              : 'no playable stream: ${track.title}',
-        );
-    _markUnplayable(token, track);
+    // All candidates exhausted. GO+ → free stream is a snippet/expired,
+    // full stream is encrypted. Otherwise the track is deleted/unavailable.
+    final reason = track.goPlus
+        ? UnplayableReason.goPlus
+        : UnplayableReason.noStream;
+    talker.warning(
+      track.goPlus
+          ? 'GO+ only (subscription): ${track.title}'
+          : 'no playable stream after ${candidates.length} candidate(s): ${track.title}',
+    );
+    _markUnplayable(token, track, reason);
   }
 
-  /// Помечает текущий трек непроигрываемым (с видимой причиной — GO+/недоступен)
-  /// и в очереди перескакивает на следующий, но не более [_maxDeadSkips] подряд,
-  /// чтобы цепочка мёртвых/GO+ треков не пролистала всю очередь.
-  void _markUnplayable(int token, Track track) {
+  /// Compact log description of a candidate: "2/4 hls mp3_1_0 host/path".
+  /// We parse protocol/preset from the URL (heuristic, but SoundCloud
+  /// transcoding URLs always include `/<preset>/<protocol>/` in the path).
+  String _candidateDescription(String url, int idx, int total) {
+    final uri = Uri.tryParse(url);
+    String protocol = '?';
+    String preset = '?';
+    if (uri != null && uri.pathSegments.length >= 2) {
+      // .../media/soundcloud:tracks:<id>/<preset>/<protocol>/playlist.m3u8
+      // .../media/soundcloud:tracks:<id>/<preset>/stream/progressive
+      final segs = uri.pathSegments;
+      for (var k = 0; k < segs.length - 1; k++) {
+        final s = segs[k];
+        if (s == 'hls' || s == 'progressive') protocol = s;
+        if (s.startsWith('mp3_') || s.startsWith('opus_') || s.startsWith('aac_')) {
+          preset = s;
+        }
+      }
+    }
+    // Sanitize URL for log (no query — signed tokens are noise).
+    final clean = uri == null
+        ? url
+        : '${uri.scheme}://${uri.host}${uri.path}';
+    return '${idx + 1}/$total $protocol $preset $clean';
+  }
+
+  /// Marks the current track unplayable with a concrete `reason` — UI
+  /// reads `reason` to pick the toast copy. Auto-skips to next() up to
+  /// [_maxDeadSkips] consecutive failures so a stretch of dead/GO+
+  /// tracks doesn't fast-forward through the whole queue.
+  void _markUnplayable(int token, Track track, UnplayableReason reason) {
     if (token != _loadToken || state.track?.id != track.id) return;
     state = state.copyWith(
       isPlaying: false,
       unplayable: (
         seq: ++_unplayableSeq,
         title: track.title,
-        goPlus: track.goPlus,
+        reason: reason,
       ),
     );
     if (_queue.length > 1 && ++_deadStreak < _maxDeadSkips) {
@@ -380,7 +455,7 @@ class PlayerController extends Notifier<PlayerState> {
 
   int _unplayableSeq = 0;
 
-  /// Токен текущей preload-операции — отбрасываем устаревшие резолвы.
+  /// Token of the in-flight preload; older resolves are discarded.
   int _preloadToken = 0;
 
   /// Готовит следующий трек ([_upNext]) в теневом движке: резолвит первый
