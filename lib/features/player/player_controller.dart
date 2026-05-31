@@ -28,6 +28,7 @@ class PlayerState {
     this.repeat = false,
     this.liked = false,
     this.volume = 1.0,
+    this.muted = false,
     this.unplayable,
     this.queueVersion = 0,
   });
@@ -40,6 +41,10 @@ class PlayerState {
   final bool repeat;
   final bool liked;
   final double volume;
+
+  /// Замьючено ли воспроизведение. Громкость ползунка сохраняется в [volume]
+  /// и восстанавливается при повторном [toggleMute].
+  final bool muted;
 
   /// Монотонно растущий счётчик — bump'ится контроллером на любую мутацию
   /// очереди. UI слушает `select((s) => s.queueVersion)` и пере-читает
@@ -72,6 +77,7 @@ class PlayerState {
     bool? repeat,
     bool? liked,
     double? volume,
+    bool? muted,
     Unplayable? unplayable,
     int? queueVersion,
   }) => PlayerState(
@@ -83,6 +89,7 @@ class PlayerState {
     repeat: repeat ?? this.repeat,
     liked: liked ?? this.liked,
     volume: volume ?? this.volume,
+    muted: muted ?? this.muted,
     unplayable: unplayable ?? this.unplayable,
     queueVersion: queueVersion ?? this.queueVersion,
   );
@@ -477,7 +484,8 @@ class PlayerController extends Notifier<PlayerState> {
     // отдаём перцептивную кривую: слух логарифмичен, а just_audio.setVolume —
     // линейная амплитуда. Без кривой вся полезная тихая зона сжата в нижние
     // ~5% ползунка. Кубическая «audio taper» растягивает её по всему ходу.
-    state = state.copyWith(volume: v);
+    // Смена громкости снимает mute — естественное поведение.
+    state = state.copyWith(volume: v, muted: false);
     _engine.setVolume(v * v * v);
   }
 
@@ -626,6 +634,31 @@ class PlayerController extends Notifier<PlayerState> {
     );
     _engine.seek(pos);
     state = state.copyWith(position: pos);
+  }
+
+  /// Сдвинуть позицию на [delta] (может быть отрицательной), clamp в трек.
+  /// Используется для стрелок ←/→ (±5 с).
+  void seekBy(Duration delta) {
+    final total = state.track?.durationMs ?? 0;
+    if (total == 0) return;
+    final ms = (state.position + delta).inMilliseconds.clamp(0, total);
+    final pos = Duration(milliseconds: ms);
+    _engine.seek(pos);
+    state = state.copyWith(position: pos);
+  }
+
+  /// Mute/unmute. Mute → движок 0; UI-значение громкости сохраняется в
+  /// [state.volume] и восстанавливается при unmute (перцептивная кубическая
+  /// кривая, как в [setVolume]).
+  void toggleMute() {
+    if (state.muted) {
+      state = state.copyWith(muted: false);
+      final v = state.volume;
+      _engine.setVolume(v * v * v);
+    } else {
+      state = state.copyWith(muted: true);
+      _engine.setVolume(0);
+    }
   }
 }
 
