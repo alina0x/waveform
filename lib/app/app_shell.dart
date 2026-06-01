@@ -54,8 +54,28 @@ class _AppShellState extends ConsumerState<AppShell> {
 
   final ChordController _chord = ChordController();
 
+  /// Сфокусировано ли сейчас текстовое поле. Когда да — глобальные шорткаты
+  /// ВЫКЛючаем (карта Shortcuts пустеет), иначе бэр-буквы L/R/S/… матчились бы
+  /// в Intent вместо ввода. Фокус сам не триггерит rebuild, поэтому слушаем
+  /// FocusManager и кешируем сюда.
+  bool _editing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    FocusManager.instance.addListener(_onFocusChange);
+  }
+
+  void _onFocusChange() {
+    final editing = _isEditing;
+    if (editing != _editing && mounted) {
+      setState(() => _editing = editing);
+    }
+  }
+
   @override
   void dispose() {
+    FocusManager.instance.removeListener(_onFocusChange);
     _chord.dispose();
     _shellFocus.dispose();
     super.dispose();
@@ -187,7 +207,7 @@ class _AppShellState extends ConsumerState<AppShell> {
           return KeyEventResult.handled;
         },
         child: Shortcuts(
-          shortcuts: (omniOpen || shortcutsOpen)
+          shortcuts: (omniOpen || shortcutsOpen || _editing)
               ? const <ShortcutActivator, Intent>{}
               : _shortcuts(),
           child: Actions(
@@ -419,14 +439,12 @@ class _AppShellState extends ConsumerState<AppShell> {
       }
       return KeyEventResult.ignored;
     }
-    // Печатаем в текстовом поле → ГАСИМ клавишу (handled), чтобы single-letter
-    // шорткаты (L/R/S/M/space/…) не срабатывали вместо ввода. На macOS символ
-    // уже доставлен в поле через IME-канал, а `handled` не даёт KeyEvent'у
-    // всплыть до ancestor-`Shortcuts` (он иначе матчил бы бэр-букву в Intent).
-    if (_isEditing) return KeyEventResult.handled;
-    // Модификаторные комбо (⌘K/⌘,/⌘⇧C) и открытый омнибокс — отдаём дальше в
-    // Shortcuts (при открытом омнибоксе карта пустая, ничего не сработает).
-    if (hasMod || ref.read(omniboxOpenProvider)) {
+    // В поле ввода (или ⌘K-омнибокс / комбо с модификатором) НЕ перехватываем:
+    // возвращаем `ignored`, чтобы macOS доставил символ в NSTextInputClient —
+    // иначе поле перестаёт печатать (`handled` подавляет ввод). Single-letter
+    // шорткаты при вводе не сработают, потому что карта Shortcuts пустеет на
+    // `_editing` (см. build) — гасим на уровне карты, а не KeyEvent'а.
+    if (hasMod || ref.read(omniboxOpenProvider) || _isEditing) {
       return KeyEventResult.ignored;
     }
     if (_chord.armed) {
