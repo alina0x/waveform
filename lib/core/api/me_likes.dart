@@ -84,6 +84,26 @@ class MeLikesPageController extends Notifier<LikesPageState> {
     state = const LikesPageState();
     await loadNext();
   }
+
+  bool _draining = false;
+
+  /// Догрузить ВСЕ оставшиеся страницы лайков — чтобы поиск шёл по всем лайкам,
+  /// а не только по подгруженным (и для «shuffle all»). Идемпотентно: повторный
+  /// вызов во время загрузки — no-op. Кап в 200 страниц (≈10k треков) —
+  /// страховка от бесконечного цикла.
+  Future<void> loadAll() async {
+    if (_draining) return;
+    _draining = true;
+    try {
+      for (var i = 0; i < 200; i++) {
+        if (!state.hasMore) break;
+        await loadNext();
+        if (state.error != null) break; // оборвалось ошибкой — выходим
+      }
+    } finally {
+      _draining = false;
+    }
+  }
 }
 
 final meLikesPagedProvider =
