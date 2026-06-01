@@ -419,10 +419,14 @@ class _AppShellState extends ConsumerState<AppShell> {
       }
       return KeyEventResult.ignored;
     }
-    // Не заряжаем/не срабатываем аккорд, пока активен ⌘K-омнибокс или любое
-    // текстовое поле: на macOS символьные клавиши всё равно доходят сюда
-    // (EditableText их не «съедает»), иначе ввод запроса "g…l" увёл бы экран.
-    if (hasMod || ref.read(omniboxOpenProvider) || _isEditing) {
+    // Печатаем в текстовом поле → ГАСИМ клавишу (handled), чтобы single-letter
+    // шорткаты (L/R/S/M/space/…) не срабатывали вместо ввода. На macOS символ
+    // уже доставлен в поле через IME-канал, а `handled` не даёт KeyEvent'у
+    // всплыть до ancestor-`Shortcuts` (он иначе матчил бы бэр-букву в Intent).
+    if (_isEditing) return KeyEventResult.handled;
+    // Модификаторные комбо (⌘K/⌘,/⌘⇧C) и открытый омнибокс — отдаём дальше в
+    // Shortcuts (при открытом омнибоксе карта пустая, ничего не сработает).
+    if (hasMod || ref.read(omniboxOpenProvider)) {
       return KeyEventResult.ignored;
     }
     if (_chord.armed) {
