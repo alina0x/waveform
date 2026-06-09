@@ -138,7 +138,7 @@ jobs:
           ls -lh "$DMG"
 
       - name: Upload macOS artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macos-dmg
           path: waveform-macos-${{ github.ref_name }}.dmg
@@ -181,7 +181,7 @@ jobs:
           Get-Item $zip | Select-Object Name, Length
 
       - name: Upload Windows artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: windows-zip
           path: waveform-windows-${{ github.ref_name }}.zip
@@ -236,7 +236,7 @@ jobs:
           ls -lh "$TAR"
 
       - name: Upload Linux artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: linux-tar
           path: waveform-linux-${{ github.ref_name }}.tar.gz
