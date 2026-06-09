@@ -14,28 +14,33 @@ class WebviewApiExecutor {
     required Future<String?> Function() tokenGetter,
     required Future<String> Function() clientIdGetter,
     required Talker log,
-    this.pollInterval = const Duration(milliseconds: 150),
-    this.maxPolls = 60,
-    this.warmAttempts = 8,
-    this.warmUrl = 'https://soundcloud.com',
+    Duration pollInterval = const Duration(milliseconds: 150),
+    int maxPolls = 60,
+    int warmAttempts = 8,
+    String warmUrl = 'https://soundcloud.com',
   })  : _createRunner = createRunner,
         _tokenGetter = tokenGetter,
         _clientIdGetter = clientIdGetter,
-        _log = log;
+        _log = log,
+        _pollInterval = pollInterval,
+        _maxPolls = maxPolls,
+        _warmAttempts = warmAttempts,
+        _warmUrl = warmUrl;
 
   final Future<JsRunner> Function() _createRunner;
   final Future<String?> Function() _tokenGetter;
   final Future<String> Function() _clientIdGetter;
   final Talker _log;
-  final Duration pollInterval;
-  final int maxPolls;
-  final int warmAttempts;
-  final String warmUrl;
+  final Duration _pollInterval;
+  final int _maxPolls;
+  final int _warmAttempts;
+  final String _warmUrl;
 
   static const _readExpr = 'window.__wfRes';
 
   JsRunner? _runner;
   bool _warm = false;
+  bool _disposed = false;
   Future<void> _tail = Future<void>.value();
 
   /// Выполнить write; вернуть HTTP-статус. Запросы сериализуются.
@@ -43,6 +48,7 @@ class WebviewApiExecutor {
       _serialize(() => _sendInner(method, path));
 
   Future<int> _sendInner(String method, String path) async {
+    if (_disposed) throw StateError('executor disposed');
     await _ensureWarm();
     var status = await _execFetch(method, path);
     if (status == 403) {
@@ -61,18 +67,21 @@ class WebviewApiExecutor {
   Future<void> _ensureWarm() async {
     if (_warm) return;
     await _ensureRunner();
-    await _runner!.launch(warmUrl);
-    for (var i = 0; i < warmAttempts; i++) {
+    // (re-)navigate to warmUrl so DataDome issues/refreshes a cookie for this
+    // browser session (also used on re-warm after a 403).
+    await _runner!.launch(_warmUrl);
+    for (var i = 0; i < _warmAttempts; i++) {
       try {
         final s = await _execFetch('GET', '/me');
-        if (s != 403) {
+        // status 0 = JS fetch threw (network/CORS/redirect) — not warm yet.
+        if (s != 403 && s != 0) {
           _warm = true;
           return;
         }
       } catch (_) {
         // окно ещё грузится — повторим
       }
-      await Future<void>.delayed(pollInterval);
+      await Future<void>.delayed(_pollInterval);
     }
     throw StateError('webview warm-up failed (DataDome)');
   }
@@ -84,8 +93,8 @@ class WebviewApiExecutor {
     }
     final cid = await _clientIdGetter();
     await _runner!.eval(_script(method, path, token, cid));
-    for (var i = 0; i < maxPolls; i++) {
-      await Future<void>.delayed(pollInterval);
+    for (var i = 0; i < _maxPolls; i++) {
+      await Future<void>.delayed(_pollInterval);
       final r = await _runner!.eval(_readExpr);
       if (r != null && r != 'null' && r.isNotEmpty) {
         final m = jsonDecode(r) as Map<String, dynamic>;
@@ -95,14 +104,19 @@ class WebviewApiExecutor {
     throw TimeoutException('webview fetch timed out: $method $path');
   }
 
+  /// Строим JS-инъекцию fetch. Все интерполируемые значения проходят через
+  /// jsonEncode → корректное экранирование в JS-строковых литералах.
   String _script(String method, String path, String token, String cid) {
     final sep = path.contains('?') ? '&' : '?';
     final url = 'https://api-v2.soundcloud.com$path${sep}client_id=$cid';
+    final urlJs = jsonEncode(url);
+    final methodJs = jsonEncode(method);
+    final authJs = jsonEncode('OAuth $token');
     return '''
 window.__wfRes = null;
 (async () => {
   try {
-    const r = await fetch("$url", { method: "$method", headers: { Authorization: "OAuth $token" }, credentials: "include" });
+    const r = await fetch($urlJs, { method: $methodJs, headers: { Authorization: $authJs }, credentials: "include" });
     window.__wfRes = JSON.stringify({ status: r.status });
   } catch (e) { window.__wfRes = JSON.stringify({ status: 0, err: String(e) }); }
 })();
@@ -117,18 +131,23 @@ window.__wfRes = null;
 
   /// Best-effort фоновый прогрев (после signIn), чтобы первый лайк не ждал.
   Future<void> prewarm() async {
+    _log.info('[executor] prewarm started');
     try {
       await _serialize(_ensureWarm);
+      _log.info('[executor] prewarm done');
     } catch (e, st) {
       _log.warning('[executor] prewarm failed', e, st);
     }
   }
 
-  Future<void> dispose() async {
-    try {
-      await _runner?.close();
-    } catch (_) {}
-    _runner = null;
-    _warm = false;
+  Future<void> dispose() {
+    _disposed = true;
+    return _serialize(() async {
+      try {
+        await _runner?.close();
+      } catch (_) {}
+      _runner = null;
+      _warm = false;
+    });
   }
 }

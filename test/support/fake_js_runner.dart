@@ -35,6 +35,9 @@ class FakeJsRunner implements JsRunner {
       return null;
     }
     // poll-чтение глобалки результата
+    // Упрощение: результат отдаётся ровно один раз на инъекцию (реальный webview
+    // держит window.__wfRes до следующего сброса). Executor читает до первого
+    // non-null, так что для тестов этого достаточно.
     final p = _pending;
     _pending = null;
     return p == null ? null : '{"status":$p}';
