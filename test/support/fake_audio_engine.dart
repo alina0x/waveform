@@ -14,6 +14,17 @@ class FakeAudioEngine implements AudioEngine {
   double? lastVolume;
   String? lastLoadedUrl;
 
+  // ── Управление из тестов ──────────────────────────────────────────────
+  /// Готов ли preload (контроллер решает swap vs next по этому флагу).
+  bool preloadReady = false;
+  int swapCount = 0;
+  Duration? lastSwapCrossfade;
+  String? lastPreloadUrl;
+
+  /// Протолкнуть позицию/событие конца в контроллер.
+  void emitPosition(Duration p) => _position.add(p);
+  void emitCompleted() => _completed.add(null);
+
   @override
   Stream<Duration> get positionStream => _position.stream;
   @override
@@ -36,11 +47,15 @@ class FakeAudioEngine implements AudioEngine {
   @override
   Future<void> stop() async {}
   @override
-  Future<void> preloadNext(String? url) async {}
+  Future<void> preloadNext(String? url) async => lastPreloadUrl = url;
   @override
-  Future<void> swapToNext({Duration crossfade = Duration.zero}) async {}
+  Future<void> swapToNext({Duration crossfade = Duration.zero}) async {
+    swapCount++;
+    lastSwapCrossfade = crossfade;
+  }
+
   @override
-  bool get hasPreload => false;
+  bool get hasPreload => preloadReady;
   @override
   void dispose() {
     _position.close();

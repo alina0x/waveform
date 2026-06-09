@@ -112,6 +112,10 @@ class PlayerController extends Notifier<PlayerState> {
   /// при активации фронтир-трека, чтобы preload и фактический переход выбрали
   /// ОДИН и тот же трек (иначе на границе цикла шафл мог разойтись).
   Track? _frontierNext;
+
+  /// Идёт ли сейчас swap (crossfade-рампа или gapless). Гейтит повторный
+  /// early-trigger по позиции и completion-путь, пока переход не завершён.
+  bool _swapping = false;
   final List<StreamSubscription<dynamic>> _subs = [];
 
   /// Токен последней загрузки — отбрасываем резолв устаревшего трека,
@@ -146,6 +150,8 @@ class PlayerController extends Notifier<PlayerState> {
         if (dur > 0 && p.inMilliseconds > dur + 2000) return;
         if (p.inMilliseconds > _maxPosMs) _maxPosMs = p.inMilliseconds;
         state = state.copyWith(position: p);
+        // Истинный crossfade: overlap-переход стартует ДО конца трека.
+        _maybeStartCrossfade(p.inMilliseconds, dur);
       }),
     );
     _subs.add(
@@ -162,6 +168,8 @@ class PlayerController extends Notifier<PlayerState> {
     );
     _subs.add(
       engine.completedStream.listen((_) {
+        // Crossfade уже идёт (early-trigger по позиции) — не дублируем переход.
+        if (_swapping) return;
         // Ложный «completed» сразу после загрузки (битый HLS) НЕ должен
         // перескакивать дальше — иначе очередь пролистывается за секунды.
         // Реальный конец трека = играли заметное время И дошли почти до конца.
@@ -452,6 +460,7 @@ class PlayerController extends Notifier<PlayerState> {
   Future<void> _advanceViaSwap() async {
     final n = _upNext;
     if (n == null) return;
+    _swapping = true;
     final crossfade = _crossfade;
     // Бамп _loadToken — старые in-flight кандидаты-резолвы устаревают.
     _loadToken++;
@@ -473,6 +482,23 @@ class PlayerController extends Notifier<PlayerState> {
     _deadStreak = 0;
     await _engine.swapToNext(crossfade: crossfade);
     unawaited(_preloadAfter(n));
+    _swapping = false;
+  }
+
+  /// Стартовать overlap-crossfade за [_crossfade] до конца текущего трека —
+  /// оба плеера играют, уходящий гаснет, входящий набирает. При выключенном
+  /// crossfade (0) или неготовом preload — no-op: конец трека обработает
+  /// completion-путь (gapless-swap при 0, fade-in next как фолбэк).
+  void _maybeStartCrossfade(int posMs, int durMs) {
+    if (_swapping) return;
+    if (state.repeat || !state.isPlaying) return;
+    if (durMs <= 0 || posMs <= 0) return;
+    final cf = _crossfade.inMilliseconds;
+    if (cf <= 0) return;
+    if (!_engine.hasPreload) return;
+    final remaining = durMs - posMs;
+    if (remaining <= 0 || remaining > cf) return;
+    _advanceViaSwap();
   }
 
   /// Длительность crossfade'а из пользовательских настроек. 0 = gapless.
