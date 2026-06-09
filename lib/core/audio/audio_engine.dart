@@ -55,15 +55,17 @@ abstract interface class AudioEngine {
 /// собственные broadcast-контроллеры — downstream-слушатель (PlayerController)
 /// не пересоздаёт подписки при swap'е.
 class JustAudioEngine implements AudioEngine {
-  JustAudioEngine(this._log) {
+  JustAudioEngine(this._log, {AudioPlayer Function()? createPlayer})
+    : _a = (createPlayer ?? AudioPlayer.new)(),
+      _b = (createPlayer ?? AudioPlayer.new)() {
     _bindActive();
   }
 
   /// Talker для диагностики crossfade (виден в /logs).
   final Talker _log;
 
-  final AudioPlayer _a = AudioPlayer();
-  final AudioPlayer _b = AudioPlayer();
+  final AudioPlayer _a;
+  final AudioPlayer _b;
   late AudioPlayer _active = _a;
   AudioPlayer get _inactive => identical(_active, _a) ? _b : _a;
 
@@ -115,6 +117,21 @@ class JustAudioEngine implements AudioEngine {
   @override
   Stream<void> get completedStream => _completedCtrl.stream;
 
+  /// Запускает воспроизведение, НЕ ожидая `play()`-future. У just_audio она
+  /// завершается лишь когда воспроизведение ОСТАНАВЛИВАЕТСЯ (pause/stop/
+  /// completed) — `await player.play()` заблокировал бы всё, что идёт следом:
+  /// рампу crossfade'а, `from.pause()`, продолжение `_load`. Гард
+  /// `if (playing) return` в just_audio спасал `load()` (там плеер обычно уже
+  /// играет), но НЕ swap: preload'ный плеер ещё не играет, и await висел до
+  /// конца трека → входящий оставался на нулевой громкости (тихий трек).
+  void _play(AudioPlayer p) {
+    unawaited(
+      p.play().catchError((Object e, StackTrace st) {
+        _log.error('[engine] play() failed', e, st);
+      }),
+    );
+  }
+
   @override
   Future<void> load(String url) async {
     // Новая авторитетная загрузка отменяет любую идущую crossfade-рампу и
@@ -133,7 +150,7 @@ class JustAudioEngine implements AudioEngine {
     // Явный seek(0): setUrl обычно сбрасывает позицию, но защищаемся от
     // унаследованной позиции у переиспользуемого AudioPlayer'а.
     await _active.seek(Duration.zero);
-    await _active.play();
+    _play(_active);
   }
 
   @override
@@ -210,7 +227,7 @@ class JustAudioEngine implements AudioEngine {
     if (crossfade <= Duration.zero) {
       // Gapless: мгновенный swap.
       await to.setVolume(_userVolume);
-      await to.play();
+      _play(to);
       await from.pause();
       return;
     }
@@ -223,11 +240,7 @@ class JustAudioEngine implements AudioEngine {
       '[crossfade] start gen=$gen steps=$steps userVol=$_userVolume',
     );
     await to.setVolume(0);
-    try {
-      await to.play();
-    } catch (e, st) {
-      _log.error('[crossfade] to.play() threw', e, st);
-    }
+    _play(to);
     for (var i = 1; i <= steps; i++) {
       if (gen != _swapGen) {
         _log.warning(
