@@ -27,11 +27,11 @@ class _CollectionCardState extends State<CollectionCard> {
     final item = widget.item;
     switch (item.target) {
       case CollectionTarget.track:
-        context.go('/track/${item.id}');
+        context.push('/track/${item.id}');
       case CollectionTarget.playlist:
-        context.go('/playlist/${item.id}');
+        context.push('/playlist/${item.id}');
       case CollectionTarget.artist:
-        context.go('/artist/${Uri.encodeComponent(item.handle ?? item.title)}');
+        context.push('/artist/${Uri.encodeComponent(item.handle ?? item.title)}');
     }
   }
 

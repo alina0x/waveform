@@ -2,6 +2,9 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:talker_flutter/talker_flutter.dart';
+
+import '../log/talker.dart';
 
 /// Абстракция звукового движка. PlayerController зависит только от неё —
 /// не от just_audio напрямую, поэтому тесты подменяют движок заглушкой.
@@ -52,8 +55,17 @@ abstract interface class AudioEngine {
 /// собственные broadcast-контроллеры — downstream-слушатель (PlayerController)
 /// не пересоздаёт подписки при swap'е.
 class JustAudioEngine implements AudioEngine {
-  final AudioPlayer _a = AudioPlayer();
-  final AudioPlayer _b = AudioPlayer();
+  JustAudioEngine(this._log, {AudioPlayer Function()? createPlayer})
+    : _a = (createPlayer ?? AudioPlayer.new)(),
+      _b = (createPlayer ?? AudioPlayer.new)() {
+    _bindActive();
+  }
+
+  /// Talker для диагностики crossfade (виден в /logs).
+  final Talker _log;
+
+  final AudioPlayer _a;
+  final AudioPlayer _b;
   late AudioPlayer _active = _a;
   AudioPlayer get _inactive => identical(_active, _a) ? _b : _a;
 
@@ -78,10 +90,6 @@ class JustAudioEngine implements AudioEngine {
   StreamSubscription<Duration>? _posSub, _bufSub;
   StreamSubscription<bool>? _playingSub;
   StreamSubscription<ProcessingState>? _stateSub;
-
-  JustAudioEngine() {
-    _bindActive();
-  }
 
   /// Перепривязать подписки к новому активному плееру.
   void _bindActive() {
@@ -109,11 +117,27 @@ class JustAudioEngine implements AudioEngine {
   @override
   Stream<void> get completedStream => _completedCtrl.stream;
 
+  /// Запускает воспроизведение, НЕ ожидая `play()`-future. У just_audio она
+  /// завершается лишь когда воспроизведение ОСТАНАВЛИВАЕТСЯ (pause/stop/
+  /// completed) — `await player.play()` заблокировал бы всё, что идёт следом:
+  /// рампу crossfade'а, `from.pause()`, продолжение `_load`. Гард
+  /// `if (playing) return` в just_audio спасал `load()` (там плеер обычно уже
+  /// играет), но НЕ swap: preload'ный плеер ещё не играет, и await висел до
+  /// конца трека → входящий оставался на нулевой громкости (тихий трек).
+  void _play(AudioPlayer p) {
+    unawaited(
+      p.play().catchError((Object e, StackTrace st) {
+        _log.error('[engine] play() failed', e, st);
+      }),
+    );
+  }
+
   @override
   Future<void> load(String url) async {
     // Новая авторитетная загрузка отменяет любую идущую crossfade-рампу и
     // preload (он был под старый «следующий»).
     ++_swapGen;
+    _log.debug('[engine] load → gen=$_swapGen');
     _preloadReady = false;
     // Глушим теневой плеер — чтобы не остался «призрачный» звук от
     // прерванного crossfade'а.
@@ -126,7 +150,7 @@ class JustAudioEngine implements AudioEngine {
     // Явный seek(0): setUrl обычно сбрасывает позицию, но защищаемся от
     // унаследованной позиции у переиспользуемого AudioPlayer'а.
     await _active.seek(Duration.zero);
-    await _active.play();
+    _play(_active);
   }
 
   @override
@@ -134,6 +158,7 @@ class JustAudioEngine implements AudioEngine {
     // Отменяем идущую crossfade-рампу — иначе она доиграет старый плеер и
     // докрутит громкости поверх нашей паузы.
     ++_swapGen;
+    _log.debug('[engine] pause → gen=$_swapGen');
     // Глушим ОБА плеера: во время crossfade старый (`from`) ещё звучит, и
     // пауза только `_active` оставляла бы его играющим («поставил на паузу —
     // а играет»). Пауза второго плеера идемпотентна, когда он и так стоит.
@@ -181,8 +206,12 @@ class JustAudioEngine implements AudioEngine {
 
   @override
   Future<void> swapToNext({Duration crossfade = Duration.zero}) async {
-    if (!_preloadReady) return;
+    if (!_preloadReady) {
+      _log.warning('[swap] called but preload not ready — no-op');
+      return;
+    }
     final gen = ++_swapGen;
+    _log.debug('[swap] gen=$gen crossfade=${crossfade.inMilliseconds}ms');
     final from = _active;
     final to = _inactive;
     _preloadReady = false;
@@ -198,7 +227,7 @@ class JustAudioEngine implements AudioEngine {
     if (crossfade <= Duration.zero) {
       // Gapless: мгновенный swap.
       await to.setVolume(_userVolume);
-      await to.play();
+      _play(to);
       await from.pause();
       return;
     }
@@ -207,18 +236,31 @@ class JustAudioEngine implements AudioEngine {
     // передний (`to` = новый `_active`) набирает до _userVolume.
     const stepMs = 50;
     final steps = (crossfade.inMilliseconds / stepMs).clamp(1, 10000).toInt();
+    _log.debug(
+      '[crossfade] start gen=$gen steps=$steps userVol=$_userVolume',
+    );
     await to.setVolume(0);
-    await to.play();
+    _play(to);
     for (var i = 1; i <= steps; i++) {
-      if (gen != _swapGen) return; // нас перебила новая load/swap — выходим
+      if (gen != _swapGen) {
+        _log.warning(
+          '[crossfade] ABORT mid-ramp step=$i/$steps gen=$gen now=$_swapGen '
+          'toVol=${_userVolume * (i / steps)}',
+        );
+        return; // нас перебила новая load/swap — выходим
+      }
       final t = i / steps;
       await from.setVolume(_userVolume * (1 - t));
       await to.setVolume(_userVolume * t);
       await Future<void>.delayed(const Duration(milliseconds: stepMs));
     }
-    if (gen != _swapGen) return;
+    if (gen != _swapGen) {
+      _log.warning('[crossfade] ABORT post-loop gen=$gen now=$_swapGen');
+      return;
+    }
     await from.pause();
     await to.setVolume(_userVolume);
+    _log.debug('[crossfade] done → to=userVol=$_userVolume');
   }
 
   @override
@@ -239,7 +281,7 @@ class JustAudioEngine implements AudioEngine {
 /// Единый звуковой движок на время жизни приложения.
 /// Тесты переопределяют провайдер заглушкой, чтобы не дёргать плагин.
 final audioEngineProvider = Provider<AudioEngine>((ref) {
-  final engine = JustAudioEngine();
+  final engine = JustAudioEngine(ref.read(talkerProvider));
   ref.onDispose(engine.dispose);
   return engine;
 });

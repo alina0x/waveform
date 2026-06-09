@@ -49,3 +49,6 @@ talker_logs_*.txt
 
 # Local build artifacts
 *.dmg
+
+# Brainstorming specs / design docs (local only)
+docs/superpowers/

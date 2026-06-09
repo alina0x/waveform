@@ -329,7 +329,7 @@ class _TrackRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Pressable(
-      onTap: () => context.go('/track/${track.id}'),
+      onTap: () => context.push('/track/${track.id}'),
       child: Padding(
         padding: const EdgeInsets.only(bottom: 10),
         child: Row(

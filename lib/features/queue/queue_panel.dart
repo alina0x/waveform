@@ -204,7 +204,7 @@ class _QueueRow extends StatelessWidget {
       child: Row(
         children: [
           Pressable(
-            onTap: () => context.go('/track/${track.id}'),
+            onTap: () => context.push('/track/${track.id}'),
             child: CoverArt(seed: track.id, imageUrl: track.coverUrl, size: 36),
           ),
           const SizedBox(width: 10),

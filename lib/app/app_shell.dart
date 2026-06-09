@@ -9,6 +9,7 @@ import 'package:window_manager/window_manager.dart';
 
 import '../core/api/feeds.dart';
 import '../core/api/providers.dart';
+import '../core/api/reposted_tracks.dart';
 import '../core/deeplinks/clipboard_watcher.dart';
 import '../core/deeplinks/deep_links.dart';
 import '../core/lastfm/scrobbler.dart';
@@ -19,11 +20,16 @@ import '../features/player/player_controller.dart';
 import '../features/player/widgets/bottom_player.dart';
 import '../features/queue/queue_panel.dart';
 import '../features/queue/queue_visibility.dart';
+import '../features/shortcuts/shortcuts_overlay.dart';
+import '../shared/back_nav.dart';
+import '../shared/chord_controller.dart';
 import '../shared/intents.dart';
 import '../shared/models/track.dart';
+import '../shared/url_share.dart';
 import '../shared/widgets/frosted.dart';
 import '../shared/widgets/toast.dart';
 import '../shared/widgets/top_bar.dart';
+import 'shortcut_bindings.dart';
 import 'theme/app_theme.dart';
 import 'theme/colors.dart';
 
@@ -46,10 +52,52 @@ class _AppShellState extends ConsumerState<AppShell> {
   // возвращаем focus сюда вручную.
   late final FocusNode _shellFocus = FocusNode(debugLabel: 'app-shell');
 
+  final ChordController _chord = ChordController();
+
+  /// Сфокусировано ли сейчас текстовое поле. Когда да — глобальные шорткаты
+  /// ВЫКЛючаем (карта Shortcuts пустеет), иначе бэр-буквы L/R/S/… матчились бы
+  /// в Intent вместо ввода. Фокус сам не триггерит rebuild, поэтому слушаем
+  /// FocusManager и кешируем сюда.
+  bool _editing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    FocusManager.instance.addListener(_onFocusChange);
+  }
+
+  void _onFocusChange() {
+    final editing = _isEditing;
+    if (editing != _editing && mounted) {
+      setState(() => _editing = editing);
+    }
+  }
+
   @override
   void dispose() {
+    FocusManager.instance.removeListener(_onFocusChange);
+    _chord.dispose();
     _shellFocus.dispose();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant AppShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Навигация (push/pop/go) могла оставить primaryFocus = null → глобальные
+    // шорткаты молчат и macOS звенит NSBeep на каждую клавишу. Возвращаем фокус
+    // шеллу после смены маршрута, если не печатаем и не открыта модалка.
+    if (oldWidget.location != widget.location) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (_isEditing ||
+            ref.read(omniboxOpenProvider) ||
+            ref.read(shortcutsOverlayOpenProvider)) {
+          return;
+        }
+        _shellFocus.requestFocus();
+      });
+    }
   }
 
   @override
@@ -67,10 +115,19 @@ class _AppShellState extends ConsumerState<AppShell> {
     // съедал пробел до текстового ввода — «вместо пробела пауза»). Сам модал
     // обрабатывает Esc/↑/↓/Enter внутри.
     final omniOpen = ref.watch(omniboxOpenProvider);
+    final shortcutsOpen = ref.watch(shortcutsOverlayOpenProvider);
 
     // Когда модалка закрывается — возвращаем focus AppShell'у, иначе
     // primaryFocus остаётся null и Shortcuts перестают слышать клавиши.
     ref.listen<bool>(omniboxOpenProvider, (prev, next) {
+      if (prev == true && next == false) {
+        _shellFocus.requestFocus();
+      }
+    });
+
+    // После закрытия help-оверлея возвращаем фокус шеллу — иначе primaryFocus
+    // остаётся null и глобальные шорткаты молчат (как и с омнибоксом).
+    ref.listen<bool>(shortcutsOverlayOpenProvider, (prev, next) {
       if (prev == true && next == false) {
         _shellFocus.requestFocus();
       }
@@ -150,7 +207,7 @@ class _AppShellState extends ConsumerState<AppShell> {
           return KeyEventResult.handled;
         },
         child: Shortcuts(
-          shortcuts: omniOpen
+          shortcuts: (omniOpen || shortcutsOpen || _editing)
               ? const <ShortcutActivator, Intent>{}
               : _shortcuts(),
           child: Actions(
@@ -217,17 +274,107 @@ class _AppShellState extends ConsumerState<AppShell> {
                   return null;
                 },
               ),
+              SeekForwardIntent: CallbackAction<SeekForwardIntent>(
+                onInvoke: (_) {
+                  player.seekBy(const Duration(seconds: 5));
+                  return null;
+                },
+              ),
+              SeekBackwardIntent: CallbackAction<SeekBackwardIntent>(
+                onInvoke: (_) {
+                  player.seekBy(const Duration(seconds: -5));
+                  return null;
+                },
+              ),
+              SeekToPercentIntent: CallbackAction<SeekToPercentIntent>(
+                onInvoke: (i) {
+                  player.seekFraction(i.tenth / 10.0);
+                  return null;
+                },
+              ),
+              MuteToggleIntent: CallbackAction<MuteToggleIntent>(
+                onInvoke: (_) {
+                  player.toggleMute();
+                  return null;
+                },
+              ),
+              RepeatToggleIntent: CallbackAction<RepeatToggleIntent>(
+                onInvoke: (_) {
+                  player.toggleRepeat();
+                  return null;
+                },
+              ),
+              ShuffleToggleIntent: CallbackAction<ShuffleToggleIntent>(
+                onInvoke: (_) {
+                  player.toggleShuffle();
+                  return null;
+                },
+              ),
+              LikePlayingIntent: CallbackAction<LikePlayingIntent>(
+                onInvoke: (_) {
+                  player.toggleLike();
+                  return null;
+                },
+              ),
+              RepostPlayingIntent: CallbackAction<RepostPlayingIntent>(
+                onInvoke: (_) {
+                  final id = ref.read(playerControllerProvider).track?.id;
+                  if (id != null) {
+                    ref.read(repostedTracksProvider.notifier).toggle(id);
+                  }
+                  return null;
+                },
+              ),
+              NavigateToPlayingIntent: CallbackAction<NavigateToPlayingIntent>(
+                onInvoke: (_) {
+                  final id = ref.read(playerControllerProvider).track?.id;
+                  if (id != null) context.push('/track/$id');
+                  return null;
+                },
+              ),
+              OpenSearchIntent: CallbackAction<OpenSearchIntent>(
+                onInvoke: (_) {
+                  ref.read(omniboxOpenProvider.notifier).open();
+                  return null;
+                },
+              ),
+              ToggleQueueIntent: CallbackAction<ToggleQueueIntent>(
+                onInvoke: (_) {
+                  ref.read(queueVisibleProvider.notifier).toggle();
+                  return null;
+                },
+              ),
+              ShowShortcutsIntent: CallbackAction<ShowShortcutsIntent>(
+                onInvoke: (_) {
+                  ref.read(shortcutsOverlayOpenProvider.notifier).open();
+                  return null;
+                },
+              ),
+              CopyLinkIntent: CallbackAction<CopyLinkIntent>(
+                onInvoke: (_) {
+                  _copyContextLink();
+                  return null;
+                },
+              ),
             },
             child: Focus(
               focusNode: _shellFocus,
               autofocus: true,
+              onKeyEvent: (node, event) => _handleChordKey(event),
               child: Consumer(
                 builder: (context, ref, _) {
                   final omniOpen = ref.watch(omniboxOpenProvider);
                   final queueOpen = ref.watch(queueVisibleProvider);
                   return Stack(
                     children: [
-                      Positioned.fill(child: widget.child),
+                      Positioned.fill(
+                        child: _BackSwipe(
+                          onBack: () {
+                            if (context.canPop()) context.pop();
+                          },
+                          child: widget.child,
+                        ),
+                      ),
                       // Queue-панель справа.
                       if (queueOpen)
                         const Positioned(
@@ -254,6 +401,9 @@ class _AppShellState extends ConsumerState<AppShell> {
                       // ⌘K-палитра: полноэкранный blur-фон + центрированная
                       // модалка. Клик мимо — закрывает. Поверх TopBar/BottomPlayer.
                       if (omniOpen) Positioned.fill(child: _OmniboxOverlay()),
+                      // H — keyboard-shortcuts help overlay.
+                      if (ref.watch(shortcutsOverlayOpenProvider))
+                        const Positioned.fill(child: ShortcutsOverlay()),
                     ],
                   );
                 },
@@ -265,37 +415,97 @@ class _AppShellState extends ConsumerState<AppShell> {
     );
   }
 
-  /// Кросс-платформенные шорткаты: на macOS — Cmd, на остальных — Ctrl.
-  /// Space / ← / → / ↑ / ↓ без модификаторов — TextField их сам перехватит
-  /// когда в фокусе (стрелки для каретки, space для пробела и т.д.).
-  Map<ShortcutActivator, Intent> _shortcuts() {
-    final mac = Platform.isMacOS;
-    SingleActivator cmd(LogicalKeyboardKey key, {bool shift = false}) =>
-        SingleActivator(key, meta: mac, control: !mac, shift: shift);
-    final base = <ShortcutActivator, Intent>{
-      const SingleActivator(LogicalKeyboardKey.space): const PlayPauseIntent(),
-      const SingleActivator(LogicalKeyboardKey.arrowLeft):
-          const PrevTrackIntent(),
-      const SingleActivator(LogicalKeyboardKey.arrowRight):
-          const NextTrackIntent(),
-      const SingleActivator(LogicalKeyboardKey.arrowUp): const VolumeUpIntent(),
-      const SingleActivator(LogicalKeyboardKey.arrowDown):
-          const VolumeDownIntent(),
-      cmd(LogicalKeyboardKey.keyK): const FocusOmniboxIntent(),
-      cmd(LogicalKeyboardKey.keyF): const FocusOmniboxIntent(),
-      cmd(LogicalKeyboardKey.keyL): const JumpLikesIntent(),
-      cmd(LogicalKeyboardKey.comma): const JumpSettingsIntent(),
-      cmd(LogicalKeyboardKey.keyL, shift: true): const JumpLogsIntent(),
-    };
-    // Enter на /track/:id — играть/возобновить трек страницы. Только когда
-    // route совпадает: иначе Enter ломал бы фокус на других экранах.
-    if (widget.location.startsWith('/track/')) {
-      base[const SingleActivator(LogicalKeyboardKey.enter)] =
-          const PlayPageTrackIntent();
-      base[const SingleActivator(LogicalKeyboardKey.numpadEnter)] =
-          const PlayPageTrackIntent();
+  /// Кросс-платформенные шорткаты: делегирует чистому билдеру [buildShortcuts].
+  Map<ShortcutActivator, Intent> _shortcuts() =>
+      buildShortcuts(isMac: Platform.isMacOS, location: widget.location);
+
+  /// `G`-then-key аккорд. Текстовые поля съедают символы раньше (focus-bubbling),
+  /// так что G/буквы здесь видны только когда НЕ печатаем.
+  KeyEventResult _handleChordKey(KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    final kb = HardwareKeyboard.instance;
+    final hasMod =
+        kb.isMetaPressed || kb.isControlPressed || kb.isAltPressed;
+    // Help-оверлей (клавиша H) открыт: H или Esc его закрывают. Его собственный
+    // autofocus-Focus проигрывает уже сфокусированному _shellFocus и не получает
+    // событие, поэтому закрываем здесь — гарантированно. Остальные клавиши
+    // глотаем (оверлей модальный).
+    if (ref.read(shortcutsOverlayOpenProvider)) {
+      if (!hasMod &&
+          (event.logicalKey == LogicalKeyboardKey.keyH ||
+              event.logicalKey == LogicalKeyboardKey.escape)) {
+        ref.read(shortcutsOverlayOpenProvider.notifier).close();
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
     }
-    return base;
+    // В поле ввода (или ⌘K-омнибокс / комбо с модификатором) НЕ перехватываем:
+    // возвращаем `ignored`, чтобы macOS доставил символ в NSTextInputClient —
+    // иначе поле перестаёт печатать (`handled` подавляет ввод). Single-letter
+    // шорткаты при вводе не сработают, потому что карта Shortcuts пустеет на
+    // `_editing` (см. build) — гасим на уровне карты, а не KeyEvent'а.
+    if (hasMod || ref.read(omniboxOpenProvider) || _isEditing) {
+      return KeyEventResult.ignored;
+    }
+    if (_chord.armed) {
+      final target = _chord.resolve(event.logicalKey);
+      if (target != null) {
+        _goChord(target);
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.handled; // отменённый аккорд глотает клавишу (как web SC)
+    }
+    if (event.logicalKey == LogicalKeyboardKey.keyG) {
+      _chord.arm();
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  /// Сейчас в фокусе редактируемое текстовое поле?
+  bool get _isEditing {
+    final ctx = FocusManager.instance.primaryFocus?.context;
+    return ctx != null &&
+        ctx.findAncestorStateOfType<EditableTextState>() != null;
+  }
+
+  void _goChord(ChordTarget t) {
+    switch (t) {
+      case ChordTarget.likes:
+        context.go('/library?tab=likes');
+      case ChordTarget.feed:
+        context.go('/feed');
+      case ChordTarget.library:
+        context.go('/library');
+      case ChordTarget.history:
+        context.go('/library?tab=history');
+      case ChordTarget.profile:
+        final handle = ref.read(railProvider).asData?.value.me?.handle;
+        if (handle != null) {
+          context.go('/artist/${Uri.encodeComponent(handle)}');
+        }
+    }
+  }
+
+  /// ⌘⇧C — копирует ссылку текущего контекста: трек страницы /track/:id →
+  /// его permalink; артист /artist/:handle → профиль; иначе — играющий трек.
+  /// markSeen внутри copyToClipboard (через ref) гасит «open in Waveform?» тост.
+  void _copyContextLink() {
+    String? url;
+    final segs = Uri.parse(widget.location).pathSegments;
+    if (segs.length >= 2 && segs[0] == 'track') {
+      final id = segs[1];
+      url = ref.read(trackDetailProvider(id)).asData?.value.track.permalinkUrl;
+    } else if (segs.length >= 2 && segs[0] == 'artist') {
+      final handle = Uri.decodeComponent(segs[1]);
+      if (handle.isNotEmpty) url = 'https://soundcloud.com/$handle';
+    }
+    url ??= ref.read(playerControllerProvider).track?.permalinkUrl;
+    if (url == null || url.isEmpty) {
+      showToast(context, 'nothing to copy', duration: const Duration(seconds: 2));
+      return;
+    }
+    copyToClipboard(context, url, message: 'link copied', ref: ref);
   }
 
   /// Реакция на Enter на /track/:id. Если уже играет именно этот трек —
@@ -364,6 +574,74 @@ class _OmniboxOverlay extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Свайп вправо от левого края → назад. Трекпад-свайп (macOS) приходит как
+/// pan-события (onPointerPanZoom*), мышь — как horizontal drag. Оба пути
+/// edge-gated по позиции КУРСОРА (localPosition.dx): срабатывает только когда
+/// жест начат у левого края — чтобы не конфликтовать с горизонтальными
+/// каруселями в центре экрана.
+class _BackSwipe extends StatefulWidget {
+  const _BackSwipe({required this.child, required this.onBack});
+  final Widget child;
+  final VoidCallback onBack;
+  @override
+  State<_BackSwipe> createState() => _BackSwipeState();
+}
+
+class _BackSwipeState extends State<_BackSwipe> {
+  double _startDx = 0;
+  double _totalDx = 0;
+  bool _panActive = false;
+
+  bool get _canPop => GoRouter.of(context).canPop();
+
+  void _begin(double localDx) {
+    _startDx = localDx;
+    _totalDx = 0;
+  }
+
+  void _accumulate(double dx) => _totalDx += dx;
+
+  void _end() {
+    if (shouldPopOnSwipe(
+      canPop: _canPop,
+      startDx: _startDx,
+      totalDx: _totalDx,
+    )) {
+      widget.onBack();
+    }
+    _startDx = 0;
+    _totalDx = 0;
+    _panActive = false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerPanZoomStart: (e) {
+        _panActive = true;
+        _begin(e.localPosition.dx);
+      },
+      onPointerPanZoomUpdate: (e) {
+        if (_panActive) _accumulate(e.panDelta.dx);
+      },
+      onPointerPanZoomEnd: (e) {
+        if (_panActive) {
+          _panActive = false;
+          _end();
+        }
+      },
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onHorizontalDragStart: (d) => _begin(d.localPosition.dx),
+        onHorizontalDragUpdate: (d) => _accumulate(d.delta.dx),
+        onHorizontalDragEnd: (_) => _end(),
+        child: widget.child,
+      ),
     );
   }
 }

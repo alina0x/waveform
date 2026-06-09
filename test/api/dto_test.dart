@@ -186,6 +186,42 @@ void main() {
     });
   });
 
+  group('publisher_metadata.artist', () {
+    test('publisher_metadata.artist overrides uploader username', () {
+      final json = jsonDecode('''
+  {
+    "id": 1, "title": "T", "duration": 1000, "full_duration": 1000,
+    "permalink_url": "https://soundcloud.com/up/t",
+    "user": {"id": 7, "username": "uploader_acct", "permalink": "uploader_acct"},
+    "publisher_metadata": {"artist": "Real Artist Name"}
+  }''') as Map<String, dynamic>;
+      final track = TrackDto.fromJson(json).toDomain();
+      expect(track.artist, 'Real Artist Name');      // display = metadata
+      expect(track.artistPermalink, 'uploader_acct'); // link = uploader
+    });
+
+    test('falls back to username when publisher artist absent/blank', () {
+      final json = jsonDecode('''
+  {
+    "id": 2, "title": "T2", "duration": 1000,
+    "user": {"id": 8, "username": "soloacct", "permalink": "soloacct"},
+    "publisher_metadata": {"artist": "  "}
+  }''') as Map<String, dynamic>;
+      final track = TrackDto.fromJson(json).toDomain();
+      expect(track.artist, 'soloacct');
+    });
+
+    test('no publisher_metadata at all falls back to username', () {
+      final json = jsonDecode('''
+  {
+    "id": 3, "title": "T3", "duration": 1000,
+    "user": {"id": 9, "username": "plainacct", "permalink": "plainacct"}
+  }''') as Map<String, dynamic>;
+      final track = TrackDto.fromJson(json).toDomain();
+      expect(track.artist, 'plainacct');
+    });
+  });
+
   group('Stream page', () {
     final page = PageDto.parse(jsonDecode(_streamJson), StreamItemDto.fromJson);
 

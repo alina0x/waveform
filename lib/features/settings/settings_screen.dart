@@ -188,6 +188,9 @@ class _ShortcutsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // ВНИМАНИЕ: держать в синхроне с web-parity биндингами —
+    // `lib/app/shortcut_bindings.dart` и `kShortcutRows`
+    // (`lib/features/shortcuts/shortcuts_overlay.dart`, оверлей по клавише H).
     final mac = Platform.isMacOS;
     final mod = mac ? '⌘' : 'Ctrl';
     final shift = mac ? '⇧' : 'Shift';
@@ -198,17 +201,40 @@ class _ShortcutsSection extends StatelessWidget {
         children: [
           _ShortcutGroup('playback', [
             _ShortcutRow(['Space'], 'play / pause'),
-            _ShortcutRow(['←'], 'previous track'),
-            _ShortcutRow(['→'], 'next track'),
-            _ShortcutRow(['↑'], 'volume up (+5%)'),
-            _ShortcutRow(['↓'], 'volume down (−5%)'),
+            _ShortcutRow(['→'], 'seek forward 5s'),
+            _ShortcutRow(['←'], 'seek backward 5s'),
+            _ShortcutRow([shift, '→'], 'next track'),
+            _ShortcutRow([shift, '←'], 'previous track'),
+            _ShortcutRow([shift, '↑'], 'volume up'),
+            _ShortcutRow([shift, '↓'], 'volume down'),
+            _ShortcutRow(['M'], 'mute'),
+            _ShortcutRow(['0–9'], 'seek to position (0–90%)'),
+          ]),
+          _ShortcutGroup('playing track', [
+            _ShortcutRow(['L'], 'like'),
+            _ShortcutRow([shift, 'L'], 'repeat'),
+            _ShortcutRow(['R'], 'repost'),
+            _ShortcutRow([shift, 'S'], 'shuffle'),
+            _ShortcutRow(['P'], 'go to playing track'),
+          ]),
+          _ShortcutGroup('view & search', [
+            _ShortcutRow(['S'], 'search'),
+            _ShortcutRow(['Q'], 'toggle queue'),
+            _ShortcutRow(['H'], 'this shortcuts list'),
+          ]),
+          _ShortcutGroup('go to — tap G, then a key', [
+            _ShortcutRow(['G', 'L'], 'likes'),
+            _ShortcutRow(['G', 'S'], 'feed'),
+            _ShortcutRow(['G', 'C'], 'library'),
+            _ShortcutRow(['G', 'P'], 'profile'),
+            _ShortcutRow(['G', 'H'], 'history'),
           ]),
           _ShortcutGroup('navigation', [
             _ShortcutRow([mod, 'K'], 'open command palette'),
-            _ShortcutRow([mod, 'F'], 'open command palette (alias)'),
-            _ShortcutRow([mod, 'L'], 'jump to library / likes'),
+            _ShortcutRow([mod, 'L'], 'jump to likes'),
             _ShortcutRow([mod, ','], 'open settings'),
             _ShortcutRow([mod, shift, 'L'], 'open logs'),
+            _ShortcutRow([mod, shift, 'C'], 'copy current link'),
           ]),
           _ShortcutGroup('on /track page', [
             _ShortcutRow(['↵'], 'play / resume this track'),

@@ -136,7 +136,7 @@ class _Header extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Pressable(
-                onTap: () => context.go(
+                onTap: () => context.push(
                   '/artist/${Uri.encodeComponent(track.artistHandle)}',
                 ),
                 child: Text(
@@ -146,7 +146,7 @@ class _Header extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Pressable(
-                onTap: () => context.go('/track/${track.id}'),
+                onTap: () => context.push('/track/${track.id}'),
                 child: Text(
                   track.title,
                   maxLines: 1,

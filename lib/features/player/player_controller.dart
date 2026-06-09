@@ -28,6 +28,7 @@ class PlayerState {
     this.repeat = false,
     this.liked = false,
     this.volume = 1.0,
+    this.muted = false,
     this.unplayable,
     this.queueVersion = 0,
   });
@@ -40,6 +41,10 @@ class PlayerState {
   final bool repeat;
   final bool liked;
   final double volume;
+
+  /// Замьючено ли воспроизведение. Громкость ползунка сохраняется в [volume]
+  /// и восстанавливается при повторном [toggleMute].
+  final bool muted;
 
   /// Монотонно растущий счётчик — bump'ится контроллером на любую мутацию
   /// очереди. UI слушает `select((s) => s.queueVersion)` и пере-читает
@@ -72,6 +77,7 @@ class PlayerState {
     bool? repeat,
     bool? liked,
     double? volume,
+    bool? muted,
     Unplayable? unplayable,
     int? queueVersion,
   }) => PlayerState(
@@ -83,6 +89,7 @@ class PlayerState {
     repeat: repeat ?? this.repeat,
     liked: liked ?? this.liked,
     volume: volume ?? this.volume,
+    muted: muted ?? this.muted,
     unplayable: unplayable ?? this.unplayable,
     queueVersion: queueVersion ?? this.queueVersion,
   );
@@ -105,6 +112,10 @@ class PlayerController extends Notifier<PlayerState> {
   /// при активации фронтир-трека, чтобы preload и фактический переход выбрали
   /// ОДИН и тот же трек (иначе на границе цикла шафл мог разойтись).
   Track? _frontierNext;
+
+  /// Идёт ли сейчас swap (crossfade-рампа или gapless). Гейтит повторный
+  /// early-trigger по позиции и completion-путь, пока переход не завершён.
+  bool _swapping = false;
   final List<StreamSubscription<dynamic>> _subs = [];
 
   /// Токен последней загрузки — отбрасываем резолв устаревшего трека,
@@ -139,6 +150,8 @@ class PlayerController extends Notifier<PlayerState> {
         if (dur > 0 && p.inMilliseconds > dur + 2000) return;
         if (p.inMilliseconds > _maxPosMs) _maxPosMs = p.inMilliseconds;
         state = state.copyWith(position: p);
+        // Истинный crossfade: overlap-переход стартует ДО конца трека.
+        _maybeStartCrossfade(p.inMilliseconds, dur);
       }),
     );
     _subs.add(
@@ -155,6 +168,8 @@ class PlayerController extends Notifier<PlayerState> {
     );
     _subs.add(
       engine.completedStream.listen((_) {
+        // Crossfade уже идёт (early-trigger по позиции) — не дублируем переход.
+        if (_swapping) return;
         // Ложный «completed» сразу после загрузки (битый HLS) НЕ должен
         // перескакивать дальше — иначе очередь пролистывается за секунды.
         // Реальный конец трека = играли заметное время И дошли почти до конца.
@@ -310,6 +325,35 @@ class PlayerController extends Notifier<PlayerState> {
     state = state.copyWith(queueVersion: state.queueVersion + 1);
   }
 
+  /// Вставить трек СЛЕДУЮЩИМ после текущего (vs. addToQueue — в конец).
+  /// Дубликат не плодим — переносим на позицию «следующий». Учитывает shuffle:
+  /// вставляем после текущего в АКТИВНОЙ последовательности (что реально
+  /// слышно), сохраняя членство/позицию во второй. Когда ничего не играет
+  /// (cur < 0) — вставляем в начало (станет первым «следующим»).
+  void playNext(Track t) {
+    final curId = state.track?.id;
+    _queue.removeWhere((x) => x.id == t.id);
+    _order.removeWhere((x) => x.id == t.id);
+
+    final seq = _activeSeq; // _order в shuffle, иначе _queue
+    final curInSeq = curId == null ? -1 : seq.indexWhere((x) => x.id == curId);
+    seq.insert(curInSeq < 0 ? 0 : curInSeq + 1, t);
+
+    if (identical(seq, _queue)) {
+      // Линейный режим активен: _order (если непуст) держим в синхроне — тоже
+      // после текущего, а не в хвосте, иначе re-shuffle сыграл бы трек последним.
+      if (_order.isNotEmpty) {
+        final co = curId == null ? -1 : _order.indexWhere((x) => x.id == curId);
+        _order.insert(co < 0 ? _order.length : co + 1, t);
+      }
+    } else {
+      // Shuffle активен (seq == _order): _queue — источник правды членства.
+      if (!_queue.any((x) => x.id == t.id)) _queue.add(t);
+    }
+    _recomputeFrontierNext();
+    state = state.copyWith(queueVersion: state.queueVersion + 1);
+  }
+
   /// Резолв стрима (transcoding → m3u8/mp3) и передача в движок.
   /// Перебирает кандидатов (HLS → progressive): часть HLS-ссылок протухает и
   /// отдаёт 404 — тогда играем следующий источник. Мок/не streamable — тихо.
@@ -416,6 +460,7 @@ class PlayerController extends Notifier<PlayerState> {
   Future<void> _advanceViaSwap() async {
     final n = _upNext;
     if (n == null) return;
+    _swapping = true;
     final crossfade = _crossfade;
     // Бамп _loadToken — старые in-flight кандидаты-резолвы устаревают.
     _loadToken++;
@@ -437,6 +482,23 @@ class PlayerController extends Notifier<PlayerState> {
     _deadStreak = 0;
     await _engine.swapToNext(crossfade: crossfade);
     unawaited(_preloadAfter(n));
+    _swapping = false;
+  }
+
+  /// Стартовать overlap-crossfade за [_crossfade] до конца текущего трека —
+  /// оба плеера играют, уходящий гаснет, входящий набирает. При выключенном
+  /// crossfade (0) или неготовом preload — no-op: конец трека обработает
+  /// completion-путь (gapless-swap при 0, fade-in next как фолбэк).
+  void _maybeStartCrossfade(int posMs, int durMs) {
+    if (_swapping) return;
+    if (state.repeat || !state.isPlaying) return;
+    if (durMs <= 0 || posMs <= 0) return;
+    final cf = _crossfade.inMilliseconds;
+    if (cf <= 0) return;
+    if (!_engine.hasPreload) return;
+    final remaining = durMs - posMs;
+    if (remaining <= 0 || remaining > cf) return;
+    _advanceViaSwap();
   }
 
   /// Длительность crossfade'а из пользовательских настроек. 0 = gapless.
@@ -448,7 +510,8 @@ class PlayerController extends Notifier<PlayerState> {
     // отдаём перцептивную кривую: слух логарифмичен, а just_audio.setVolume —
     // линейная амплитуда. Без кривой вся полезная тихая зона сжата в нижние
     // ~5% ползунка. Кубическая «audio taper» растягивает её по всему ходу.
-    state = state.copyWith(volume: v);
+    // Смена громкости снимает mute — естественное поведение.
+    state = state.copyWith(volume: v, muted: false);
     _engine.setVolume(v * v * v);
   }
 
@@ -597,6 +660,31 @@ class PlayerController extends Notifier<PlayerState> {
     );
     _engine.seek(pos);
     state = state.copyWith(position: pos);
+  }
+
+  /// Сдвинуть позицию на [delta] (может быть отрицательной), clamp в трек.
+  /// Используется для стрелок ←/→ (±5 с).
+  void seekBy(Duration delta) {
+    final total = state.track?.durationMs ?? 0;
+    if (total == 0) return;
+    final ms = (state.position + delta).inMilliseconds.clamp(0, total);
+    final pos = Duration(milliseconds: ms);
+    _engine.seek(pos);
+    state = state.copyWith(position: pos);
+  }
+
+  /// Mute/unmute. Mute → движок 0; UI-значение громкости сохраняется в
+  /// [state.volume] и восстанавливается при unmute (перцептивная кубическая
+  /// кривая, как в [setVolume]).
+  void toggleMute() {
+    if (state.muted) {
+      state = state.copyWith(muted: false);
+      final v = state.volume;
+      _engine.setVolume(v * v * v);
+    } else {
+      state = state.copyWith(muted: true);
+      _engine.setVolume(0);
+    }
   }
 }
 

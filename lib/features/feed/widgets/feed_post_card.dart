@@ -66,7 +66,7 @@ class FeedPostCard extends ConsumerWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Pressable(
-                                onTap: () => context.go(
+                                onTap: () => context.push(
                                   '/artist/${Uri.encodeComponent(track.artistHandle)}',
                                 ),
                                 child: Text(
@@ -79,7 +79,7 @@ class FeedPostCard extends ConsumerWidget {
                               ),
                               const SizedBox(height: 2),
                               Pressable(
-                                onTap: () => context.go('/track/${track.id}'),
+                                onTap: () => context.push('/track/${track.id}'),
                                 child: Text(
                                   track.title,
                                   maxLines: 1,
@@ -127,12 +127,12 @@ class _ActorHeader extends StatelessWidget {
     return Row(
       children: [
         Pressable(
-          onTap: () => context.go('/artist/${Uri.encodeComponent(post.actor)}'),
+          onTap: () => context.push('/artist/${Uri.encodeComponent(post.actor)}'),
           child: CoverArt(seed: post.actorSeed, size: 28, circular: true),
         ),
         const SizedBox(width: 10),
         Pressable(
-          onTap: () => context.go('/artist/${Uri.encodeComponent(post.actor)}'),
+          onTap: () => context.push('/artist/${Uri.encodeComponent(post.actor)}'),
           child: Text(
             post.actor,
             style: const TextStyle(

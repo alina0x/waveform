@@ -281,7 +281,24 @@ class _PaginatedLikesTabState extends ConsumerState<_PaginatedLikesTab> {
   void initState() {
     super.initState();
     _scroll.addListener(_onScroll);
+    // Если экран открыт уже с активным фильтром — догружаем все лайки.
+    if (widget.query.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _loadAllForSearch());
+    }
   }
+
+  @override
+  void didUpdateWidget(_PaginatedLikesTab old) {
+    super.didUpdateWidget(old);
+    // Пользователь начал/сменил поиск → ищем по ВСЕМ лайкам, а не только по
+    // подгруженным: добираем все страницы (loadAll идемпотентен).
+    if (widget.query.isNotEmpty && widget.query != old.query) {
+      _loadAllForSearch();
+    }
+  }
+
+  void _loadAllForSearch() =>
+      ref.read(meLikesPagedProvider.notifier).loadAll();
 
   @override
   void dispose() {
@@ -398,7 +415,14 @@ class _PaginatedLikesTabState extends ConsumerState<_PaginatedLikesTab> {
           SliverToBoxAdapter(
             child: Padding(
               padding: hPad,
-              child: _EmptyFilterHint(query: widget.query),
+              // Пока добираем все страницы под поиск — не показываем «нет
+              // совпадений» преждевременно: совпадение может быть на ещё не
+              // загруженной странице.
+              child:
+                  widget.query.isNotEmpty &&
+                      (state.isLoadingMore || state.hasMore)
+                  ? _SearchingAllLikes(loaded: state.tracks.length)
+                  : _EmptyFilterHint(query: widget.query),
             ),
           )
         else if (mode == ViewMode.tiles)
@@ -471,15 +495,8 @@ class _ShuffleAllLikesState extends ConsumerState<_ShuffleAllLikes> {
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      final notifier = ref.read(meLikesPagedProvider.notifier);
-      // Догружаем все страницы — limit 200 итераций (10k треков max).
-      for (var i = 0; i < 200; i++) {
-        final s = ref.read(meLikesPagedProvider);
-        if (!s.hasMore) break;
-        await notifier.loadNext();
-        // hasMore оборвался ошибкой — выходим.
-        if (s.error != null) break;
-      }
+      // Догружаем все страницы лайков (общий drain — см. loadAll).
+      await ref.read(meLikesPagedProvider.notifier).loadAll();
       final all = List<Track>.of(ref.read(meLikesPagedProvider).tracks);
       if (all.isEmpty) return;
       all.shuffle(_rng);
@@ -618,7 +635,7 @@ class _LikeTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Pressable(
-      onTap: () => context.go('/track/${track.id}'),
+      onTap: () => context.push('/track/${track.id}'),
       child: SizedBox(
         width: 160,
         child: Column(
@@ -726,6 +743,35 @@ class _EmptyFilterHint extends StatelessWidget {
       child: Text(
         text,
         style: AppTheme.mono(size: 12, color: AppColors.textMid),
+      ),
+    );
+  }
+}
+
+/// Пока добираем все страницы лайков под поиск — спиннер + счётчик.
+class _SearchingAllLikes extends StatelessWidget {
+  const _SearchingAllLikes({required this.loaded});
+  final int loaded;
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 24),
+      child: Row(
+        children: [
+          const SizedBox(
+            width: 12,
+            height: 12,
+            child: CircularProgressIndicator(
+              strokeWidth: 1.5,
+              color: AppColors.textMid,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            'searching all your likes… ($loaded loaded)',
+            style: AppTheme.mono(size: 12, color: AppColors.textMid),
+          ),
+        ],
       ),
     );
   }

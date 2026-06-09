@@ -54,6 +54,7 @@ class TrackDto {
     this.streamable = true,
     this.policy,
     this.monetizationModel,
+    this.publisherArtist,
     this.transcodings = const [],
   });
 
@@ -75,6 +76,9 @@ class TrackDto {
   final String? policy; // ALLOW / SNIP / BLOCK
   final String?
   monetizationModel; // NOT_APPLICABLE / AD_SUPPORTED / SUB_HIGH_TIER
+  /// `publisher_metadata.artist` — реальный исполнитель (может отличаться от
+  /// загрузившего). Web показывает именно его. null/пусто → берём username.
+  final String? publisherArtist;
   final List<TranscodingDto> transcodings;
 
   /// GO+ (платная подписка): полный поток зашифрован, бесплатно — только сниппет.
@@ -110,6 +114,10 @@ class TrackDto {
       streamable: asBool(j['streamable'], true),
       policy: j['policy'] as String?,
       monetizationModel: j['monetization_model'] as String?,
+      publisherArtist: () {
+        final v = asMap(j['publisher_metadata'])['artist'];
+        return v is String && v.trim().isNotEmpty ? v : null;
+      }(),
       transcodings: asMapList(
         media['transcodings'],
       ).map(TranscodingDto.fromJson).toList(),
