@@ -61,7 +61,11 @@ class WebviewApiExecutor {
   }
 
   Future<void> _ensureRunner() async {
-    _runner ??= await _createRunner();
+    if (_runner != null) return;
+    final r = await _createRunner();
+    // Окно прячем здесь, за абстракцией — синхронизация идёт фоном.
+    await r.setVisible(false);
+    _runner = r;
   }
 
   Future<void> _ensureWarm() async {
@@ -131,6 +135,7 @@ window.__wfRes = null;
 
   /// Best-effort фоновый прогрев (после signIn), чтобы первый лайк не ждал.
   Future<void> prewarm() async {
+    if (_disposed) return;
     _log.info('[executor] prewarm started');
     try {
       await _serialize(_ensureWarm);

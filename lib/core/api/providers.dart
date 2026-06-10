@@ -68,7 +68,6 @@ final webviewApiExecutorProvider = Provider<WebviewApiExecutor?>((ref) {
           windowHeight: 360,
         ),
       );
-      await wv.setWebviewWindowVisibility(false);
       return WebviewJsRunner(wv);
     },
     tokenGetter: () async => ref.read(authControllerProvider).userToken,

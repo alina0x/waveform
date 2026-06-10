@@ -29,6 +29,8 @@ void main() {
     expect(runner.injected[1], contains('/users/1/track_likes/9'));
     expect(runner.injected[1], contains('OAuth tok'));
     expect(runner.injected[1], contains('client_id=cid'));
+    // Окно прячется за абстракцией при создании runner'а.
+    expect(runner.lastVisible, isFalse);
   });
 
   test('on 403 it re-warms and retries once, returning the retry status', () async {
