@@ -83,6 +83,7 @@ class WebviewApiExecutor {
     await Future<void>.delayed(_warmSettle);
     for (var i = 0; i < _warmAttempts; i++) {
       var s = -1; // -1 = проба бросила (окно/сеть не готовы)
+      Object? err;
       try {
         s = await _execFetch('GET', '/me');
         // status 0 = JS fetch threw (network/CORS/about:blank) — not warm yet.
@@ -92,10 +93,13 @@ class WebviewApiExecutor {
           _warm = true;
           return;
         }
-      } catch (_) {
-        // окно ещё грузится — повторим
+      } catch (e) {
+        err = e; // окно ещё грузится — повторим, но залогируем причину
       }
-      _log.info('[executor] warm probe ${i + 1}/$_warmAttempts → $s');
+      _log.info(
+        '[executor] warm probe ${i + 1}/$_warmAttempts → $s'
+        '${err != null ? ' ($err)' : ''}',
+      );
       await Future<void>.delayed(_warmRetryDelay);
     }
     throw StateError('webview warm-up failed (DataDome)');
@@ -121,6 +125,11 @@ class WebviewApiExecutor {
 
   /// Строим JS-инъекцию fetch. Все интерполируемые значения проходят через
   /// jsonEncode → корректное экранирование в JS-строковых литералах.
+  ///
+  /// ВАЖНО: последний оператор — примитив (`0;`), а не выражение-IIFE. Иначе
+  /// результатом eval становится Promise, который WKWebView/WebView2 не умеют
+  /// сериализовать → evaluateJavaScript бросает ошибку. Async-IIFE всё равно
+  /// исполняется в фоне и кладёт результат в window.__wfRes, который мы поллим.
   String _script(String method, String path, String token, String cid) {
     final sep = path.contains('?') ? '&' : '?';
     final url = 'https://api-v2.soundcloud.com$path${sep}client_id=$cid';
@@ -135,6 +144,7 @@ window.__wfRes = null;
     window.__wfRes = JSON.stringify({ status: r.status });
   } catch (e) { window.__wfRes = JSON.stringify({ status: 0, err: String(e) }); }
 })();
+0;
 ''';
   }
 
