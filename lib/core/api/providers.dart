@@ -1,3 +1,6 @@
+import 'dart:io' show Platform;
+
+import 'package:desktop_webview_window/desktop_webview_window.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:talker_dio_logger/talker_dio_logger.dart';
@@ -5,9 +8,11 @@ import 'package:talker_dio_logger/talker_dio_logger.dart';
 import '../log/talker.dart';
 import 'client_id_resolver.dart';
 import 'http_soundcloud_api.dart';
+import 'js_runner.dart';
 import 'mock_soundcloud_api.dart';
 import 'soundcloud_api.dart';
 import 'soundcloud_auth.dart';
+import 'webview_executor.dart';
 
 final _dioProvider = Provider<Dio>((ref) {
   final dio = Dio(
@@ -42,6 +47,40 @@ final _clientIdResolverProvider = Provider<ClientIdResolver>(
   (ref) => ClientIdResolver(ref.read(_dioProvider)),
 );
 
+/// Webview-executor для write-запросов (обход DataDome-403). Существует только
+/// когда пользователь залогинен и платформа десктопная; при MOCK — null.
+/// Пересоздаётся при смене auth-состояния → свежая webview-сессия на аккаунт.
+final webviewApiExecutorProvider = Provider<WebviewApiExecutor?>((ref) {
+  const mock = bool.fromEnvironment('MOCK');
+  final authed = ref.watch(
+    authControllerProvider.select((a) => a.isAuthenticated),
+  );
+  final supported = Platform.isMacOS || Platform.isLinux || Platform.isWindows;
+  if (mock || !authed || !supported) return null;
+
+  final ids = ref.watch(_clientIdResolverProvider);
+  final ex = WebviewApiExecutor(
+    createRunner: () async {
+      final wv = await WebviewWindow.create(
+        configuration: const CreateConfiguration(
+          title: 'Waveform sync',
+          windowWidth: 480,
+          windowHeight: 360,
+        ),
+      );
+      await wv.setWebviewWindowVisibility(false);
+      return WebviewJsRunner(wv);
+    },
+    tokenGetter: () async => ref.read(authControllerProvider).userToken,
+    clientIdGetter: () => ids.get(),
+    log: ref.watch(talkerProvider),
+  );
+  ref.onDispose(ex.dispose);
+  // Фоновый прогрев, чтобы первый лайк не ждал загрузки soundcloud.com.
+  ex.prewarm();
+  return ex;
+});
+
 /// Единая точка доступа к API. По умолчанию — живой api-v2 (client_id + OAuth):
 /// приложение показывает реальные данные SoundCloud, без моков.
 /// Сборка с `--dart-define=MOCK=true` поднимает моки (offline-разработка);
@@ -53,6 +92,7 @@ final soundcloudApiProvider = Provider<SoundcloudApi>((ref) {
     ref.watch(_dioProvider),
     ref.watch(_clientIdResolverProvider),
     auth: ref.watch(authControllerProvider),
+    executor: ref.watch(webviewApiExecutorProvider),
     talker: ref.watch(talkerProvider),
   );
 });
