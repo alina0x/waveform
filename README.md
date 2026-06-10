@@ -25,7 +25,7 @@ Closer to canonical SoundCloud than any other unofficial client — but darker, 
 
 The web SoundCloud is fine. Tabs are not. Native clients for it either don't exist on desktop, or they're Electron wrappers around the web. Waveform is a **real native desktop app**:
 
-- **Keyboard-first.** Space plays. ⌘K finds anything. Arrows scrub the queue. Enter on a track page plays it. You can run the app for hours without touching the trackpad.
+- **Keyboard-first.** Space plays. ⌘K finds anything. Arrows seek, ⇧+arrows skip tracks. Enter on a track page plays it. You can run the app for hours without touching the trackpad.
 - **Gapless + crossfade (0–6s).** Two-engine architecture — preloads the next track on an inactive `AudioPlayer` and instant-swaps on completion. No silence between tracks. Optional crossfade for DJ-style transitions.
 - **OS-native integration.** Real media keys via `audio_service` — Control Center on macOS, SystemMediaTransportControls on Windows, MPRIS on Linux. Pause from your bluetooth headphones, see now-playing on your lock screen.
 - **Your account, your data.** Real SoundCloud login via WebView (your password is never seen by the app — only the session token, stored in the app's sandboxed support directory). Your stream, your likes, your playlists, your play history.
@@ -45,8 +45,9 @@ type      →  live SoundCloud results (debounced 250 ms)
 ↵         →  open the selected track / playlist / artist
 ↵         →  (on the /track page) play it, queue = related tracks
 Space     →  pause / resume
-→ / ←     →  next / previous in queue
-↑ / ↓     →  volume up / down (±5 %)
+→ / ←     →  seek ± 5 s
+⇧ → / ←   →  next / previous track
+⇧ ↑ / ↓   →  volume up / down
 Esc       →  close the palette
 ```
 
@@ -61,15 +62,28 @@ That's the full loop. Find anything, open it, play it, transport-control it — 
 | Key | Action |
 |---|---|
 | **Space** | Play / pause |
-| **← / →** | Previous / next track |
-| **↑ / ↓** | Volume ± 5 % |
+| **→ / ←** | Seek ± 5 s |
+| **⇧ + → / ←** | Next / previous track |
+| **⇧ + ↑ / ↓** | Volume up / down |
+| **M** | Mute |
+| **L** | Like playing track |
+| **⇧ + L** | Repeat |
+| **R** | Repost playing track |
+| **⇧ + S** | Shuffle |
+| **0 … 9** | Seek to position (0–90 %) |
+| **P** | Go to playing track |
+| **S** | Search |
+| **Q** | Show queue |
+| **H** | Keyboard-shortcut help overlay |
+| **G** then **L / S / C / P / H** | Go to likes / feed / library / profile / history |
 | **⌘K** or **⌘F** | Open command palette |
 | **⌘L** | Jump to library / likes |
 | **⌘,** | Open settings |
 | **⌘ + Shift + L** | Open logs |
+| **⌘ + Shift + C** | Copy current page / track link |
 | **↵** *(on `/track/:id`)* | Play / resume this page's track |
 
-*macOS: ⌘ — Windows/Linux: Ctrl.*
+*macOS: ⌘ — Windows/Linux: Ctrl. Single-key shortcuts are suppressed while a text field or the ⌘K palette is focused.*
 
 ### Inside the palette
 
