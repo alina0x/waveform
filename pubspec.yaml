@@ -43,7 +43,11 @@ dependencies:
   path_provider: ^2.1.5
   just_audio: ^0.10.5
   audio_service: ^0.18.18
-  desktop_webview_window: ^0.3.0
+  # Завендоренная копия (third_party/) с macOS-патчем `hidden`-окна для фонового
+  # sync-webview (DataDome write-executor). Апстрим 0.3.0 не умеет прятать окно
+  # на macOS. См. docs/superpowers/specs/2026-06-10-account-reliability-*.
+  desktop_webview_window:
+    path: third_party/desktop_webview_window
   talker_flutter: ^5.1.16
   talker_riverpod_logger: ^5.1.16
   talker_dio_logger: ^5.1.16
