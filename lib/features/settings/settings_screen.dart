@@ -24,7 +24,7 @@ import '../auth/login_dialog.dart';
 
 /// Версия отображается в секции About; обновлять руками синхронно с pubspec.yaml.
 // Bumped on every tagged release. Matches `version:` in pubspec.yaml.
-const _kAppVersion = '0.2.0';
+const _kAppVersion = '0.3.0';
 const _kRepoUrl = 'https://github.com/alina0x/waveform';
 
 /// Экран настроек. Сейчас покрывает то, что реально реализовано: аккаунт,

@@ -4,6 +4,33 @@ All notable changes to Waveform are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] — 2026-06-10
+
+Account actions finally stick, full keyboard control, and smoother transitions.
+
+### Added
+- **Likes & reposts now actually save.** SoundCloud's DataDome anti-bot was
+  rejecting write requests (403) because a plain HTTP client doesn't present a
+  browser TLS fingerprint. Writes now execute inside the app's own (invisible)
+  WebView, which carries a real browser fingerprint + live anti-bot cookie — so
+  the heart and repost buttons persist server-side. Reads are unchanged, and no
+  other browser's data is ever touched.
+- **Web-parity keyboard control.** Full SoundCloud-web keymap: Space play/pause,
+  ←/→ seek ±5s, Shift+←/→ track nav, Shift+↑/↓ volume, M mute, 0–9 seek %,
+  L like, R repost, S search, Q queue, P go-to-playing, plus G-then-key chords —
+  and an `H` help overlay listing everything. ⌘⇧C copies the current
+  page / track link.
+- **Trackpad / mouse edge-swipe back**, with consistent push-style drill-in
+  navigation from feed / home / rail cards.
+- **Search across all likes**, not just the currently loaded page.
+
+### Fixed
+- **Silent incoming track on crossfade** — the swap awaited a `play()` future
+  that only completes when playback *stops*, so the next track came up muted.
+- **Crossfade now actually overlaps** — it begins before the current track ends
+  instead of only at completion.
+- **Shortcuts firing while typing** in text fields / the ⌘K omnibox.
+
 ## [0.2.0] — 2026-05-31
 
 Stability pass after a week of daily-driving. The audio engine, shuffle and
