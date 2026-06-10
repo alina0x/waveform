@@ -33,6 +33,17 @@ void main() {
     expect(runner.injected[1], contains('client_id=cid'));
   });
 
+  test('parses JSON-encoded string results (WebView2-style double encoding)',
+      () async {
+    // Движок отдаёт результат JS как JSON-строку ("\"{...}\"").
+    final runner = FakeJsRunner([200, 201], jsonEncodeResult: true);
+    final ex = build(runner);
+
+    final status = await ex.send(method: 'PUT', path: '/users/1/track_likes/9');
+
+    expect(status, 201);
+  });
+
   test('on 403 it re-warms and retries once, returning the retry status', () async {
     final runner = FakeJsRunner([200, 403, 200, 200]);
     final ex = build(runner);

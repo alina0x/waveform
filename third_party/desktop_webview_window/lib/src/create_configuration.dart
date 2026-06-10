@@ -20,10 +20,11 @@ class CreateConfiguration {
   final bool useWindowPositionAndSize;
   final bool openMaximized;
 
-  /// Создать окно скрытым (off-screen, без фокуса). Для фонового "sync"-webview
-  /// (waveform WebviewApiExecutor): WKWebView продолжает исполнять JS/fetch, но
-  /// окно не видно пользователю. Реализовано в macOS-патче вендоренной копии
-  /// плагина (third_party/desktop_webview_window).
+  /// Создать окно скрытым (невидимым, без кражи фокуса). Для фонового
+  /// "sync"-webview (waveform WebviewApiExecutor): WKWebView продолжает исполнять
+  /// JS/fetch, но пользователь окна не видит. macOS-патч вендоренной копии:
+  /// окно остаётся НА экране (иначе WKWebView не грузит страницу), но делается
+  /// прозрачным (`alphaValue = 0`) + `orderFront` (без фокуса) + click-through.
   final bool hidden;
 
   const CreateConfiguration({

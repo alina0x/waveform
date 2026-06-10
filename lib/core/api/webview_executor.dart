@@ -116,7 +116,12 @@ class WebviewApiExecutor {
       await Future<void>.delayed(_pollInterval);
       final r = await _runner!.eval(_readExpr);
       if (r != null && r != 'null' && r.isNotEmpty) {
-        final m = jsonDecode(r) as Map<String, dynamic>;
+        // Часть движков (WebView2) отдаёт строковый JS-результат как
+        // JSON-строку (`"\"{...}\""`) → jsonDecode даёт String; декодируем ещё
+        // раз, чтобы получить Map.
+        dynamic decoded = jsonDecode(r);
+        if (decoded is String) decoded = jsonDecode(decoded);
+        final m = decoded as Map<String, dynamic>;
         return (m['status'] as num).toInt();
       }
     }

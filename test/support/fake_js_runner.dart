@@ -1,9 +1,16 @@
+import 'dart:convert';
+
 import 'package:waveform_app/core/api/js_runner.dart';
 
 /// Скриптуемый фейк: на каждую инъекцию fetch() выдаёт следующий HTTP-статус
 /// из очереди [statuses]; poll-чтение возвращает застейдженный статус как JSON.
+///
+/// [jsonEncodeResult] эмулирует движки (WebView2), которые отдают строковый
+/// JS-результат как JSON-строку (`"\"{...}\""`) — для проверки двойного декода.
 class FakeJsRunner implements JsRunner {
-  FakeJsRunner(this.statuses);
+  FakeJsRunner(this.statuses, {this.jsonEncodeResult = false});
+
+  final bool jsonEncodeResult;
 
   /// Очередь статусов, отдаваемых по порядку на каждый fetch-инъект.
   final List<int> statuses;
@@ -36,6 +43,8 @@ class FakeJsRunner implements JsRunner {
     // non-null, так что для тестов этого достаточно.
     final p = _pending;
     _pending = null;
-    return p == null ? null : '{"status":$p}';
+    if (p == null) return null;
+    final raw = '{"status":$p}';
+    return jsonEncodeResult ? jsonEncode(raw) : raw;
   }
 }
