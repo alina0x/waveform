@@ -61,11 +61,9 @@ class WebviewApiExecutor {
   }
 
   Future<void> _ensureRunner() async {
-    if (_runner != null) return;
-    final r = await _createRunner();
-    // Окно прячем здесь, за абстракцией — синхронизация идёт фоном.
-    await r.setVisible(false);
-    _runner = r;
+    // Видимостью окна управляет фабрика runner'а (флаг hidden при создании);
+    // здесь только лениво создаём его один раз.
+    _runner ??= await _createRunner();
   }
 
   Future<void> _ensureWarm() async {

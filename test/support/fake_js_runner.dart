@@ -14,15 +14,11 @@ class FakeJsRunner implements JsRunner {
   final List<String> injected = [];
   int launchCount = 0;
   int closeCount = 0;
-  bool? lastVisible;
 
   int _next() => _i < statuses.length ? statuses[_i++] : 0;
 
   @override
   Future<void> launch(String url) async => launchCount++;
-
-  @override
-  Future<void> setVisible(bool visible) async => lastVisible = visible;
 
   @override
   Future<void> close() async => closeCount++;

@@ -61,13 +61,23 @@ final webviewApiExecutorProvider = Provider<WebviewApiExecutor?>((ref) {
   final ids = ref.watch(_clientIdResolverProvider);
   final ex = WebviewApiExecutor(
     createRunner: () async {
+      // hidden:true → окно создаётся за экраном (macOS-патч вендоренного
+      // плагина). На Windows/Linux флаг игнорируется натив-частью, поэтому там
+      // дополнительно прячем через setWebviewWindowVisibility (на macOS этот
+      // метод не реализован и бросил бы — туда не зовём).
       final wv = await WebviewWindow.create(
         configuration: const CreateConfiguration(
           title: 'Waveform sync',
           windowWidth: 480,
           windowHeight: 360,
+          hidden: true,
         ),
       );
+      if (!Platform.isMacOS) {
+        try {
+          await wv.setWebviewWindowVisibility(false);
+        } catch (_) {}
+      }
       return WebviewJsRunner(wv);
     },
     tokenGetter: () async => ref.read(authControllerProvider).userToken,

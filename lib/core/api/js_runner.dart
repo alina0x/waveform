@@ -9,7 +9,6 @@ abstract class JsRunner {
   /// возвращаемое значение не важно; для poll — читаем глобалку результата.
   Future<String?> eval(String javaScript);
 
-  Future<void> setVisible(bool visible);
   Future<void> close();
 }
 
@@ -23,9 +22,6 @@ class WebviewJsRunner implements JsRunner {
 
   @override
   Future<String?> eval(String javaScript) => _wv.evaluateJavaScript(javaScript);
-
-  @override
-  Future<void> setVisible(bool visible) => _wv.setWebviewWindowVisibility(visible);
 
   @override
   Future<void> close() async => _wv.close();
