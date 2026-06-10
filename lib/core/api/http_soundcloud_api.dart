@@ -110,16 +110,6 @@ class HttpSoundcloudApi implements SoundcloudApi {
     }
   }
 
-  // Временный шим для setLiked/setReposted до их перевода на writeOutcome (Task 7).
-  Future<void> _send(String method, String path) async {
-    final cid = await _ids.get();
-    await _dio.request(
-      '$_base$path',
-      queryParameters: {'client_id': cid},
-      options: Options(method: method, headers: _authOptions?.headers),
-    );
-  }
-
   PageDto<T> _page<T>(dynamic data, T Function(Map<String, dynamic>) item) =>
       PageDto.parse(asMap(data), item);
 
@@ -713,21 +703,10 @@ class HttpSoundcloudApi implements SoundcloudApi {
     if (!_authed) return LikeOutcome.failed;
     final id = await _meId();
     if (id == null) return LikeOutcome.failed;
-    try {
-      // Зеркало read-ручки: /users/{me}/track_likes/{trackId} (PUT/DELETE).
-      await _send(liked ? 'PUT' : 'DELETE', '/users/$id/track_likes/$trackId');
-      return LikeOutcome.ok;
-    } on DioException catch (e, st) {
-      _log.warning('setLiked($trackId, $liked) failed', e, st);
-      // Анти-абуз/капча (часто под VPN) — 401/403/429 → предлагаем верификацию.
-      final code = e.response?.statusCode ?? 0;
-      return (code == 401 || code == 403 || code == 429)
-          ? LikeOutcome.blocked
-          : LikeOutcome.failed;
-    } catch (e, st) {
-      _log.warning('setLiked($trackId, $liked) failed', e, st);
-      return LikeOutcome.failed;
-    }
+    return writeOutcome(
+      liked ? 'PUT' : 'DELETE',
+      '/users/$id/track_likes/$trackId',
+    );
   }
 
   // /users/{id}/track_reposts отдаёт обёртки `{created_at, track:{…}}`.
@@ -754,22 +733,9 @@ class HttpSoundcloudApi implements SoundcloudApi {
     if (!_authed) return LikeOutcome.failed;
     final id = await _meId();
     if (id == null) return LikeOutcome.failed;
-    try {
-      // Зеркало read-ручки: /users/{me}/track_reposts/{trackId} (PUT/DELETE).
-      await _send(
-        reposted ? 'PUT' : 'DELETE',
-        '/users/$id/track_reposts/$trackId',
-      );
-      return LikeOutcome.ok;
-    } on DioException catch (e, st) {
-      _log.warning('setReposted($trackId, $reposted) failed', e, st);
-      final code = e.response?.statusCode ?? 0;
-      return (code == 401 || code == 403 || code == 429)
-          ? LikeOutcome.blocked
-          : LikeOutcome.failed;
-    } catch (e, st) {
-      _log.warning('setReposted($trackId, $reposted) failed', e, st);
-      return LikeOutcome.failed;
-    }
+    return writeOutcome(
+      reposted ? 'PUT' : 'DELETE',
+      '/users/$id/track_reposts/$trackId',
+    );
   }
 }
