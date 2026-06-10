@@ -44,13 +44,15 @@ public class DesktopWebviewWindowPlugin: NSObject, FlutterPlugin {
       controller.webviewPlugin = self
       webviews[viewId] = controller
       if hidden {
-        // Уводим окно далеко за пределы экрана и держим в фоне (без фокуса).
-        // WKWebView всё равно грузит страницу и исполняет JS/fetch — это и нужно
-        // для прохождения DataDome (реальный браузерный TLS + cookie).
+        // Прозрачное окно НА экране (не off-screen!): WKWebView грузит страницу и
+        // исполняет JS/fetch только когда окно реально видимо для системы. alpha=0
+        // делает его невидимым для пользователя; orderFront (а не makeKey) не крадёт
+        // фокус у главного окна; клики проходят насквозь. Нужно для прохождения
+        // DataDome (реальный браузерный TLS + cookie) в фоне.
         if let w = controller.window {
+          w.alphaValue = 0
           w.ignoresMouseEvents = true
-          w.setFrameOrigin(NSPoint(x: -30000, y: -30000))
-          w.orderBack(nil)
+          w.orderFront(nil)
         }
       } else {
         controller.showWindow(nil)

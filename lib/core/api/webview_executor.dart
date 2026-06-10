@@ -16,7 +16,9 @@ class WebviewApiExecutor {
     required Talker log,
     Duration pollInterval = const Duration(milliseconds: 150),
     int maxPolls = 60,
-    int warmAttempts = 8,
+    int warmAttempts = 12,
+    Duration warmSettle = const Duration(seconds: 3),
+    Duration warmRetryDelay = const Duration(milliseconds: 1500),
     String warmUrl = 'https://soundcloud.com',
   })  : _createRunner = createRunner,
         _tokenGetter = tokenGetter,
@@ -25,6 +27,8 @@ class WebviewApiExecutor {
         _pollInterval = pollInterval,
         _maxPolls = maxPolls,
         _warmAttempts = warmAttempts,
+        _warmSettle = warmSettle,
+        _warmRetryDelay = warmRetryDelay,
         _warmUrl = warmUrl;
 
   final Future<JsRunner> Function() _createRunner;
@@ -34,6 +38,8 @@ class WebviewApiExecutor {
   final Duration _pollInterval;
   final int _maxPolls;
   final int _warmAttempts;
+  final Duration _warmSettle;
+  final Duration _warmRetryDelay;
   final String _warmUrl;
 
   static const _readExpr = 'window.__wfRes';
@@ -72,18 +78,25 @@ class WebviewApiExecutor {
     // (re-)navigate to warmUrl so DataDome issues/refreshes a cookie for this
     // browser session (also used on re-warm after a 403).
     await _runner!.launch(_warmUrl);
+    // Дать странице загрузиться и DataDome-challenge поставить cookie — без этой
+    // паузы пробы летят раньше, чем сессия готова (спайк ждал ~7с).
+    await Future<void>.delayed(_warmSettle);
     for (var i = 0; i < _warmAttempts; i++) {
+      var s = -1; // -1 = проба бросила (окно/сеть не готовы)
       try {
-        final s = await _execFetch('GET', '/me');
-        // status 0 = JS fetch threw (network/CORS/redirect) — not warm yet.
+        s = await _execFetch('GET', '/me');
+        // status 0 = JS fetch threw (network/CORS/about:blank) — not warm yet.
+        // 403 = DataDome ещё не пропускает. Всё прочее (200/401/…) = сессия жива.
         if (s != 403 && s != 0) {
+          _log.info('[executor] warm ok after ${i + 1} probe(s) (status $s)');
           _warm = true;
           return;
         }
       } catch (_) {
         // окно ещё грузится — повторим
       }
-      await Future<void>.delayed(_pollInterval);
+      _log.info('[executor] warm probe ${i + 1}/$_warmAttempts → $s');
+      await Future<void>.delayed(_warmRetryDelay);
     }
     throw StateError('webview warm-up failed (DataDome)');
   }

@@ -25,6 +25,8 @@ WebviewApiExecutor exWith(List<int> statuses) => WebviewApiExecutor(
       pollInterval: Duration.zero,
       maxPolls: 4,
       warmAttempts: 3,
+      warmSettle: Duration.zero,
+      warmRetryDelay: Duration.zero,
     );
 
 void main() {
