@@ -8,7 +8,8 @@
   <img alt="Dart" src="https://img.shields.io/badge/Dart-3.11-0175C2?logo=dart&logoColor=white" />
   <img alt="Riverpod" src="https://img.shields.io/badge/Riverpod-3.3-2c3e50" />
   <img alt="Platforms" src="https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey" />
-  <img alt="Version" src="https://img.shields.io/badge/version-0.2.0-FF5500" />
+  <img alt="Version" src="https://img.shields.io/badge/version-0.3.0-FF5500" />
+  <a href="https://t.me/waveformsc"><img alt="Telegram" src="https://img.shields.io/badge/Telegram-waveform-26A5E4?logo=telegram&logoColor=white" /></a>
 </p>
 
 # Waveform
@@ -136,7 +137,8 @@ A few common flows once you've launched the app:
 
 ## Install
 
-Pre-built binaries are attached to every GitHub release.
+Pre-built binaries are attached to every GitHub release. Preview/test builds and
+update news are posted to the Telegram channel — **[t.me/waveformsc](https://t.me/waveformsc)**.
 
 ### macOS
 1. Download `waveform-macos-vX.Y.Z.dmg` from the [latest release](https://github.com/alina0x/waveform/releases/latest).
