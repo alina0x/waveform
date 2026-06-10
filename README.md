@@ -18,7 +18,7 @@
 
 Closer to canonical SoundCloud than any other unofficial client — but darker, quieter, and built so you almost never have to touch the mouse.
 
-> **v0.2.0 — stability pass.** A week of daily-driving shook out the audio-engine, shuffle and likes bugs that made the core loop feel broken; v0.2.0 fixes those and adds clipboard deep-links, top-right toasts, a perceptual volume curve, and consistent real waveforms everywhere. Daily-driver loop works end-to-end on macOS (Windows/Linux build too, less exercised). APIs are unofficial; rough edges remain. Full change log in [`CHANGELOG.md`](CHANGELOG.md).
+> **v0.3.0 — account actions that stick.** Likes and reposts now actually save: SoundCloud's DataDome anti-bot was 403-ing write requests because a plain HTTP client doesn't look like a browser, so they now run inside the app's own invisible WebView with a real browser fingerprint. Plus full SoundCloud-web keyboard parity (press `H` for the full cheat sheet) and crossfade fixes — no more silent or non-overlapping transitions. Daily-driver loop works end-to-end on macOS (Windows/Linux build too, less exercised). APIs are unofficial; rough edges remain. Full change log in [`CHANGELOG.md`](CHANGELOG.md).
 
 ---
 
