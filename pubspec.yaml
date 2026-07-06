@@ -42,7 +42,7 @@ dependencies:
   dio: ^5.9.2
   path_provider: ^2.1.5
   just_audio: ^0.10.5
-  audio_service: ^0.18.18
+  audio_service: ^0.18.19
   # Завендоренная копия (third_party/) с macOS-патчем `hidden`-окна для фонового
   # sync-webview (DataDome write-executor). Апстрим 0.3.0 не умеет прятать окно
   # на macOS. См. docs/superpowers/specs/2026-06-10-account-reliability-*.
